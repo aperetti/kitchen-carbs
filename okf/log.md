@@ -101,3 +101,4 @@
 - 2026-10-29 — A logged meal's total carbs can be corrected with a required reason, kept as a dated comment; the items keep their saved carbs.
 - 2026-10-29 — Log rows show each food's carbs instead of its weight; insulin timing starts on 'Before eating, 15 min'.
 - 2026-10-29 — Foods: adding while searching clears the search and refocuses it; the card's photo flies to the plate count.
+- 2026-10-30 — Manage on a phone no longer scrolls sideways: the tab row scrolls within itself, Lock stays pinned at its right (design/guidelines/phone-layout.md).

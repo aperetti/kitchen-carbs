@@ -210,8 +210,8 @@ input[type="time"], input[type="date"], .field input, .field select, .field text
 .subtabs button { background: none; border: 0; min-height: 52px; color: var(--vein); font-weight: 500; border-bottom: 2px solid transparent; cursor: pointer; padding: 0; }
 .subtabs button.on { color: var(--ink); border-bottom-color: var(--ink); }
 .mbody { flex: 1; min-height: 0; display: flex; }
-.form { display: grid; gap: 16px; max-width: 760px; }
-.field { display: grid; gap: 6px; }
+.form { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; max-width: 760px; }   /* a column never grows past the screen */
+.field { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; } .field input[type="file"] { max-width: 100%; }
 .field > span { font-size: 15px; color: var(--vein); }
 .field textarea { height: 96px; padding: 10px 12px; resize: vertical; }
 .fieldrow { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; }
@@ -264,7 +264,7 @@ input[type="time"], input[type="date"], .field input, .field select, .field text
 .offhead { display: flex; gap: 16px; align-items: center; }
 .offhead img { width: 140px; height: 140px; object-fit: contain; background: var(--paper); border-radius: var(--r); flex: none; }
 .labelimg.nolabel { padding: 24px; color: var(--warn); border: 1px dashed var(--warn); background: none; }
-.tagpick { border: 0; padding: 0; margin: 0; }
+.tagpick { border: 0; padding: 0; margin: 0; min-width: 0; }   /* fieldsets otherwise refuse to shrink below their content */
 .tagpick legend { font-size: 15px; color: var(--vein); padding: 0; margin-bottom: 6px; }
 .tagpick > div { display: flex; flex-wrap: wrap; gap: 0 28px; }
 .actions { display: flex; gap: 12px; flex-wrap: wrap; }
@@ -407,6 +407,12 @@ body.signed-out .tabs, body.signed-out .platebar { display: none !important; }
   .pad { padding: 16px 20px 32px; }
   .platebar { padding: 0 16px; }
   .subtabs { padding: 0 16px; }
+}
+@media (max-width: 680px) {   /* the tabs scroll within their row, never the screen; Lock stays in reach (okf/design/guidelines/phone-layout.md) */
+  .subtabs { gap: 20px; overflow-x: auto; scrollbar-width: none; padding-right: 0; }
+  .subtabs::-webkit-scrollbar { display: none; }
+  .subtabs button { flex: none; white-space: nowrap; }
+  .subtabs [data-act="lock"] { position: sticky; right: 0; padding: 0 16px 0 20px; background: linear-gradient(to right, transparent, var(--surface) 14px); }
 }
 @media (max-width: 680px) {
   .bar .nm { display: none; }
