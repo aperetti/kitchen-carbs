@@ -743,3 +743,17 @@ p.moved { margin: 6px 0 0; }
 .fpdlg .fpres img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: var(--r); background: var(--sunk); display: block; }
 .fpdlg .fpres figcaption { font-size: 15px; color: var(--vein); }
 .fpdlg .fpbusy { display: grid; gap: 8px; justify-items: start; padding: 24px 0; }
+/* portion chooser (okf/design/components/portion-tabs.md) */
+.pickdlg { width: min(480px, calc(100vw - 32px)); }
+.pickdlg .pickrows { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.pickdlg .pickrows button { width: 100%; min-height: 72px; display: grid; grid-template-columns: 72px minmax(0, 1fr) auto; align-items: center; gap: 14px;
+  padding: 8px 14px 8px 8px; border: 1px solid var(--line); border-radius: var(--r); background: var(--paper); color: var(--ink); text-align: left; cursor: pointer; }
+.pickdlg .pickrows button:active { background: var(--sunk); }
+.pickdlg .pickrows img, .pickdlg .pickrows .noimg { width: 72px; height: 54px; object-fit: cover; border-radius: var(--r); background: var(--sunk); display: block; }
+.pickdlg .pickrows .t { display: grid; font-weight: 500; line-height: 1.3; }
+.pickdlg .pickrows small { font-size: 15px; font-weight: 400; color: var(--vein); }
+.pickdlg .pickrows .c { font-variant-numeric: tabular-nums; color: var(--ink); white-space: nowrap; }
+@media (max-width: 680px) {   /* a sheet at the bottom of the phone, within reach of a thumb */
+  .adddlg.pickdlg { width: 100vw; height: fit-content; max-height: 80dvh; margin: auto 0 0; border-top: 1px solid var(--line); border-radius: 14px 14px 0 0; }
+  .pickdlg .dlgbody { padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px)); }
+}

@@ -274,14 +274,8 @@ $("#v-foods").addEventListener("click", async e => {
     const f = foodById(t.dataset.addcard);
     if (S.plate.some(x => x.food_id === f.id)) {   // a second tap takes it off the plate again
       S.plate = S.plate.filter(x => x.food_id !== f.id); savePlate(); flash(t); toast(`Removed ${f.name}`);
-    } else {
-      const from = (t.querySelector(".cimg img") || t.querySelector(".cimg") || t).getBoundingClientRect(), src = t.querySelector(".cimg img")?.currentSrc;
-      addToPlate(f.id, f.portions[0].id);
-      if (S.q) {   // searching for several foods in a row: clear it and keep typing (okf/features/browse-foods.md)
-        S.q = ""; $("#q").value = ""; renderFoods(); $("#q").focus();
-      } else { flash(t); flash(t.querySelector(".onplate"), "fresh"); }   // only the tapped card animates
-      showJustAdded(); flyToPlate(from, src);
-    }
+    } else if (f.portions.length > 1) openPortionPick(f, t);   // pick the starting amount (okf/features/browse-foods.md)
+    else addFromCard(t, f, f.portions[0].id);
   }
   else if (t.dataset.info) { S.openCard = S.openCard === t.dataset.info ? null : t.dataset.info; renderFoods(); }
   else if (t.dataset.favuse) { useFavorite(S.favs.find(x => x.id === +t.dataset.favuse)); flash(t); }
@@ -307,6 +301,36 @@ $("#v-foods").addEventListener("click", async e => {
   else if (t.dataset.act === "side-remove") { S.plate = S.plate.filter(x => x.key !== t.closest("[data-key]").dataset.key); savePlate(); }
   else if (t.dataset.act === "side-clear") { S.plate = []; S.plateTime = null; savePlate(); }
 });
+function addFromCard(card, f, portionId) {
+  const from = (card.querySelector(".cimg img") || card.querySelector(".cimg") || card).getBoundingClientRect(), src = card.querySelector(".cimg img")?.currentSrc;
+  addToPlate(f.id, portionId);
+  if (S.q) {   // searching for several foods in a row: clear it and keep typing (okf/features/browse-foods.md)
+    S.q = ""; $("#q").value = ""; renderFoods(); $("#q").focus();
+  } else {   // only the tapped card animates
+    const c = card.isConnected ? card : $(`[data-addcard="${CSS.escape(f.id)}"]`);
+    if (c) { flash(c); flash(c.querySelector(".onplate"), "fresh"); }
+  }
+  showJustAdded(); flyToPlate(from, src);
+}
+/* A food with several portions: choose the starting amount; the plate slider still sets any weight (okf/design/components/portion-tabs.md) */
+const pickDlg = $("#portionDialog");
+let pickFor = null;
+function openPortionPick(f, card) {
+  pickFor = { f, card };
+  pickDlg.innerHTML = `<div class="dlghead"><b>${esc(f.name)}</b><button class="rm" data-pick="close" aria-label="Close">×</button></div>
+    <div class="dlgbody"><p class="meta">Pick a portion. You can change the weight on the plate.</p>
+      <ul class="pickrows">${f.portions.map(p => { const img = shownPhoto(p); return `<li><button data-pick="${p.id}">
+        ${img ? `<img ${sized(img, "96px")} alt="">` : `<span class="noimg"></span>`}
+        <span class="t">${esc(p.label)}<small>${fmtG(p.grams)}</small></span><span class="c">${p.carbs} g carbs</span></button></li>`; }).join("")}</ul></div>`;
+  pickDlg.showModal();
+}
+pickDlg.addEventListener("click", e => {
+  if (e.target === pickDlg) return pickDlg.close();   // a tap on the backdrop
+  const t = e.target.closest("[data-pick]"); if (!t || !pickFor) return;
+  const { f, card } = pickFor; pickDlg.close();
+  if (t.dataset.pick !== "close") addFromCard(card, f, +t.dataset.pick);
+});
+pickDlg.addEventListener("close", () => { pickFor = null; pickDlg.innerHTML = ""; });
 function showJustAdded() {   // the plate pane lights up the row that changed and brings it into view
   const row = splitMode() && S.justAdded && $(`#platePane [data-key="${S.justAdded}"]`);
   if (row) row.scrollIntoView({ block: "nearest", behavior: "smooth" });

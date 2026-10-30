@@ -103,3 +103,4 @@
 - 2026-10-29 — Foods: adding while searching clears the search and refocuses it; the card's photo flies to the plate count.
 - 2026-10-30 — Manage on a phone no longer scrolls sideways: the tab row scrolls within itself, Lock stays pinned at its right (design/guidelines/phone-layout.md).
 - 2026-10-30 — Favorites can have a plate photo: Gemini combines the photos of the favorite's foods into one, checked before use and labelled (features/favorite-plates.md).
+- 2026-10-30 — Foods with several portions open a portion chooser when tapped; it picks the starting amount and the plate slider still sets the weight (features/browse-foods.md).

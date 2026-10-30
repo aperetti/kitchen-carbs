@@ -3,7 +3,7 @@ type: Feature
 title: "Browse foods"
 description: "Find foods in a grid of cards with photos, portions and carbs; search and filter by tag or Favorites."
 tags: [feature]
-timestamp: 2026-10-26
+timestamp: 2026-10-30
 status: draft
 links:
   uses: [domain/food.md, domain/portion.md, domain/photo.md, domain/tag.md, domain/nutrition-source.md]
@@ -16,6 +16,11 @@ links:
   day, Breakfast before 10:30, Lunch until 15:00, Dinner after (the same times that name a favorite plate). If that tag
   doesn't exist, the last filter used stays. Picking another filter works as usual until the app is next opened.
 - Each card: photo at card size with the name over it, and 'Not verified' if trust = draft; tapping it adds the serving.
+- Choosing a portion (decided 30 Oct): when a food has more than one portion, tapping its card opens a small chooser
+  instead: each portion with its photo, name, weight and carbs, the first (the serving) at the top. It only picks the
+  starting amount; the plate's slider still sets any weight. Tapping a portion adds it (the photo flies to the plate as
+  usual); × or a tap outside adds nothing. A food with one portion is added straight away, and a food already on the
+  plate still comes off with a tap.
 - No automatic Free snacks tab (decided 28 Oct, replacing the same day's carb-limit tab): a family that wants one
   makes a 'Free snacks' tag in Manage and puts foods in it by hand, like any tag.
 - Searching for several foods in a row (decided 29 Oct): tapping a card while a search is typed adds it, then clears the
