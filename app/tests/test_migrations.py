@@ -158,3 +158,18 @@ def test_v8_moves_barcodes_into_their_field(tmp_path, monkeypatch):
     con = sqlite3.connect(db)
     assert con.execute("SELECT id, carbs_per_100g, source_ref FROM foods ORDER BY id").fetchall() == before
     assert dict(con.execute("SELECT id, barcode FROM foods WHERE barcode IS NOT NULL").fetchall()) == {"crackers": "0016000275287"}
+
+
+def test_v13_adds_favorite_photo(tmp_path, monkeypatch):
+    """Version 14 (okf/features/favorite-plates.md): favorites keep their items and start with no plate photo."""
+    real = migrations.MIGRATIONS
+    monkeypatch.setattr(migrations, "MIGRATIONS", real[:13]); monkeypatch.setattr(migrations, "LATEST", 13)
+    db = deployed_db(tmp_path)
+    con = sqlite3.connect(db)
+    with con:
+        con.execute("INSERT INTO favorites(name, sort) VALUES ('Breakfast', 1)")
+    con.close()
+    monkeypatch.setattr(migrations, "MIGRATIONS", real); monkeypatch.setattr(migrations, "LATEST", len(real))
+    assert migrations.run(db, **QUIET) == 13
+    con = sqlite3.connect(db)
+    assert con.execute("SELECT name, photo, photo_candidate FROM favorites").fetchall() == [("Breakfast", None, None)]

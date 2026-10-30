@@ -188,10 +188,16 @@ def m013_carbs_corrected(con):
     con.execute("ALTER TABLE meals ADD COLUMN carbs_corrected REAL")     # NULL: the items' own total
 
 
+def m014_favorite_photo(con):
+    """A favorite's own photo of the whole meal, combined by Gemini (okf/features/favorite-plates.md)."""
+    con.execute("ALTER TABLE favorites ADD COLUMN photo TEXT")             # accepted; NULL: the first food's photo
+    con.execute("ALTER TABLE favorites ADD COLUMN photo_candidate TEXT")   # waiting for the parent's check
+
+
 MIGRATIONS = [m001_schema, m002_sessions, m003_cooked_state, m004_moved_from, m005_portion_labels, m006_fiber,
               m007_food_confirmations, m008_meal_details, m009_barcode,
               m010_entered_carbs, m011_edited_later,
-              m012_soft_delete, m013_carbs_corrected]
+              m012_soft_delete, m013_carbs_corrected, m014_favorite_photo]
 LATEST = len(MIGRATIONS)
 
 

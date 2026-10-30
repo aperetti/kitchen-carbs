@@ -413,6 +413,48 @@ def test_pin_meal_as_favorite(app):
 
 
 
+def test_favorite_plate_photo(app, monkeypatch):
+    """okf/features/favorite-plates.md: Gemini combines the foods' photos; nothing changes until the parent accepts."""
+    client, main = app
+    sent = {}
+
+    def fake_generate(paths, prompt, quality="fast"):
+        sent["paths"], sent["prompt"] = paths, prompt
+        return "candidate/" + "a" * 32 + ".jpg"
+
+    monkeypatch.setattr(main.photos, "generate", fake_generate)
+    foods = {f["id"]: f for f in client.get("/api/foods").json()}
+    toast, apple = foods["toast-whole-wheat"]["portions"][0], foods["apple-sliced"]["portions"][1]
+    fav = client.post("/api/favorites", json={"name": "Usual breakfast", "items": [
+        {"portion_id": toast["id"], "qty": 2}, {"portion_id": apple["id"], "qty": 1}]}).json()
+    assert fav["photo"] is None and fav["photo_candidate"] is None
+    assert client.post(f"/api/favorites/{fav['id']}/photo", headers={"X-Parent-Pin": "0000"}).status_code == 401
+    out = client.post(f"/api/favorites/{fav['id']}/photo").json()
+    assert sent["paths"] == [i["photo"] for i in fav["items"]]           # every food's photo, in order
+    assert f"the meal has {toast['grams'] * 2:g} g" in sent["prompt"] and "the same amount" in sent["prompt"]
+    assert out["photo_candidate"] and out["photo"] is None              # waits for the check
+    out = client.post(f"/api/favorites/{fav['id']}/photo/review", json={"action": "accept"}).json()
+    assert out["photo"] == "candidate/" + "a" * 32 + ".jpg" and out["photo_candidate"] is None
+    assert client.post(f"/api/favorites/{fav['id']}/photo/review", json={"action": "accept"}).status_code == 400
+    assert client.post(f"/api/favorites/{fav['id']}/photo/review", json={"action": "remove"}).json()["photo"] is None
+    client.post(f"/api/favorites/{fav['id']}/photo"); client.post(f"/api/favorites/{fav['id']}/photo/review", json={"action": "accept"})
+    client.delete(f"/api/portions/{toast['id']}")
+    client.post(f"/api/favorites/{fav['id']}/drop-missing")                # a photo of foods that are gone goes too
+    assert client.get("/api/favorites").json()[0]["photo"] is None
+    assert client.post("/api/favorites/999/photo").status_code == 404
+
+
+def test_plate_prompt_names_foods_without_photos():
+    from server import photos
+    foods = [{"food": "Toast", "label": "1 slice", "photo_grams": 32, "grams": 32, "photo": "styled/a.jpg"},
+             {"food": "Milk", "label": "1 cup", "photo_grams": 240, "grams": 120, "photo": None}]
+    prompt, refs = photos.build_plate_prompt("", foods)
+    assert refs == ["styled/a.jpg"] and "120 g of Milk (1 cup)" in prompt and photos.DEFAULT_STYLE in prompt
+    many = [{**foods[0], "food": f"F{n}"} for n in range(12)]
+    prompt, refs = photos.build_plate_prompt("", many)
+    assert len(refs) == photos.PLATE_PHOTOS and "32 g of F11" in prompt   # past the limit, described by name
+
+
 # ---- nutrition label scanning ----
 def jpeg_bytes():
     import io

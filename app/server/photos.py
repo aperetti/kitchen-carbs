@@ -92,6 +92,32 @@ def build_prompt(style: str, bases: dict, container: str, estimate: dict | None 
     return " ".join(x for x in (task, where, scale, pack, note.strip(), f"Style: {style.strip() or DEFAULT_STYLE}") if x), refs
 
 
+PLATE_PHOTOS = 10   # most food photos sent for one favorite's plate photo
+
+
+def build_plate_prompt(style: str, foods: list) -> tuple[str, list]:
+    """One photo of a favorite's whole meal from its foods' photos (okf/features/favorite-plates.md).
+
+    foods: {food, label, photo_grams, grams, photo}; photo_grams is the amount in its photo, grams the amount in the meal.
+    Returns (prompt, photo paths in image order).
+    """
+    shown = [f for f in foods if f["photo"]][:PLATE_PHOTOS]
+    named = [f for f in foods if f not in shown]
+    amount = lambda f: f"{f['grams']:g} g of {f['food']} ({f['label']})"
+    lines = [f"image {n} shows {f['photo_grams']:g} g of {f['food']} ({f['label']}); the meal has "
+             + ("the same amount" if abs(f["grams"] - f["photo_grams"]) < 0.5 else f"{f['grams']:g} g") for n, f in enumerate(shown, 1)]
+    task = ("Each image shows one food from the same family meal: " + "; ".join(lines) + ". "
+            "Create one realistic photograph of the whole meal served together: every food in the same plate, bowl or "
+            "container it is in in its own image (a food with no dish stays straight on the countertop), the dishes set "
+            "close together as one meal. Keep each food identical in type and preparation. Where the meal's amount differs "
+            "from its image, change only how much there is; if the food is in pieces (nuggets, crackers, slices), keep each "
+            "piece the same size and change how many there are, in proportion to the grams.") if shown else (
+            "Create one realistic photograph of a family meal served together, the dishes set close together.")
+    extra = (" Also include, with no photo: " + "; ".join(amount(f) for f in named) + ", each in a plain dish that suits it.") if named else ""
+    rule = " Do not add any other food, drink, garnish or cutlery. No text, labels or hands."
+    return task + extra + rule + f" Style: {style.strip() or DEFAULT_STYLE}", [f["photo"] for f in shown]
+
+
 class PhotoError(Exception):
     pass
 

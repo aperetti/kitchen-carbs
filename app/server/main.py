@@ -290,6 +290,10 @@ class FavoriteRename(BaseModel):
     name: str = Field(min_length=1, max_length=60)
 
 
+class FavPhotoReview(BaseModel):
+    action: Literal["accept", "discard", "remove"]
+
+
 # ---------- helpers ----------
 def slugify(name: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")[:60] or "food"
@@ -912,7 +916,8 @@ def favorite_out(c, fav):
                       "qty": i["qty"], "carbs": core.whole_grams(e), "trust": row["trust"],
                       "photo": row["photo_styled"] or row["photo_original"]})
     return {"id": fav["id"], "name": fav["name"], "sort": fav["sort"], "items": items,
-            "total": core.whole_grams(exact_sum), "missing": sum(i["missing"] for i in items)}
+            "total": core.whole_grams(exact_sum), "missing": sum(i["missing"] for i in items),
+            "photo": fav["photo"], "photo_candidate": fav["photo_candidate"]}
 
 
 @app.get("/api/favorites")
@@ -963,6 +968,48 @@ def rename_favorite(fid: int, body: FavoriteRename, c=Depends(con)):
     return {"ok": True}
 
 
+def get_favorite(c, fid):
+    fav = c.execute("SELECT * FROM favorites WHERE id = ?", (fid,)).fetchone()
+    if not fav:
+        fail(404, "That favorite no longer exists.")
+    return fav
+
+
+@app.post("/api/favorites/{fid}/photo", dependencies=[Depends(parent)])
+def favorite_photo(fid: int, c=Depends(con)):
+    """Gemini combines the foods' photos into one plate photo, kept as a candidate until checked
+    (okf/features/favorite-plates.md). The parent waits on the check screen, so this runs in the request."""
+    fav = favorite_out(c, get_favorite(c, fid))
+    foods = [{"food": i["food_name"], "label": i["portion_label"], "photo_grams": i["grams"],
+              "grams": round(i["grams"] * i["qty"], 1), "photo": i["photo"]} for i in fav["items"] if not i["missing"]]
+    if not foods:
+        fail(400, "This favorite has no foods left to photograph.")
+    style, _ = style_settings(c)
+    prompt, refs = photos.build_plate_prompt(style, foods)
+    try:
+        path = photos.generate(refs, prompt, db.get_setting(c, "photo_quality") or "fast")
+    except photos.PhotoError as e:
+        fail(502, str(e))
+    with c:
+        c.execute("UPDATE favorites SET photo_candidate = ? WHERE id = ?", (path, fid))
+    return favorite_out(c, get_favorite(c, fid))
+
+
+@app.post("/api/favorites/{fid}/photo/review", dependencies=[Depends(parent)])
+def review_favorite_photo(fid: int, body: FavPhotoReview, c=Depends(con)):
+    fav = get_favorite(c, fid)
+    with c:
+        if body.action == "accept":
+            if not fav["photo_candidate"]:
+                fail(400, "There is no new photo to use.")
+            c.execute("UPDATE favorites SET photo = photo_candidate, photo_candidate = NULL WHERE id = ?", (fid,))
+        elif body.action == "discard":
+            c.execute("UPDATE favorites SET photo_candidate = NULL WHERE id = ?", (fid,))
+        else:   # back to the first food's photo
+            c.execute("UPDATE favorites SET photo = NULL WHERE id = ?", (fid,))
+    return favorite_out(c, get_favorite(c, fid))
+
+
 def missing_item_ids(c, fid):   # items whose portion (or its food) is gone
     return [r["id"] for r in c.execute(
         "SELECT i.id FROM favorite_items i LEFT JOIN portions p ON p.id = i.portion_id "
@@ -987,6 +1034,8 @@ def drop_missing_items(fid: int, c=Depends(con)):
     ids = missing_item_ids(c, fid)
     with c:
         c.executemany("DELETE FROM favorite_items WHERE id = ?", [(i,) for i in ids])
+        if ids:   # the plate photo shows foods that are gone (okf/features/favorite-plates.md)
+            c.execute("UPDATE favorites SET photo = NULL, photo_candidate = NULL WHERE id = ?", (fid,))
         left = c.execute("SELECT COUNT(*) FROM favorite_items WHERE favorite_id = ?", (fid,)).fetchone()[0]
         if not left:
             c.execute("DELETE FROM favorites WHERE id = ?", (fid,))

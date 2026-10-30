@@ -24,3 +24,6 @@ links:
 6. No photo at all (decided 27 Oct): 'Generate a photo' makes one from the food name, portion name and grams, the
    portion's container (base photo when there is one), its size reference and the style prompt. It is checked like any
    other candidate and flagged estimated until a real photo of that portion is uploaded.
+7. A favorite's plate photo (decided 30 Oct): Gemini combines the photos of the favorite's foods into one photo of the
+   meal, checked before use and labelled as combined (okf/features/favorite-plates.md). Made while the parent waits,
+   not in the background, since it starts from the favorite's check screen.

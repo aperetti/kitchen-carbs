@@ -733,3 +733,13 @@ p.moved { margin: 6px 0 0; }
 .flyer { position: fixed; z-index: 60; pointer-events: none; border-radius: 50%; object-fit: cover; background: var(--accent); box-shadow: 0 4px 14px rgba(0, 0, 0, .25); }
 @keyframes bump { 0% { transform: scale(1); } 40% { transform: scale(1.25); } 100% { transform: scale(1); } }
 .bump { display: inline-block; animation: bump .35s ease-out; }
+/* a favorite's plate photo check (okf/features/favorite-plates.md) */
+.fpdlg .fpin { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 12px; }
+.fpdlg .fpin figure { margin: 0; display: grid; gap: 4px; }
+.fpdlg .fpin img, .fpdlg .fpin .noimg { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: var(--r); background: var(--sunk); display: grid; place-items: center; color: var(--vein); font-size: 14px; }
+.fpdlg .fpin figcaption { font-size: 15px; color: var(--ink); display: grid; line-height: 1.3; }
+.fpdlg .fpin small { font-size: 14px; color: var(--vein); }
+.fpdlg .fpres { margin: 0; display: grid; gap: 6px; }
+.fpdlg .fpres img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: var(--r); background: var(--sunk); display: block; }
+.fpdlg .fpres figcaption { font-size: 15px; color: var(--vein); }
+.fpdlg .fpbusy { display: grid; gap: 8px; justify-items: start; padding: 24px 0; }
