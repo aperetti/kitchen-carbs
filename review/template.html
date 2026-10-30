@@ -1,0 +1,636 @@
+<title>Kitchen Carbs Review</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: one review page, three hash tabs. Chrome uses the app's own tokens; light only, by choice, because the app is light only. */
+:root {
+  --surface: #F2F3F1;      /* quartz, page */
+  --paper: #FAFAF9;        /* raised areas: device screens */
+  --sunk: #E7E9E7;         /* selected rows, inputs */
+  --line: #D3D6D5;         /* hairlines */
+  --vein: #7E8488;         /* secondary text */
+  --ink: #2B2E30;          /* graphite text */
+  --accent: #1F3A5F;       /* ink blue: carbs + selection only */
+  --warn: #8A5A00;         /* not verified / estimated */
+  --sans: "IBM Plex Sans", "Helvetica Neue", Arial, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  color-scheme: light;
+}
+html, body { background: var(--surface); color: var(--ink); }
+body { font: 400 16px/1.5 var(--sans); padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 0 64px; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--surface); }
+* { box-sizing: border-box; }
+.wrap { max-width: 1280px; margin: 0 auto; }
+h1, h2, h3, h4 { text-wrap: balance; font-weight: 500; margin: 0; }
+p { margin: 0; }
+a { color: var(--accent); }
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.mono { font-family: var(--mono); font-size: 13px; }
+.meta { color: var(--vein); font-size: 14px; }
+.label { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--vein); font-weight: 500; }
+
+/* header */
+header.top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--surface); border-bottom: 1px solid var(--line); }
+.top .wrap { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px 32px; padding-block: 20px 0; }
+.brand { display: grid; gap: 2px; padding-bottom: 14px; }
+.brand h1 { font-size: 22px; }
+nav.tabs { display: flex; gap: 4px; margin-left: auto; }
+nav.tabs a { text-decoration: none; color: var(--vein); padding: 10px 14px 12px; border-bottom: 2px solid transparent; font-weight: 500; }
+nav.tabs a[aria-current="page"] { color: var(--ink); border-bottom-color: var(--accent); }
+.howto { padding-block: 16px; display: flex; flex-wrap: wrap; gap: 8px 24px; align-items: baseline; }
+
+/* comment buttons */
+.c-btn { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); background: transparent; border-radius: 4px; padding: 5px 10px; font-size: 13px; color: var(--vein); cursor: pointer; }
+.c-btn:hover { color: var(--ink); border-color: var(--vein); }
+.c-btn svg { width: 14px; height: 14px; }
+body:not(.can-comment) .c-btn { display: none; }
+
+section.view { display: grid; gap: 28px; padding-top: 8px; }
+.intro { max-width: 68ch; display: grid; gap: 6px; }
+.intro h2 { font-size: 26px; }
+
+/* ---------- concept map ---------- */
+.checkline { display: flex; flex-wrap: wrap; gap: 6px 20px; font-size: 14px; }
+.checkline .ok { color: var(--accent); font-weight: 500; }
+.checkline .bad { color: var(--warn); font-weight: 500; }
+.mapgrid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 24px; align-items: start; }
+@media (min-width: 1100px) { .mapgrid { grid-template-columns: minmax(0, 1fr) 360px; } }
+.mapscroll { overflow-x: auto; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.map { position: relative; display: grid; grid-template-columns: repeat(6, minmax(158px, 1fr)); gap: 0 28px; min-width: 1060px; padding-block: 16px 24px; }
+.map svg.edges { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
+.col { display: grid; gap: 6px; align-content: start; position: relative; z-index: 1; }
+.col h3 { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--vein); padding: 0 8px 6px; }
+.node { text-align: left; border: 1px solid transparent; background: var(--surface); border-radius: 4px; padding: 7px 8px; cursor: pointer; display: grid; gap: 1px; transition: opacity .15s; }
+.node b { font-weight: 500; font-size: 14px; line-height: 1.3; }
+.node span { font-size: 12px; color: var(--vein); }
+.node:hover { border-color: var(--line); }
+.map.has-sel .node { opacity: .32; }
+.map.has-sel .node.rel { opacity: 1; border-color: var(--line); background: var(--paper); }
+.map.has-sel .node.sel { opacity: 1; border-color: var(--accent); background: var(--paper); }
+.node.sel b { color: var(--accent); }
+.edges path { fill: none; stroke: var(--vein); stroke-width: 1; }
+.edges text { font: 500 10px var(--mono); fill: var(--vein); paint-order: stroke; stroke: var(--surface); stroke-width: 4px; }
+
+.detail { display: grid; gap: 14px; align-content: start; }
+@media (min-width: 1100px) { .detail { position: sticky; top: 120px; max-height: calc(100vh - 140px); overflow: auto; padding-right: 4px; } }
+.detail h3 { font-size: 22px; }
+.detail .desc { font-size: 16px; }
+.md { display: grid; gap: 8px; font-size: 15px; }
+.md h4 { font-size: 15px; font-weight: 600; }
+.md ul, .md ol { margin: 0; padding-left: 20px; display: grid; gap: 3px; }
+.md table { border-collapse: collapse; font-size: 13px; width: 100%; }
+.md td, .md th { border-bottom: 1px solid var(--line); padding: 4px 6px 4px 0; text-align: left; vertical-align: top; }
+.md code { font: 13px var(--mono); background: var(--sunk); padding: 0 3px; border-radius: 3px; }
+.md .clink, .linklist button { color: var(--accent); background: none; border: 0; padding: 0; cursor: pointer; text-align: left; text-decoration: underline; text-underline-offset: 2px; text-decoration-color: var(--line); }
+.linklist { display: grid; gap: 4px; font-size: 14px; }
+.linklist .k { font: 12px var(--mono); color: var(--vein); display: inline-block; min-width: 108px; }
+.steps-mini { display: grid; gap: 2px; font-size: 14px; }
+
+/* ---------- look ---------- */
+.lookgrid { display: grid; gap: 40px; }
+.block { display: grid; gap: 14px; }
+.blockhead { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: baseline; justify-content: space-between; border-bottom: 1px solid var(--line); padding-bottom: 8px; }
+.blockhead h3 { font-size: 18px; }
+.swatches { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+.sw { display: grid; gap: 6px; }
+.sw i { display: block; height: 64px; border-radius: 4px; border: 1px solid var(--line); }
+.sw b { font-weight: 500; font-size: 14px; }
+.sw span { font-size: 13px; color: var(--vein); }
+.counter { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; align-items: center; }
+.counter img { width: 100%; border-radius: 4px; display: block; }
+.typespec { display: grid; gap: 14px; }
+.typespec > div { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 16px; align-items: baseline; border-bottom: 1px solid var(--line); padding-bottom: 12px; }
+@media (max-width: 560px) { .typespec > div { grid-template-columns: 1fr; gap: 4px; } }
+.avoid { columns: 2 260px; column-gap: 32px; margin: 0; padding-left: 18px; }
+.avoid li { margin-bottom: 4px; }
+
+/* device mockups: drawn at 1024x768 and scaled to fit */
+.screens { display: grid; gap: 36px; }
+.screen-item { display: grid; gap: 10px; }
+.device { width: 100%; max-width: 100%; aspect-ratio: 4 / 3; border: 10px solid #1d1f21; border-radius: 18px; overflow: hidden; position: relative; background: var(--surface); }
+.scr { width: 1024px; height: 768px; transform-origin: 0 0; transform: scale(var(--s, 1)); position: absolute; top: 0; left: 0; background: var(--surface); color: var(--ink); font-size: 18px; line-height: 1.45; display: flex; flex-direction: column; }
+.scr .bar { height: 64px; flex: none; display: flex; align-items: center; gap: 28px; padding: 0 32px; border-bottom: 1px solid var(--line); }
+.scr .bar .nm { font-weight: 600; font-size: 20px; margin-right: auto; }
+.scr .bar .tab { color: var(--vein); font-weight: 500; padding: 19px 0 17px; border-bottom: 2px solid transparent; }
+.scr .bar .tab.on { color: var(--ink); border-bottom-color: var(--accent); }
+.scr .body { flex: 1; min-height: 0; display: flex; }
+.scr .list { width: 360px; flex: none; border-right: 1px solid var(--line); display: flex; flex-direction: column; }
+.scr .search { margin: 16px 20px 8px; height: 52px; border-radius: 4px; background: var(--sunk); display: flex; align-items: center; padding: 0 16px; color: var(--vein); gap: 10px; }
+.scr .cats { display: flex; gap: 20px; padding: 6px 20px 10px; font-size: 16px; color: var(--vein); border-bottom: 1px solid var(--line); }
+.scr .cats .on { color: var(--ink); font-weight: 500; }
+.scr .row { display: flex; gap: 14px; align-items: center; padding: 10px 20px; border-bottom: 1px solid var(--line); min-height: 76px; }
+.scr .row.on { background: var(--sunk); }
+.scr .row img { width: 64px; height: 56px; object-fit: cover; border-radius: 4px; }
+.scr .row .t { display: grid; }
+.scr .row .t b { font-weight: 500; }
+.scr .row .t span { font-size: 15px; color: var(--vein); }
+.scr .row .t em { font-style: normal; font-size: 14px; color: var(--warn); }
+.scr .food { flex: 1; display: flex; flex-direction: column; padding: 20px 32px 0; gap: 14px; min-width: 0; }
+.scr .food .ph { height: 330px; border-radius: 4px; overflow: hidden; }
+.scr .food .ph img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.scr .ptabs { display: flex; gap: 0; border-bottom: 1px solid var(--line); }
+.scr .ptabs div { padding: 12px 22px 12px 0; margin-right: 22px; color: var(--vein); font-weight: 500; border-bottom: 2px solid transparent; min-height: 56px; display: flex; align-items: center; gap: 8px; }
+.scr .ptabs div.on { color: var(--accent); border-bottom-color: var(--accent); }
+.scr .ptabs small { font-size: 13px; color: var(--warn); font-weight: 400; }
+.scr .fig { display: flex; align-items: flex-end; gap: 28px; }
+.scr .fig .n { font-size: 72px; line-height: 1; font-weight: 500; color: var(--accent); font-variant-numeric: tabular-nums; }
+.scr .fig .u { font-size: 20px; color: var(--accent); padding-bottom: 8px; margin-left: -20px; }
+.scr .fig .g { display: grid; padding-bottom: 6px; font-size: 16px; color: var(--vein); }
+.scr .fig .add { margin-left: auto; height: 56px; padding: 0 24px; border: 1px solid var(--ink); border-radius: 4px; display: flex; align-items: center; font-weight: 500; }
+.scr .src { font-size: 15px; color: var(--vein); }
+.scr .platebar { height: 72px; flex: none; border-top: 1px solid var(--line); display: flex; align-items: center; padding: 0 32px; gap: 20px; background: var(--paper); }
+.scr .platebar .n { font-size: 30px; color: var(--accent); font-weight: 500; font-variant-numeric: tabular-nums; }
+.scr .platebar .open { margin-left: auto; height: 52px; padding: 0 22px; border-radius: 4px; background: var(--ink); color: var(--paper); display: flex; align-items: center; font-weight: 500; }
+.scr .pad { padding: 24px 40px; flex: 1; display: flex; flex-direction: column; gap: 0; min-width: 0; }
+.scr .pitem { display: flex; align-items: center; gap: 20px; padding: 14px 0; border-bottom: 1px solid var(--line); }
+.scr .pitem img { width: 88px; height: 66px; object-fit: cover; border-radius: 4px; }
+.scr .pitem .t { flex: 1; display: grid; }
+.scr .pitem .t span { color: var(--vein); font-size: 15px; }
+.scr .qty { display: flex; border: 1px solid var(--line); border-radius: 4px; }
+.scr .qty div { width: 64px; height: 56px; display: flex; align-items: center; justify-content: center; color: var(--vein); font-variant-numeric: tabular-nums; }
+.scr .qty div + div { border-left: 1px solid var(--line); }
+.scr .qty .on { color: var(--accent); background: var(--sunk); font-weight: 500; }
+.scr .pitem .c { width: 80px; text-align: right; font-size: 26px; color: var(--accent); font-weight: 500; font-variant-numeric: tabular-nums; }
+.scr .total { display: flex; align-items: flex-end; gap: 16px; padding-top: 22px; }
+.scr .total .n { font-size: 72px; line-height: 1; color: var(--accent); font-weight: 500; font-variant-numeric: tabular-nums; }
+.scr .total .save { margin-left: auto; height: 60px; padding: 0 30px; border-radius: 4px; background: var(--ink); color: var(--paper); display: flex; align-items: center; font-weight: 500; }
+.scr .day { display: flex; justify-content: space-between; align-items: baseline; padding-bottom: 10px; border-bottom: 1px solid var(--ink); }
+.scr .day b { font-size: 22px; font-weight: 500; }
+.scr .meal { display: grid; grid-template-columns: 80px 1fr 80px; gap: 16px; padding: 14px 0; border-bottom: 1px solid var(--line); align-items: start; }
+.scr .meal .tm { color: var(--vein); font-variant-numeric: tabular-nums; }
+.scr .meal .c { text-align: right; color: var(--accent); font-size: 24px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.scr .meal .it { display: grid; gap: 2px; }
+.scr .meal .it span { font-size: 15px; color: var(--vein); }
+.scr .eaten { display: flex; border: 1px solid var(--line); border-radius: 4px; margin-top: 10px; width: max-content; }
+.scr .eaten div { padding: 0 16px; height: 48px; display: flex; align-items: center; font-size: 16px; color: var(--vein); }
+.scr .eaten div + div { border-left: 1px solid var(--line); }
+.scr .eaten .on { background: var(--sunk); color: var(--ink); font-weight: 500; }
+.scr .cmt { font-size: 15px; display: grid; gap: 4px; margin-top: 10px; }
+.scr .cmt div span { color: var(--vein); margin-right: 8px; font-variant-numeric: tabular-nums; }
+.scr .cmt .in { height: 48px; border-radius: 4px; background: var(--sunk); color: var(--vein); display: flex; align-items: center; padding: 0 14px; margin-top: 4px; }
+.scr .note { font-size: 14px; color: var(--vein); margin-top: 6px; }
+.scr .past { color: var(--vein); font-size: 15px; }
+.scr .cmp { display: flex; gap: 24px; }
+.scr .cmp figure { margin: 0; flex: 1; display: grid; gap: 8px; }
+.scr .cmp img { width: 100%; height: 330px; object-fit: cover; border-radius: 4px; display: block; }
+.scr .cmp figcaption { font-size: 15px; color: var(--vein); }
+.scr .acts { display: flex; gap: 12px; padding-top: 20px; }
+.scr .acts div { height: 56px; padding: 0 22px; border: 1px solid var(--ink); border-radius: 4px; display: flex; align-items: center; font-weight: 500; }
+.scr .acts .primary { background: var(--ink); color: var(--paper); }
+
+.scr .loglist { width: 430px; padding: 20px 24px 0; }
+.scr .loglist .day { padding-bottom: 8px; }
+.scr .strip { display: grid; gap: 6px; padding: 12px 0 14px; border-bottom: 1px solid var(--line); }
+.scr .tir { display: flex; height: 12px; border-radius: 2px; overflow: hidden; }
+.scr .tir i { display: block; height: 100%; }
+.scr .tir .lo { background: var(--warn); }
+.scr .tir .in { background: var(--ink); }
+.scr .tir .hi { background: var(--line); }
+.scr .tirl { display: flex; gap: 18px; font-size: 15px; color: var(--vein); }
+.scr .tirl b { color: var(--ink); font-weight: 500; font-variant-numeric: tabular-nums; }
+.scr .tirl .w b, .scr .tirl .w { color: var(--warn); }
+.scr .lrow { display: grid; grid-template-columns: 60px 1fr 44px; gap: 12px; padding: 12px 10px; margin: 0 -10px; border-bottom: 1px solid var(--line); align-items: start; }
+.scr .lrow.on { background: var(--sunk); }
+.scr .lrow .tm { color: var(--vein); font-variant-numeric: tabular-nums; }
+.scr .lrow .it { display: grid; font-size: 16px; }
+.scr .lrow .it b { font-weight: 500; }
+.scr .lrow .it span { font-size: 14px; color: var(--vein); }
+.scr .lrow .c { text-align: right; color: var(--accent); font-size: 22px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.scr .mealdetail { flex: 1; min-width: 0; padding: 20px 32px; display: flex; flex-direction: column; gap: 8px; }
+.scr .mdh { display: flex; justify-content: space-between; align-items: baseline; }
+.scr .mdh b { font-size: 24px; font-weight: 500; }
+.scr .mdh .c { font-size: 40px; color: var(--accent); font-weight: 500; font-variant-numeric: tabular-nums; }
+.scr .mdh small { font-size: 18px; }
+.scr .mealdetail > .meta { font-size: 15px; }
+.scr .glab { display: flex; justify-content: space-between; align-items: baseline; padding-top: 10px; border-top: 1px solid var(--line); margin-top: 4px; }
+.scr .glab .meta { font-size: 13px; }
+.scr .gcurve { display: block; width: 100%; height: auto; }
+.scr .gcurve .ax { font: 12px var(--sans); fill: var(--vein); }
+.scr .gcurve .vl { font: 500 14px var(--sans); fill: var(--ink); }
+.scr .gvals { display: flex; gap: 22px; font-size: 15px; color: var(--vein); }
+.scr .gvals b { color: var(--ink); font-weight: 500; font-variant-numeric: tabular-nums; }
+
+/* ---------- journey ---------- */
+.jscroll { overflow-x: auto; border-top: 1px solid var(--line); }
+table.journey { border-collapse: collapse; min-width: 1500px; width: 100%; font-size: 14px; }
+.journey th, .journey td { text-align: left; vertical-align: top; padding: 10px 12px; border-bottom: 1px solid var(--line); }
+.journey td + td, .journey th + th { border-left: 1px solid var(--line); }
+.journey thead .phase th { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--vein); font-weight: 500; border-bottom: 1px solid var(--ink); }
+.journey thead .stepname th { font-weight: 500; font-size: 15px; }
+.journey .stepname .num { display: block; font: 12px var(--mono); color: var(--vein); }
+.journey .stepname .c-btn { margin-top: 8px; }
+.journey tbody th { position: sticky; left: 0; background: var(--surface); width: 110px; min-width: 110px; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--vein); font-weight: 500; z-index: 1; }
+.journey td { min-width: 150px; }
+.journey tr.risk td { color: var(--warn); }
+.journey tr.helps td { color: var(--ink); }
+.journey tr.thinking td { font-style: italic; color: var(--vein); }
+.journey td.out { color: var(--vein); }
+.chips { display: flex; flex-wrap: wrap; gap: 4px 10px; }
+.chips button { background: none; border: 0; padding: 0; color: var(--accent); cursor: pointer; text-decoration: underline; text-underline-offset: 2px; text-decoration-color: var(--line); font-size: 13px; text-align: left; }
+
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+.iconopts { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 20px; }
+.iconopt { display: grid; gap: 10px; align-content: start; padding: 14px; border: 1px solid var(--line); border-radius: 4px; }
+.icrow { display: flex; align-items: flex-end; gap: 12px; padding: 12px; min-width: 0; background: #3a4048; border-radius: 4px; }
+.ic { overflow: hidden; flex: none; } .ic svg { display: block; width: 100%; height: 100%; }
+.ic.sq { width: 80px; height: 80px; border-radius: 22%; } .ic.ci { width: 80px; height: 80px; border-radius: 50%; } .ic.sm { width: 40px; height: 40px; border-radius: 22%; }
+.iconnow { display: flex; gap: 14px; align-items: center; } .iconnow .ic.cur { width: 64px; height: 64px; border-radius: 0; }
+</style>
+
+<header class="top">
+  <div class="wrap">
+    <div class="brand">
+      <span class="label">Planning review</span>
+      <h1>Kitchen Carbs</h1>
+    </div>
+    <nav class="tabs" aria-label="Sections">
+      <a href="#map" data-view="map">Concept map</a>
+      <a href="#look" data-view="look">Look</a>
+      <a href="#journey" data-view="journey">Journey</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="howto meta">
+    <span>Comment on anything: use the <b>Comment</b> buttons, or turn on comment mode and click any part of the page.</span>
+    <span id="commentNote" hidden>Commenting from page buttons is unavailable here. Comment mode still works.</span>
+  </div>
+
+  <!-- CONCEPT MAP -->
+  <section class="view" id="view-map" hidden>
+    <div class="intro">
+      <h2>Concept map</h2>
+      <p class="meta">Every feature, rule, screen element and technical choice is a concept in the OKF bundle (<span class="mono">kitchen-carbs/okf/</span>). Select one to see what it links to. This page is generated from those files.</p>
+    </div>
+    <div class="checkline" id="checkline"></div>
+    <div class="mapgrid">
+      <div class="mapscroll"><div class="map" id="map"><svg class="edges" id="edges" aria-hidden="true"></svg></div></div>
+      <aside class="detail" id="detail" aria-live="polite"></aside>
+    </div>
+  </section>
+
+  <!-- LOOK -->
+  <section class="view" id="view-look" hidden>
+    <div class="intro">
+      <h2>Look</h2>
+      <p class="meta">The app should feel like part of the counter in the photos: cool neutrals taken from white quartz and grey veins, graphite text, and one ink-blue accent reserved for carb numbers. The plate photos are Gemini placeholders. Carb values are sample numbers.</p>
+    </div>
+    <div class="lookgrid">
+
+      <div class="block" id="look-screens">
+        <div class="blockhead"><h3>Tablet screens</h3><span class="meta">Drawn at 1024 × 768, scaled to fit</span></div>
+        <div class="screens">
+
+          <div class="screen-item" id="scr-food" data-comment-target>
+            <div class="blockhead"><h3>1 · Foods and food view</h3><button class="c-btn" data-c="scr-food">Comment</button></div>
+            <div class="device"><div class="scr">
+              <div class="bar"><span class="nm">Kitchen Carbs</span><span class="tab on">Foods</span><span class="tab">Plate</span><span class="tab">Log</span></div>
+              <div class="body">
+                <div class="list">
+                  <div class="search"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>Search foods</div>
+                  <div class="cats"><span class="on">All</span><span>Breakfast</span><span>Grains</span><span>Fruit</span></div>
+                  <div class="row"><img src="img/apple.jpg" alt=""><div class="t"><b>Apple, sliced</b><span>11–21 g carbs</span></div></div>
+                  <div class="row on"><img src="img/pasta.jpg" alt=""><div class="t"><b>Pasta, cooked</b><span>22–65 g carbs</span></div></div>
+                  <div class="row"><img src="img/rice.jpg" alt=""><div class="t"><b>Rice, white, cooked</b><span>22–45 g carbs</span></div></div>
+                  <div class="row"><img src="img/toast.jpg" alt=""><div class="t"><b>Toast, whole-wheat</b><span>13 g carbs</span><em>Not verified</em></div></div>
+                </div>
+                <div class="food">
+                  <div class="ph"><img src="img/pasta.jpg" alt="Pasta on a white plate on quartz"></div>
+                  <div class="ptabs"><div>½ cup</div><div class="on">1 cup</div><div>1½ cups <small>Estimated photo</small></div></div>
+                  <div class="fig"><span class="n">43</span><span class="u">g carbs</span><span class="g"><span>140 g served</span><span>30.9 g carbs per 100 g</span></span><span class="add">Add to plate</span></div>
+                  <div class="src">USDA FoodData Central 168928 · verified 26 Oct · weigh after cooking</div>
+                </div>
+              </div>
+              <div class="platebar"><span>Plate · 2 items</span><span class="n">64 g</span><span class="open">Open plate</span></div>
+            </div></div>
+            <p class="meta">List and food side by side so a parent can switch foods without going back. The carb number is the largest thing on screen. The source line sits under every number.</p>
+          </div>
+
+          <div class="screen-item" id="scr-plate" data-comment-target>
+            <div class="blockhead"><h3>2 · Plate</h3><button class="c-btn" data-c="scr-plate">Comment</button></div>
+            <div class="device"><div class="scr">
+              <div class="bar"><span class="nm">Kitchen Carbs</span><span class="tab">Foods</span><span class="tab on">Plate</span><span class="tab">Log</span></div>
+              <div class="body"><div class="pad">
+                <div class="pitem"><img src="img/pasta.jpg" alt=""><div class="t"><b>Pasta, cooked</b><span>1 cup · 140 g</span></div><div class="qty"><div>×0.5</div><div class="on">×1</div><div>×1.5</div><div>×2</div></div><div class="c">43</div></div>
+                <div class="pitem"><img src="img/apple.jpg" alt=""><div class="t"><b>Apple, sliced</b><span>Small apple · 150 g</span></div><div class="qty"><div class="on">×0.5</div><div>×1</div><div>×1.5</div><div>×2</div></div><div class="c">10</div></div>
+                <div class="pitem"><img src="img/toast.jpg" alt=""><div class="t"><b>Toast, whole-wheat</b><span>1 slice · 32 g</span></div><div class="qty"><div>×0.5</div><div class="on">×1</div><div>×1.5</div><div>×2</div></div><div class="c">13</div></div>
+                <div class="total"><div><div class="label">Plate total</div><span class="n">67</span> <span style="font-size:22px;color:var(--accent)">g carbs</span></div><span class="save">Save to log</span></div>
+                <p class="note">Carbs only. Enter the total in the pump or meter as usual.</p>
+              </div></div>
+            </div></div>
+            <p class="meta">Half-portion steps on every item. The total adds the exact values, then rounds once to whole grams.</p>
+          </div>
+
+          <div class="screen-item" id="scr-log" data-comment-target>
+            <div class="blockhead"><h3>3 · Log with glucose, eaten notes and comments</h3><button class="c-btn" data-c="scr-log">Comment</button></div>
+            <div class="device"><div class="scr">
+              <div class="bar"><span class="nm">Kitchen Carbs</span><span class="tab">Foods</span><span class="tab">Plate</span><span class="tab on">Log</span></div>
+              <div class="body">
+                <div class="list loglist">
+                  <div class="day"><b>Today, Tue 27 Oct</b><span class="meta">141 g carbs</span></div>
+                  <div class="strip" id="ui-stats" data-comment-target>
+                    <div class="tir"><i class="lo" style="width:2%"></i><i class="in" style="width:71%"></i><i class="hi" style="width:27%"></i></div>
+                    <div class="tirl"><span><b>71%</b> in range</span><span class="w"><b>2%</b> below</span><span><b>27%</b> above</span></div>
+                    <div class="tirl"><span>Avg <b>152</b> mg/dL</span><span>1 low</span><span>Sensor 96%</span></div>
+                  </div>
+                  <div class="lrow"><span class="tm">07:40</span><div class="it"><b>Toast ×2 · Apple ×0.5</b><span>Eaten: All · 2 h 164</span></div><span class="c">36</span></div>
+                  <div class="lrow"><span class="tm">12:15</span><div class="it"><b>Rice ×1 · Apple ×1</b><span>Eaten: not set · 2 h 141</span></div><span class="c">38</span></div>
+                  <div class="lrow on"><span class="tm">18:05</span><div class="it"><b>Pasta ×1 · Apple ×0.5 · Toast ×1</b><span>Eaten: Most · 2 h 190</span></div><span class="c">67</span></div>
+                  <p class="past">Mon 26 Oct · 168 g · 74% in range · read-only</p>
+                </div>
+                <div class="mealdetail">
+                  <div class="mdh"><b>Dinner · 18:05</b><span class="c">67 <small>g carbs</small></span></div>
+                  <span class="meta">Pasta, cooked ×1 (43) · Apple, sliced ×0.5 (10) · Toast, whole-wheat ×1 (13)</span>
+                  <div class="glab"><span class="label">Glucose · mg/dL</span><span class="meta">Nightscout · updated 21:07</span></div>
+                  <div id="ui-curve" data-comment-target><svg class="gcurve" viewBox="0 0 520 210" width="520" height="210" role="img" aria-label="Glucose from 17:35 to 21:05: 118 mg/dL at the meal, peak 215, 190 at 2 hours"><rect x="44" y="90.6" width="462" height="70.2" fill="var(--sunk)"/><text x="38" y="164.8" text-anchor="end" class="ax">70</text><text x="38" y="94.6" text-anchor="end" class="ax">180</text><text x="38" y="49.9" text-anchor="end" class="ax">250</text><line x1="44" x2="506" y1="45.9" y2="45.9" stroke="var(--line)" stroke-dasharray="2 3"/><text x="99.0" y="202" text-anchor="middle" class="ax">18:00</text><text x="231.0" y="202" text-anchor="middle" class="ax">19:00</text><text x="363.0" y="202" text-anchor="middle" class="ax">20:00</text><text x="495.0" y="202" text-anchor="middle" class="ax">21:00</text><line x1="110.0" x2="110.0" y1="14" y2="180" stroke="var(--accent)"/><text x="115.0" y="24" class="ax" fill="var(--accent)">meal 18:05</text><line x1="374.0" x2="374.0" y1="14" y2="180" stroke="var(--vein)" stroke-dasharray="3 3"/><text x="379.0" y="24" class="ax">2 h</text><path d="M44.0,132.8 L55.0,132.8 L66.0,132.1 L77.0,131.5 L88.0,131.5 L99.0,130.8 L110.0,130.2 L121.0,129.6 L132.0,130.8 L143.0,115.5 L154.0,105.9 L165.0,95.7 L176.0,87.4 L187.0,82.3 L198.0,76.6 L209.0,74.7 L220.0,70.8 L231.0,71.5 L242.0,68.9 L253.0,68.3 L264.0,68.9 L275.0,68.3 L286.0,71.5 L297.0,71.5 L308.0,74.7 L319.0,75.3 L330.0,76.6 L341.0,79.1 L352.0,79.8 L363.0,83.6 L374.0,84.2 L385.0,88.7 L396.0,89.3 L407.0,90.6 L418.0,93.2 L429.0,93.8 L440.0,97.6 L451.0,98.3 L462.0,101.5 L473.0,102.1 L484.0,103.4 L495.0,105.3 L506.0,105.3" fill="none" stroke="var(--ink)" stroke-width="2" stroke-linejoin="round"/><circle cx="110.0" cy="130.2" r="4" fill="var(--paper)" stroke="var(--ink)" stroke-width="2"/><text x="110.0" y="148.2" text-anchor="middle" class="vl">118</text><circle cx="253.0" cy="68.3" r="4" fill="var(--paper)" stroke="var(--ink)" stroke-width="2"/><text x="253.0" y="59.3" text-anchor="middle" class="vl">215</text><circle cx="374.0" cy="84.2" r="4" fill="var(--paper)" stroke="var(--ink)" stroke-width="2"/><text x="374.0" y="75.2" text-anchor="middle" class="vl">190</text></svg></div>
+                  <div class="gvals"><span>At meal <b>118</b></span><span>Peak <b>215</b> at 19:10</span><span>2 h <b>190</b></span><span>Sensor 100%</span></div>
+                  <div class="eaten"><div>All</div><div class="on">Most</div><div>Half</div><div>Little</div><div>None</div></div>
+                  <div class="cmt"><div><span>18:31</span>Left the crusts and a few pieces of pasta.</div><div class="in">Add a comment</div></div>
+                </div>
+              </div>
+            </div></div>
+            <p class="meta">Glucose values are sample data. The curve covers 30 minutes before to 3 hours after the meal: shaded band is the 70–180 target range, the blue line is the meal time, the dashed line is 2 hours. The stats strip sums up today so far. Nothing is graded good or bad; lows use the warning colour so they stand out.</p>
+          </div>
+
+          <div class="screen-item" id="scr-photo" data-comment-target>
+            <div class="blockhead"><h3>4 · Photo review (parent)</h3><button class="c-btn" data-c="scr-photo">Comment</button></div>
+            <div class="device"><div class="scr">
+              <div class="bar"><span class="nm">Kitchen Carbs · Manage foods</span><span class="tab on">Photos</span><span class="tab">Foods</span></div>
+              <div class="body"><div class="pad">
+                <div class="day"><b>Rice, white, cooked · ½ cup · 79 g</b><span class="meta">Step 2 of 2</span></div>
+                <div class="cmp" style="padding-top:18px">
+                  <figure><img src="img/rice.jpg" alt="" style="filter:saturate(.8) brightness(.93) contrast(.95)"><figcaption>Your photo · kept as is</figcaption></figure>
+                  <figure><img src="img/rice.jpg" alt=""><figcaption>Styled by Gemini · check the amount looks the same</figcaption></figure>
+                </div>
+                <div class="acts"><div class="primary">Use styled photo</div><div>Regenerate</div><div>Use my photo</div></div>
+              </div></div>
+            </div></div>
+            <p class="meta">The left image here is simulated. With real use it is your unedited photo.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="block" id="look-icon">
+        <div class="blockhead"><h3>App icon (installed on a phone or tablet)</h3><span class="meta">Each shown as a rounded square (iPhone), a circle (many Android phones) and small</span></div>
+        <div class="iconnow"><div class="ic sm cur"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="8" fill="#F2F3F1"/><circle cx="32" cy="32" r="21" fill="#FAFAF9" stroke="#2B2E30" stroke-width="3"/><circle cx="32" cy="32" r="12" fill="none" stroke="#D3D6D5" stroke-width="2"/><text x="32" y="38" font-family="Arial" font-size="16" font-weight="700" text-anchor="middle" fill="#1F3A5F">g</text></svg>
+</div><p class="meta">The old icon, replaced by C on 28 Oct. It had its own grey rounded box drawn in, so phones that crop to a circle or squircle show a grey box inside the shape, and the plate is small.</p></div>
+        <div class="iconopts">
+          <div class="iconopt" id="icon-a" data-comment-target>
+            <div class="blockhead"><h3>A · Bold plate, full colour</h3><button class="c-btn" data-c="icon-a">Comment</button></div>
+            <div class="icrow"><div class="ic sq"><svg viewBox="0 0 100 100"><rect width="100" height="100" fill="#1F3A5F"/><circle cx="50" cy="50" r="30" fill="#FAFAF9"/><circle cx="50" cy="50" r="20" fill="none" stroke="#D3D6D5" stroke-width="2"/>
+<g fill="#1F3A5F"><rect x="40.5" y="35" width="2" height="12" rx="1"/><rect x="44" y="35" width="2" height="12" rx="1"/><rect x="47.5" y="35" width="2" height="12" rx="1"/><path d="M40.5 46h9v3a4.5 4.5 0 0 1-3 4.2V66a1.5 1.5 0 0 1-3 0V53.2a4.5 4.5 0 0 1-3-4.2z"/>
+<path d="M57 35c4 1 5.5 6 5.5 12s-2 7-3.5 7.5V66a1.5 1.5 0 0 1-3 0V36.2c0-.8.4-1.3 1-1.2z"/></g></svg></div><div class="ic ci"><svg viewBox="0 0 100 100"><rect width="100" height="100" fill="#1F3A5F"/><circle cx="50" cy="50" r="30" fill="#FAFAF9"/><circle cx="50" cy="50" r="20" fill="none" stroke="#D3D6D5" stroke-width="2"/>
+<g fill="#1F3A5F"><rect x="40.5" y="35" width="2" height="12" rx="1"/><rect x="44" y="35" width="2" height="12" rx="1"/><rect x="47.5" y="35" width="2" height="12" rx="1"/><path d="M40.5 46h9v3a4.5 4.5 0 0 1-3 4.2V66a1.5 1.5 0 0 1-3 0V53.2a4.5 4.5 0 0 1-3-4.2z"/>
+<path d="M57 35c4 1 5.5 6 5.5 12s-2 7-3.5 7.5V66a1.5 1.5 0 0 1-3 0V36.2c0-.8.4-1.3 1-1.2z"/></g></svg></div><div class="ic sm"><svg viewBox="0 0 100 100"><rect width="100" height="100" fill="#1F3A5F"/><circle cx="50" cy="50" r="30" fill="#FAFAF9"/><circle cx="50" cy="50" r="20" fill="none" stroke="#D3D6D5" stroke-width="2"/>
+<g fill="#1F3A5F"><rect x="40.5" y="35" width="2" height="12" rx="1"/><rect x="44" y="35" width="2" height="12" rx="1"/><rect x="47.5" y="35" width="2" height="12" rx="1"/><path d="M40.5 46h9v3a4.5 4.5 0 0 1-3 4.2V66a1.5 1.5 0 0 1-3 0V53.2a4.5 4.5 0 0 1-3-4.2z"/>
+<path d="M57 35c4 1 5.5 6 5.5 12s-2 7-3.5 7.5V66a1.5 1.5 0 0 1-3 0V36.2c0-.8.4-1.3 1-1.2z"/></g></svg></div></div>
+            <p class="meta">Navy fills the whole icon; a white plate with a fork and knife, no letter. The strongest shape on a busy home screen.</p>
+          </div>
+          <div class="iconopt" id="icon-b" data-comment-target>
+            <div class="blockhead"><h3>B · Carb count on a plate</h3><button class="c-btn" data-c="icon-b">Comment</button></div>
+            <div class="icrow"><div class="ic sq"><svg viewBox="0 0 100 100"><rect width="100" height="100" fill="#1F3A5F"/><circle cx="50" cy="50" r="30" fill="#FAFAF9"/><circle cx="50" cy="50" r="22" fill="none" stroke="#D3D6D5" stroke-width="2"/>
+<text x="50" y="59" font-family="IBM Plex Sans, Arial, sans-serif" font-size="34" font-weight="600" text-anchor="middle" fill="#1F3A5F">g</text></svg></div><div class="ic ci"><svg viewBox="0 0 100 100"><rect width="100" height="100" fill="#1F3A5F"/><circle cx="50" cy="50" r="30" fill="#FAFAF9"/><circle cx="50" cy="50" r="22" fill="none" stroke="#D3D6D5" stroke-width="2"/>
+<text x="50" y="59" font-family="IBM Plex Sans, Arial, sans-serif" font-size="34" font-weight="600" text-anchor="middle" fill="#1F3A5F">g</text></svg></div><div class="ic sm"><svg viewBox="0 0 100 100"><rect width="100" height="100" fill="#1F3A5F"/><circle cx="50" cy="50" r="30" fill="#FAFAF9"/><circle cx="50" cy="50" r="22" fill="none" stroke="#D3D6D5" stroke-width="2"/>
+<text x="50" y="59" font-family="IBM Plex Sans, Arial, sans-serif" font-size="34" font-weight="600" text-anchor="middle" fill="#1F3A5F">g</text></svg></div></div>
+            <p class="meta">Navy background, white plate, a big ink-blue “g” for grams of carbs. Reads as “carbs” at a glance.</p>
+          </div>
+          <div class="iconopt" id="icon-c" data-comment-target>
+            <div class="blockhead"><h3>C · Food on the counter (chosen, apple lowered)</h3><button class="c-btn" data-c="icon-c">Comment</button></div>
+            <div class="icrow"><div class="ic sq"><svg viewBox="0 0 100 100"><rect width="100" height="100" fill="#F2F3F1"/><path d="M0 70 C25 62 40 80 100 64" stroke="#D3D6D5" stroke-width="1.2" fill="none"/><path d="M0 30 C30 40 60 20 100 34" stroke="#E7E9E7" stroke-width="1" fill="none"/>
+<ellipse cx="50" cy="54" rx="31" ry="29" fill="#FAFAF9" stroke="#D3D6D5" stroke-width="1.5"/><ellipse cx="50" cy="54" rx="22" ry="20" fill="none" stroke="#E7E9E7" stroke-width="1.5"/>
+<g transform="translate(0 5)"><path d="M50 41c-3-2.5-11-3.5-14 3.5-3 7 1 17 7 19 2.5.8 4.5-.5 7-.5s4.5 1.3 7 .5c6-2 10-12 7-19-3-7-11-6-14-3.5z" fill="#8FA86E"/><path d="M50 41c-1-4 0-7 2-9" stroke="#2B2E30" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+<path d="M52 37c3-4 8-4 10-2-2 3-6 4-10 2z" fill="#5E7A4C"/><path d="M41 46c-1.5 3-1.5 7 0 10" stroke="#fff" stroke-opacity=".5" stroke-width="2" fill="none" stroke-linecap="round"/></g></svg></div><div class="ic ci"><svg viewBox="0 0 100 100"><rect width="100" height="100" fill="#F2F3F1"/><path d="M0 70 C25 62 40 80 100 64" stroke="#D3D6D5" stroke-width="1.2" fill="none"/><path d="M0 30 C30 40 60 20 100 34" stroke="#E7E9E7" stroke-width="1" fill="none"/>
+<ellipse cx="50" cy="54" rx="31" ry="29" fill="#FAFAF9" stroke="#D3D6D5" stroke-width="1.5"/><ellipse cx="50" cy="54" rx="22" ry="20" fill="none" stroke="#E7E9E7" stroke-width="1.5"/>
+<path d="M50 41c-3-2.5-11-3.5-14 3.5-3 7 1 17 7 19 2.5.8 4.5-.5 7-.5s4.5 1.3 7 .5c6-2 10-12 7-19-3-7-11-6-14-3.5z" fill="#8FA86E"/><path d="M50 41c-1-4 0-7 2-9" stroke="#2B2E30" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+<path d="M52 37c3-4 8-4 10-2-2 3-6 4-10 2z" fill="#5E7A4C"/><path d="M41 46c-1.5 3-1.5 7 0 10" stroke="#fff" stroke-opacity=".5" stroke-width="2" fill="none" stroke-linecap="round"/></svg></div><div class="ic sm"><svg viewBox="0 0 100 100"><rect width="100" height="100" fill="#F2F3F1"/><path d="M0 70 C25 62 40 80 100 64" stroke="#D3D6D5" stroke-width="1.2" fill="none"/><path d="M0 30 C30 40 60 20 100 34" stroke="#E7E9E7" stroke-width="1" fill="none"/>
+<ellipse cx="50" cy="54" rx="31" ry="29" fill="#FAFAF9" stroke="#D3D6D5" stroke-width="1.5"/><ellipse cx="50" cy="54" rx="22" ry="20" fill="none" stroke="#E7E9E7" stroke-width="1.5"/>
+<path d="M50 41c-3-2.5-11-3.5-14 3.5-3 7 1 17 7 19 2.5.8 4.5-.5 7-.5s4.5 1.3 7 .5c6-2 10-12 7-19-3-7-11-6-14-3.5z" fill="#8FA86E"/><path d="M50 41c-1-4 0-7 2-9" stroke="#2B2E30" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+<path d="M52 37c3-4 8-4 10-2-2 3-6 4-10 2z" fill="#5E7A4C"/><path d="M41 46c-1.5 3-1.5 7 0 10" stroke="#fff" stroke-opacity=".5" stroke-width="2" fill="none" stroke-linecap="round"/></svg></div></div>
+            <p class="meta">A simple apple on a plate on the quartz counter, matching the app’s photos. Warmer and easy for a child to recognise.</p>
+          </div>
+          <div class="iconopt" id="icon-d" data-comment-target>
+            <div class="blockhead"><h3>D · Today’s design, fixed</h3><button class="c-btn" data-c="icon-d">Comment</button></div>
+            <div class="icrow"><div class="ic sq"><svg viewBox="0 0 100 100"><rect width="100" height="100" fill="#F2F3F1"/><circle cx="50" cy="50" r="31" fill="#FAFAF9" stroke="#2B2E30" stroke-width="4.5"/><circle cx="50" cy="50" r="19" fill="none" stroke="#D3D6D5" stroke-width="3"/>
+<text x="50" y="59.5" font-family="IBM Plex Sans, Arial, sans-serif" font-size="27" font-weight="700" text-anchor="middle" fill="#1F3A5F">g</text></svg></div><div class="ic ci"><svg viewBox="0 0 100 100"><rect width="100" height="100" fill="#F2F3F1"/><circle cx="50" cy="50" r="31" fill="#FAFAF9" stroke="#2B2E30" stroke-width="4.5"/><circle cx="50" cy="50" r="19" fill="none" stroke="#D3D6D5" stroke-width="3"/>
+<text x="50" y="59.5" font-family="IBM Plex Sans, Arial, sans-serif" font-size="27" font-weight="700" text-anchor="middle" fill="#1F3A5F">g</text></svg></div><div class="ic sm"><svg viewBox="0 0 100 100"><rect width="100" height="100" fill="#F2F3F1"/><circle cx="50" cy="50" r="31" fill="#FAFAF9" stroke="#2B2E30" stroke-width="4.5"/><circle cx="50" cy="50" r="19" fill="none" stroke="#D3D6D5" stroke-width="3"/>
+<text x="50" y="59.5" font-family="IBM Plex Sans, Arial, sans-serif" font-size="27" font-weight="700" text-anchor="middle" fill="#1F3A5F">g</text></svg></div></div>
+            <p class="meta">The current plate and “g”, drawn edge to edge with no baked-in grey box, and larger so it isn’t lost when the phone crops it.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="block" id="look-color" data-comment-target>
+        <div class="blockhead"><h3>Colour</h3><button class="c-btn" data-c="look-color">Comment</button></div>
+        <div class="swatches" id="swatches"></div>
+        <div class="counter">
+          <img src="img/apple.jpg" alt="Apple slices on a plate on white quartz">
+          <p class="meta">The page colour sits just above the lit part of the counter, so a photo reads as a window onto the same surface. Warm colours were avoided because they fight the grey veins.</p>
+        </div>
+      </div>
+
+      <div class="block" id="look-type" data-comment-target>
+        <div class="blockhead"><h3>Type</h3><button class="c-btn" data-c="look-type">Comment</button></div>
+        <div class="typespec">
+          <div><span class="meta">Carb figure · 72</span><span style="font-size:72px;line-height:1;font-weight:500;color:var(--accent);font-variant-numeric:tabular-nums">43</span></div>
+          <div><span class="meta">Title · 28</span><span style="font-size:28px;font-weight:500">Pasta, cooked</span></div>
+          <div><span class="meta">Body · 18</span><span style="font-size:18px">Weigh after cooking. Whole-wheat pasta is its own food.</span></div>
+          <div><span class="meta">Meta · 15</span><span style="font-size:15px;color:var(--vein)">USDA FoodData Central 168928 · verified 26 Oct</span></div>
+        </div>
+        <p class="meta">IBM Plex Sans throughout, with tabular figures so numbers line up in the plate and log.</p>
+      </div>
+
+      <div class="block" id="look-avoid" data-comment-target>
+        <div class="blockhead"><h3>Left out on purpose</h3><button class="c-btn" data-c="look-avoid">Comment</button></div>
+        <ul class="avoid">
+          <li>Purple or indigo gradients, glow, glass effects</li>
+          <li>Cards around everything; rows and hairlines instead</li>
+          <li>Emoji as icons</li>
+          <li>Coloured side bars and decorative status dots</li>
+          <li>Inter, and the cream + serif + terracotta look</li>
+          <li>Rounded pill buttons; corners are 4 px</li>
+          <li>Shadows; depth comes from the photos</li>
+          <li>Any insulin wording next to carb numbers</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- JOURNEY -->
+  <section class="view" id="view-journey" hidden>
+    <div class="intro">
+      <h2>Parent journey</h2>
+      <p class="meta" id="jdesc"></p>
+    </div>
+    <div class="jscroll"><table class="journey" id="journey"></table></div>
+  </section>
+</main>
+
+<script>
+const DATA = /*OKF_DATA*/null;
+const C = DATA.concepts;
+const byPath = Object.fromEntries(C.map(c => [c.path, c]));
+const esc = s => String(s).replace(/[&<>"]/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[ch]));
+const nodeId = p => "n-" + p.replace(/\.md$/, "").replace(/[^a-z0-9]+/gi, "-");
+const COMMENT_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16v11H9l-5 4z"/></svg>';
+
+/* edges */
+const edges = [];
+for (const c of C) for (const [k, ts] of Object.entries(c.links || {})) for (const t of ts || []) if (byPath[t]) edges.push({ s: c.path, k, t });
+
+/* ---------- comments ---------- */
+let comments = null;
+(async () => {
+  try { comments = await window.claude?.use?.("comments"); } catch { comments = null; }
+  if (comments) document.body.classList.add("can-comment");
+  else document.getElementById("commentNote").hidden = false;
+})();
+async function openComment(el) {
+  if (!comments || !el) return;
+  try { await comments.openComposer({ element: el }); }
+  catch (e) { if (e?.code === "unavailable" || e?.code === "not_granted") { document.body.classList.remove("can-comment"); document.getElementById("commentNote").hidden = false; } }
+}
+document.addEventListener("click", e => {
+  const b = e.target.closest(".c-btn");
+  if (b) { e.stopPropagation(); openComment(document.getElementById(b.dataset.c)); }
+});
+const cbtn = (target, label = "Comment") => `<button class="c-btn" data-c="${target}">${COMMENT_ICON}${label}</button>`;
+document.querySelectorAll(".c-btn").forEach(b => { if (!b.querySelector("svg")) b.insertAdjacentHTML("afterbegin", COMMENT_ICON); });
+
+/* ---------- concept map ---------- */
+const GROUPS = [
+  ["Journey", c => c.type === "Journey"],
+  ["Features", c => c.type === "Feature"],
+  ["Rules", c => c.type === "Rule"],
+  ["Domain", c => c.type === "Entity" || c.type === "Value"],
+  ["Design", c => ["foundation", "component", "guideline"].includes(c.type)],
+  ["Architecture", c => c.type === "Architecture"],
+];
+const map = document.getElementById("map"), svg = document.getElementById("edges");
+for (const [label, test] of GROUPS) {
+  const col = document.createElement("div"); col.className = "col";
+  col.innerHTML = `<h3>${label}</h3>` + C.filter(test).map(c =>
+    `<button class="node" id="${nodeId(c.path)}" data-p="${c.path}" data-comment-target><b>${esc(c.title)}</b><span>${esc(c.type)}</span></button>`).join("");
+  map.appendChild(col);
+}
+const ck = DATA.check;
+document.getElementById("checkline").innerHTML =
+  `<span class="${ck.ok ? "ok" : "bad"}">${ck.ok ? "All grounding checks pass" : ck.errors.length + " grounding problems"}</span><span class="meta">${esc(ck.summary)}</span>` +
+  `<span class="meta">Checks: features use domain concepts and rules · components implement features · every feature appears in the journey · no broken links</span>` +
+  ck.errors.map(e => `<span class="bad">${esc(e)}</span>`).join("");
+
+function mdInline(s) {
+  return esc(s)
+    .replace(/`([^`]+)`/g, "<code>$1</code>")
+    .replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>")
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, (m, t, h) => {
+      if (/^https?:/.test(h)) return `<a href="${h}" target="_blank" rel="noopener">${t}</a>`;
+      return `<button class="clink" data-ref="${h}">${t}</button>`;
+    });
+}
+function md(src) {
+  const out = []; let list = null, table = null, para = [];
+  const flush = () => {
+    if (para.length) { out.push(`<p>${mdInline(para.join(" "))}</p>`); para = []; }
+    if (list) { out.push(`<${list.t}>${list.items.map(i => `<li>${mdInline(i)}</li>`).join("")}</${list.t}>`); list = null; }
+    if (table) { out.push(`<table>${table.map((r, i) => `<tr>${r.map(c => i ? `<td>${mdInline(c)}</td>` : `<th>${mdInline(c)}</th>`).join("")}</tr>`).join("")}</table>`); table = null; }
+  };
+  for (const line of src.split("\n")) {
+    const l = line.trim();
+    if (!l) { flush(); continue; }
+    if (/^#{1,6}\s/.test(l)) { flush(); out.push(`<h4>${mdInline(l.replace(/^#+\s/, ""))}</h4>`); continue; }
+    if (/^\|/.test(l)) { if (!table) { flush(); table = []; } if (!/^\|[\s|:-]+\|$/.test(l)) table.push(l.slice(1, -1).split("|").map(x => x.trim())); continue; }
+    const li = l.match(/^(-|\d+\.)\s+(.*)$/);
+    if (li) { const t = li[1] === "-" ? "ul" : "ol"; if (!list || list.t !== t) { flush(); list = { t, items: [] }; } list.items.push(li[2]); continue; }
+    if (list) list.items[list.items.length - 1] += " " + l; else para.push(l);
+  }
+  flush();
+  return out.join("");
+}
+function resolveRef(from, ref) {
+  const parts = from.split("/").slice(0, -1);
+  for (const seg of ref.split("/")) { if (seg === "..") parts.pop(); else if (seg !== ".") parts.push(seg); }
+  return parts.join("/");
+}
+
+let selected = null;
+function select(p, scroll) {
+  const c = byPath[p]; if (!c) return;
+  selected = p;
+  const rel = new Set([p]);
+  edges.forEach(e => { if (e.s === p) rel.add(e.t); if (e.t === p) rel.add(e.s); });
+  map.classList.add("has-sel");
+  map.querySelectorAll(".node").forEach(n => { n.classList.toggle("sel", n.dataset.p === p); n.classList.toggle("rel", rel.has(n.dataset.p)); n.setAttribute("aria-pressed", n.dataset.p === p); });
+  const outs = edges.filter(e => e.s === p), ins = edges.filter(e => e.t === p);
+  const li = (k, q) => `<div><span class="k">${esc(k)}</span><button data-go="${q}">${esc(byPath[q].title)}</button></div>`;
+  const steps = c.steps.length ? `<div class="block"><span class="label">Steps</span><div class="steps-mini">${c.steps.map((s, i) => `<div>${i + 1}. ${esc(s.name)} <span class="meta">· ${esc(s.phase)}</span></div>`).join("")}</div></div>` : "";
+  document.getElementById("detail").innerHTML = `
+    <div><span class="label">${esc(c.type)}</span> <span class="mono meta">okf/${esc(c.path)}</span></div>
+    <h3>${esc(c.title)}</h3>
+    <p class="desc">${esc(c.description)}</p>
+    <div>${cbtn(nodeId(p), "Comment on this concept")}</div>
+    <div class="md">${md(c.body)}</div>
+    ${steps}
+    ${outs.length ? `<div class="block"><span class="label">Links out</span><div class="linklist">${outs.map(e => li(e.k, e.t)).join("")}</div></div>` : ""}
+    ${ins.length ? `<div class="block"><span class="label">Linked from</span><div class="linklist">${ins.map(e => li(e.k, e.s)).join("")}</div></div>` : ""}`;
+  document.querySelectorAll("#detail [data-ref]").forEach(b => { const q = resolveRef(p, b.dataset.ref); if (byPath[q]) b.dataset.go = q; else b.replaceWith(document.createTextNode(b.textContent)); });
+  drawEdges();
+  if (scroll) document.getElementById(nodeId(p)).scrollIntoView({ block: "nearest", inline: "center", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+}
+function drawEdges() {
+  if (!selected || document.getElementById("view-map").hidden) return;
+  const box = map.getBoundingClientRect();
+  const rect = q => { const r = document.getElementById(nodeId(q)).getBoundingClientRect(); return { l: r.left - box.left, r: r.right - box.left, y: r.top - box.top + r.height / 2 }; };
+  let html = "";
+  for (const e of edges.filter(e => e.s === selected || e.t === selected)) {
+    const a = rect(e.s), b = rect(e.t);
+    let x1, x2, path;
+    if (Math.abs(a.l - b.l) < 4) { x1 = a.r; x2 = b.r; const bend = x1 + 26; path = `M${x1},${a.y} C${bend},${a.y} ${bend},${b.y} ${x2},${b.y}`; html += `<path d="${path}"/><text x="${bend - 2}" y="${(a.y + b.y) / 2}" text-anchor="end">${e.k}</text>`; continue; }
+    if (a.l < b.l) { x1 = a.r; x2 = b.l; } else { x1 = a.l; x2 = b.r; }
+    const mx = (x1 + x2) / 2;
+    path = `M${x1},${a.y} C${mx},${a.y} ${mx},${b.y} ${x2},${b.y}`;
+    html += `<path d="${path}"/><text x="${mx}" y="${(a.y + b.y) / 2 - 3}" text-anchor="middle">${e.k}</text>`;
+  }
+  svg.innerHTML = html;
+}
+map.addEventListener("click", e => { const n = e.target.closest(".node"); if (n) select(n.dataset.p); });
+document.addEventListener("click", e => { const g = e.target.closest("[data-go]"); if (g) { select(g.dataset.go, true); } });
+new ResizeObserver(drawEdges).observe(map);
+
+/* ---------- look ---------- */
+const TOKENS = [["surface", "#F2F3F1", "Page, close to the counter"], ["sunk", "#E7E9E7", "Selected rows, inputs"], ["line", "#D3D6D5", "Hairlines"], ["vein", "#7E8488", "Secondary text"], ["ink", "#2B2E30", "Graphite text, buttons"], ["accent", "#1F3A5F", "Carb numbers, selection"], ["warn", "#8A5A00", "Not verified, estimated"]];
+document.getElementById("swatches").innerHTML = TOKENS.map(([n, v, u]) => `<div class="sw"><i style="background:${v}"></i><b>${n}</b><span class="mono">${v}</span><span>${u}</span></div>`).join("");
+function fitScreens() { document.querySelectorAll(".device").forEach(d => d.querySelector(".scr").style.setProperty("--s", d.clientWidth / 1024)); }
+document.querySelectorAll(".device").forEach(d => new ResizeObserver(fitScreens).observe(d));
+
+/* ---------- journey ---------- */
+const J = C.find(c => c.type === "Journey");
+document.getElementById("jdesc").textContent = J.description + " Each column is one step; select a feature to see it in the concept map.";
+(() => {
+  const steps = J.steps, phases = [];
+  steps.forEach(s => { const last = phases[phases.length - 1]; if (last && last.name === s.phase) last.n++; else phases.push({ name: s.phase, n: 1 }); });
+  const rows = [["Doing", "doing"], ["Screen", "screen"], ["Thinking", "thinking"], ["Risk", "risk"], ["How the app helps", "helps"]];
+  document.getElementById("journey").innerHTML =
+    `<thead><tr class="phase"><th></th>${phases.map(p => `<th colspan="${p.n}">${esc(p.name)}</th>`).join("")}</tr>
+     <tr class="stepname"><th></th>${steps.map((s, i) => `<th id="step-${s.id}" data-comment-target><span class="num">${String(i + 1).padStart(2, "0")}</span>${esc(s.name)}<br>${cbtn("step-" + s.id)}</th>`).join("")}</tr></thead>
+     <tbody>${rows.map(([lab, k]) => `<tr class="${k}"><th>${lab}</th>${steps.map(s => `<td class="${k === "screen" && /outside/i.test(s[k]) ? "out" : ""}">${esc(s[k] || "")}</td>`).join("")}</tr>`).join("")}
+     <tr><th>Concepts</th>${steps.map(s => `<td><div class="chips">${s.features.map(f => `<button data-goto="${f}">${esc(byPath[f].title)}</button>`).join("")}</div></td>`).join("")}</tr></tbody>`;
+})();
+document.addEventListener("click", e => { const g = e.target.closest("[data-goto]"); if (g) { location.hash = "map"; setTimeout(() => select(g.dataset.goto, true), 30); } });
+
+/* ---------- routing ---------- */
+function route() {
+  const v = ["map", "look", "journey"].includes(location.hash.slice(1)) ? location.hash.slice(1) : "map";
+  for (const id of ["map", "look", "journey"]) document.getElementById("view-" + id).hidden = id !== v;
+  document.querySelectorAll("nav.tabs a").forEach(a => { if (a.dataset.view === v) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current"); });
+  if (v === "map") requestAnimationFrame(drawEdges);
+  if (v === "look") requestAnimationFrame(fitScreens);
+}
+addEventListener("hashchange", route);
+route();
+select("features/view-food.md");
+if (document.fonts) document.fonts.ready.then(drawEdges);
+</script>

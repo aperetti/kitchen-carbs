@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#F2F3F1">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Kitchen Carbs</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<header class="bar">
+  <span class="nm">Kitchen Carbs</span>
+  <nav class="tabs" id="tabs">
+    <a href="#foods" data-v="foods">Foods</a>
+    <a href="#plate" data-v="plate">Plate <span id="plateCount"></span></a>
+    <a href="#log" data-v="log">Log</a>
+    <a href="#manage" data-v="manage" class="parent-tab">Manage</a>
+  </nav>
+</header>
+<div class="status" id="status" hidden></div>
+
+<main>
+  <section id="v-foods" class="view foodsview">
+    <div class="fg-main">
+      <div class="fg-top">
+        <div class="searchrow"><label class="search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
+          <input id="q" type="search" placeholder="Search foods" autocomplete="off"></label>
+          <a class="scanbtn" id="bulkScan" href="#manage/foods/add/batch" title="Scan barcodes to add foods" aria-label="Scan barcodes to add foods">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7V4h3M21 7V4h-3M3 17v3h3M21 17v3h-3M7 8v8M10 8v8M13 8v8M17 8v8"/></svg></a></div>
+        <div class="cats" id="cats"></div>
+      </div>
+      <div id="foodList" class="cards"></div>
+    </div>
+    <div class="splitter" id="splitter" role="separator" aria-orientation="vertical" aria-label="Resize foods and plate" tabindex="0"></div>
+    <aside class="platepane" id="platePane" aria-label="Plate"></aside>
+  </section>
+
+  <section id="v-plate" class="view" hidden><div class="pad" id="plateView"></div></section>
+
+  <section id="v-log" class="view split">
+    <div class="list loglist" id="logList"></div>
+    <div class="detail" id="mealDetail"></div>
+  </section>
+
+  <section id="v-manage" class="view" hidden><div id="manageView" class="manage"></div></section>
+
+  <section id="v-signin" class="view" hidden><div id="signinView" class="signin"></div></section>
+</main>
+<dialog id="addDialog" class="adddlg" aria-label="Add a food"></dialog>
+<dialog id="doseDialog" class="adddlg dosedlg" aria-label="Meal summary"></dialog>
+
+<footer class="platebar" id="platebar" hidden>
+  <span id="pbItems"></span><span class="n" id="pbTotal"></span>
+  <a class="btn primary" href="#plate">Open plate</a>
+</footer>
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+<script src="scale.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

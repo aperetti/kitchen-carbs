@@ -1,0 +1,41 @@
+# Production and QA (okf/architecture/environments.md). GEMINI_KEY comes from .env next to this
+# file or in the parent folder; it is passed in at run time and never built into the image.
+x-app: &app
+  build:
+    context: ./app
+    network: host   # builds use the host's DNS; on the homelab, Docker's build network can't resolve pypi.org
+  env_file:
+    - path: ../.env
+      required: false
+    - path: .env
+      required: false
+  environment: &env
+    GEMINI_IMAGE_MODEL: gemini-3.1-flash-image
+    GEMINI_TEXT_MODEL: gemini-3.5-flash-lite
+  restart: unless-stopped
+
+services:
+  kitchen-carbs:
+    <<: *app
+    container_name: kitchen-carbs
+    # /etc/localtime: meals are grouped by the server's local day
+    ports: ["${PROD_PORT:-8090}:8080"]      # 8080 is taken on the host
+    environment:
+      <<: *env
+      KC_ENV: prod
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - ./data:/data
+
+  kitchen-carbs-qa:
+    <<: *app
+    profiles: [qa]
+    container_name: kitchen-carbs-qa
+    ports: ["${QA_PORT:-8091}:8080"]
+    environment:
+      <<: *env
+      KC_ENV: qa
+      KC_SEED: "0"
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - ./data-qa:/data

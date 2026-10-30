@@ -1,0 +1,9 @@
+.venv/
+data/
+data-dev/
+data-qa/
+.env
+__pycache__/
+*.pyc
+caddy-data/
+kitchen-carbs-ca.crt

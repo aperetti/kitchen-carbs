@@ -1,0 +1,103 @@
+# Log
+- 2026-10-26 — Bundle created from the planning conversation. Decisions: kitchen tablet; real photos as baseline for Gemini restyle; browse + plate + log; carbs from weighed grams × USDA per-100 g; local Docker server; OKF for planning only.
+- 2026-10-27 — Confirmed half portions and light theme only. Added Meal note (eaten amount + comments), Annotate meal feature, Same-day edits rule, Meal entry component.
+- 2026-10-27 — Added parent mealtime journey (journey/mealtime.md); checker now requires every Feature to appear in a journey step.
+- 2026-10-27 — Added Nightscout integration (read-only): Glucose reading, Target range, Glucose statistics, Meal glucose window; features Connect Nightscout, Glucose after a meal, Glucose statistics; rules read-only, token server-only, units, describe-don't-advise, sensor coverage; Nightscout client; glucose curve + stats strip components; two journey steps.
+- 2026-10-27 — Confirmed mg/dL, latest Nightscout, 3-hour meal window. Glucose curve and stats strip mocked in Log screen.
+- 2026-10-27 — v1 built (app/). Offline concept updated: localStorage queue instead of a service worker, because the tablet uses plain http on the LAN.
+- 2026-10-27 — Categories became Tags (several per food; start with Breakfast, Lunch, Dinner). Added Favorite plate, Favorite plates feature, Favorites-use-current-values rule, Tag filter component, journey step 'Use a favorite plate'.
+- 2026-10-27 — Added Scan a nutrition label: Nutrition label entity, label-reading-needs-check rule, label review component, journey step.
+- 2026-10-27 — Added Database migrations, Environments (dev/QA/prod) and Back-up-before-change rule. Gemini key now from GEMINI_KEY in .env.
+- 2026-10-27 — From review comments: Photo style (editable prompt + plate/bowl/dressing base photos, per-portion container with Auto); label scan now needs separate confirmation of serving size and total carbohydrate.
+- 2026-10-27 — Wide-screen three-column layout (list | photo | details + plate). High-DPI photos: 3000 px masters, Gemini 2K output, on-demand resized copies with srcset.
+- 2026-10-27 — Manual log entry (carbs, meter BG, insulin given). No-dosing rule reworded: recording insulin given is allowed; calculating, suggesting or checking doses is not.
+- 2026-10-27 — Migrations squashed into a single version 1 (not deployed yet); appending starts after the first deploy.
+- 2026-10-27 — Look up a food: USDA FoodData Central (generic) + Open Food Facts (packaged, barcode photo or digits). OFF contact email defaults to the owner's, editable in Settings.
+- 2026-10-27 — Live barcode scanner on the Look up tab (camera starts automatically, aiming box); HTTPS via Caddy (prod) and self-signed (dev) because browsers only allow the camera on https.
+- 2026-10-27 — Production port moved to 8090 (8080 is taken on the host).
+- 2026-10-27 — Barcode camera now opens only when 'Scan a barcode' is tapped.
+- 2026-10-27 — Open Food Facts search moved to search.openfoodfacts.org with possessive/prefix matching; package photos shown in results and on the check screen.
+- 2026-10-27 — Navigation guideline: every Manage step is a history entry; every form has Cancel.
+- 2026-10-27 — Manage empty state is a centred 'Add a food' button; photography instructions removed from the app.
+- 2026-10-27 — Photo generation runs in the background with live progress in Manage.
+- 2026-10-27 — Size references: parent-defined objects of known measurement, chosen per portion, sent to Gemini for scale.
+- 2026-10-27 — Typing in a food: carbs entered per any base amount (no 100 g default), converted to per 100 g on save.
+- 2026-10-27 — Typed-in foods default to source 'Package label'.
+- 2026-10-27 — 'Scan label' tab removed: label photo moved into Look up beside the barcode options (it read as a repeat).
+- 2026-10-27 — Phone layout guideline: adding or editing a food is a full screen with a back bar, large dark labels, full-width inputs.
+- 2026-10-27 — Photos can be generated with no uploaded photo (name, grams, container, size reference, style); always flagged estimated.
+- 2026-10-27 — Size references can be tied to a plate, bowl or dressing container; picked automatically when a portion is served in that dish.
+- 2026-10-27 — Phone: Save and Cancel pinned to the bottom of the screen in food forms.
+- 2026-10-27 — Photo inputs no longer force the camera: phones offer camera or photo library.
+- 2026-10-27 — Per-portion note for Gemini, sent with every photo request; never overrides the amount rule.
+- 2026-10-27 — Quick-add portions as multiples (½×, 1½×, 2×, custom) of the main serving.
+- 2026-10-27 — A food keeps its serving as typed (17 g per 85 g); it is the default first portion; quick-add multiples build on it.
+- 2026-10-27 — Quick-added portions start an estimated photo from the serving's photo (original, else accepted styled).
+- 2026-10-27 — Photo speed setting: Fast (lite model, ~3.5 s, default) or Sharp (full model, 2K, ~15 s); smaller reference uploads; 1 s progress checks.
+- 2026-10-27 — 'On the counter' serving option: food straight on the quartz, no dish.
+- 2026-10-27 — Quick add by barcode: confirm, save, and a best-guess photo (package, plate, bowl, dressing, counter) starts at once; 'In its own package' serving option.
+- 2026-10-27 — Estimates start from the serving's styled photo (original only when there is no styled one).
+- 2026-10-27 — Open Food Facts name search limited to a region (default United States), changeable in Settings, with 'Search all countries'.
+- 2026-10-27 — FatSecret replaces USDA for name search (OAuth 2.0; server IP must be allowlisted); same confirm-serving check screen.
+- 2026-10-27 — Scan several: continuous barcode scanning into a review table with per-row serving and carbs ticks.
+- 2026-10-27 — Plate: each item tuned by a weight slider (or typed grams) instead of ×½ steps; plate shows total food weight.
+- 2026-10-27 — First production deploy to the homelab (8092, https 8443); schema version 1 frozen; dev foods carried over, test history left out.
+- 2026-10-27 — Google sign-in via Firebase for the whole app: allow-listed emails, 30-day device sessions, PIN still guards Manage; migration 2 adds sessions.
+- 2026-10-27 — Foods screen is a grid of food cards (portion buttons add to the plate); the large photo view is gone.
+- 2026-10-27 — Plate rows: drag anywhere on the row to set the weight; carbs and weight labelled plainly.
+- 2026-10-27 — Weight slider restyled after Apple's HIG: filled rounded track, white round thumb, tick for the portion, − / + stepper.
+- 2026-10-27 — Plate rows show a larger photo (160×120, 112×84 on phones) beside the name and slider.
+- 2026-10-27 — Food cards all the same size: name on a translucent strip over the photo, portions in one scrolling row, details over the photo.
+- 2026-10-27 — 'Estimated photo' tag removed from food cards; shown in the card details and Manage instead.
+- 2026-10-27 — Food cards show photo and name only; tapping a card adds its serving; portions listed in the details.
+- 2026-10-27 — Food cards modernised: borderless rounded photo, one-line name on a frosted pill.
+- 2026-10-27 — Tablets and computers: Foods and Plate side by side, 50/50 with a draggable divider; phones keep two screens.
+- 2026-10-27 — 'On plate' badges update quietly when weights change; only a card tap animates.
+- 2026-10-27 — 'On plate' badge moved to the card's top-left corner.
+- 2026-10-27 — 'On plate' badge is just a check mark.
+- 2026-10-27 — Tapping a food card toggles it on and off the plate.
+- 2026-10-28 — Kitchen scale over Web Bluetooth: live reading on the plate, 'Use' per row (never automatic), Zero; standard Weight Scale and Decent Scale, raw viewer for others.
+- 2026-10-28 — HTTPS is handled by the Cloudflare Tunnel: Caddy and the dev self-signed certificate removed; the app serves plain http.
+- 2026-10-28 — App files sent with no-cache so Cloudflare and browsers pick up a deploy at once (an old cached app.js hid sign-in).
+- 2026-10-28 — Sign-in works inside the Home Assistant dashboard: cookie allowed in frames (with an origin check), and 'Sign in with a code' for kiosks where Google refuses.
+- 2026-10-28 — http requests through Cloudflare are redirected to https (a dashboard card on http:// couldn't keep sign-in).
+- 2026-10-28 — Free snacks tab: foods with 5 g carbs or less a serving (limit set in Settings), computed from carbs.
+- 2026-10-28 — Phones are offered 'Install Kitchen Carbs' once after sign-in (Android install dialog, iPhone steps); pass-through service worker and PNG icons.
+- 2026-10-28 — Etekcity ESN00 nutrition scale driver (service 0x1910), set to grams on connect, zero via its own tare.
+- 2026-10-28 — ESN00 checked on the real scale: reading format confirmed (55.0 g); commands need write-without-response; zero is C1 00.
+- 2026-10-28 — Scale auto-connects while the plate is showing, after the first tap (remembered scale, retried every 15 s).
+- 2026-10-28 — Foods record whether carbs are as sold, dry/raw or cooked, with an optional measured cooking ratio; the plate takes dry or cooked weight; migration 3.
+- 2026-10-28 — Date and time of any meal or entry can be changed on any day, marked 'Moved from …' (log, details, CSV); migration 4.
+- 2026-10-28 — Food form: dry / raw / cooked chosen inside the carbs sentence, with a line saying what the scale should show.
+- 2026-10-28 — Portion labels must be an amount then a unit; multiples get real amounts; plate rows count portions to the nearest quarter; migration 5 renames '½ × 1 serving'.
+- 2026-10-28 — Plate portion count: fixed-width slots for '≈' and the number, so the text doesn't move.
+- 2026-10-28 — Plate slider: ticks at ½, 1, 1½, 2 portions with snapping while dragging; '1 serving = X g' line removed.
+- 2026-10-28 — Orphaned favorites: 'Remove them' on the Favorites tab, and 'Remove the missing items' per favorite.
+- 2026-10-28 — Thin plate pane: stacked row layout, full-width slider; no more name and carbs overlap.
+- 2026-10-28 — Thin plate pane footer: Save to log never squeezed, links kept together, narrowest rows tightened.
+- 2026-10-28 — Scan several: each row's portion (number and unit) is editable, starting from the package's serving text.
+- 2026-10-28 — Free snacks tab removed: foods are no longer sorted by a carb limit; a hand-made 'Free snacks' tag does the job.
+- 2026-10-28 — Fiber kept on each food (reference only, never subtracted); 'Fill in fiber' reads it again from each food's own source, confirmed food by food.
+- 2026-10-28 — Scan several: scan button beside the food search; on phones one check screen per food, back to the scanner at the top after; a Complete button to finish.
+- 2026-10-28 — App icon: apple on a plate on the counter (review option C, apple lowered), drawn edge to edge for every phone's mask.
+- 2026-10-28 — Plate dry/cooked switch converts the weight and keeps the carbs; both weights shown; rows pick up a food's new cooking ratio.
+- 2026-10-28 — Plate: ratio date left off the dry/cooked line; the other weight in whole grams.
+- 2026-10-28 — Cooking ratio required for dry / raw and cooked foods, asked right under the carbs line.
+- 2026-10-28 — Foods search with no match: 'Look up and add it' opens the top lookup result's check screen in a modal.
+- 2026-10-28 — Adding a food: optional note for Gemini on the first portion, used by the photo made after saving.
+- 2026-10-29 — Plate: with the scale connected, the reading and Zero float at the top while scrolling.
+- 2026-10-29 — Plate on small phones and large text: stacked rows so the carbs never overlap the name (design/guidelines/large-text.md).
+- 2026-10-29 — Foods open on the Breakfast, Lunch or Dinner tag for the time of day, when that tag exists.
+- 2026-10-29 — Plate slider: tapping the track no longer jumps the weight; only a left/right slide moves it.
+- 2026-10-29 — Meal summary with an insulin dose on 'Save to log' (parent's decision, reverses the old no-dosing rule for this one screen): ratios by time of day, Nightscout BG under 15 min and IOB off the correction, rounded down to 0.05 u.
+- 2026-10-29 — Plate: a padlock at the bottom left of each row locks its slider against accidental moves; rows start unlocked.
+- 2026-10-29 — Confirm a food's carbs: each account confirms each food once from the plate; a carbs or cooking-ratio change clears everyone's confirmation but the editor's (features/confirm-food.md).
+- 2026-10-29 — Food details (ⓘ) show 'Edit in Manage' under the name, opening that food in Manage (PIN first if locked).
+- 2026-10-29 — Meals carry optional details: BG (CGM or meter), insulin given (Bolus or Basal) and how long before or after eating, and how long the meal took; entered in the summary or later in the log.
+- 2026-10-29 — Foods have their own barcode field; Manage → food form can scan, photograph or type a new barcode, checked against Open Food Facts.
+- 2026-10-29 — Plate: carbs entered by hand with a required description, for food not in the list; saved in the meal without a weight.
+- 2026-10-29 — Earlier days in the log can be changed (on by default, switch in Manage → Settings → Log); every later change is marked 'Changed later'.
+- 2026-10-29 — Deleting a meal or entry is soft: listed under 'Deleted' on its day and can be restored.
+- 2026-10-29 — A logged meal's total carbs can be corrected with a required reason, kept as a dated comment; the items keep their saved carbs.
+- 2026-10-29 — Log rows show each food's carbs instead of its weight; insulin timing starts on 'Before eating, 15 min'.
+- 2026-10-29 — Foods: adding while searching clears the search and refocuses it; the card's photo flies to the plate count.
