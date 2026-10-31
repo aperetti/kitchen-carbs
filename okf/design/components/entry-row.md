@@ -19,3 +19,6 @@ Insulin and BG are graphite text, never accent, so they can't be confused with c
 - A meal whose total carbs were changed by hand says 'Carbs edited' in warn colour in its row (okf/domain/meal.md).
 - A meal row shows its comments' text, newest last, instead of a comment count, so the reason for a carbs edit is
   visible without opening the meal. Long comments are cut to two lines.
+- A meal row shows the BG saved with the meal (decided 31 Oct), in graphite before its insulin:
+  'Eaten: Half · BG 182 · 2.5 u bolus · 2 h 169'. 'BG' is the reading typed or taken from the CGM at mealtime; '2 h'
+  is the sensor two hours later.
