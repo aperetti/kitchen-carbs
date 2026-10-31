@@ -131,10 +131,21 @@ function renderFoods() {
   if (S.filter === "fav") return renderFavorites();
   const q = S.q.trim().toLowerCase();
   const list = S.foods.filter(f => (S.filter === "all" || f.tags.includes(S.filter)) && (!q || f.name.toLowerCase().includes(q)));
-  $("#foodList").innerHTML = list.length ? list.map(foodCard).join("")
+  const more = otherMatches(list);
+  $("#foodList").innerHTML = list.length ? list.map(foodCard).join("") + more
+    : more ? `<div class="empty"><p>Nothing in ${esc(filterName())} matches.</p></div>${more}`
     : `<div class="empty">${!S.foods.length ? "No foods yet. A parent can add them in Manage."
         : `<p>No foods match.</p>${S.q.trim().length >= 2 && S.session ? `<p><button class="btn" data-act="add-search">Look up “${esc(S.q.trim())}” and add it</button></p>
            <p class="meta">A parent checks the numbers first.</p>` : ""}`}</div>`;
+}
+/* A search inside a tag or Favorites also finds foods outside it, listed after (okf/features/browse-foods.md) */
+const filterName = () => S.filter === "fav" ? "Favorites" : S.tags.find(t => t.id === S.filter)?.name || "this category";
+function otherMatches(shown) {
+  const q = S.q.trim().toLowerCase();
+  if (!q || S.filter === "all") return "";
+  const ids = new Set(shown.map(f => f.id));
+  const rest = S.foods.filter(f => !ids.has(f.id) && f.name.toLowerCase().includes(q));
+  return rest.length ? `<h3 class="morehead">In other categories</h3>${rest.map(foodCard).join("")}` : "";
 }
 /* Fiber, for reference only: never taken off the carbs (okf/domain/food.md) */
 const fiberIn = (f, g) => Math.round(g * f.fiber_per_100g / 10) / 10;
@@ -190,7 +201,8 @@ function renderFavorites() {
             <button type="button" class="linkbtn" data-act="fav-drop">${Date.now() - confirmDrop < 4000 ? "Tap again to remove them" : `Remove the missing item${f.missing > 1 ? "s" : ""}`}</button>` : ""}
           <button type="button" class="linkbtn" data-act="fav-unpin">${confirmUnpin && Date.now() - confirmUnpin < 4000 ? "Tap again to unpin" : "Unpin this favorite"}</button></div>` : ""}</div>
     </article>`;
-  }).join("") : `<div class="empty">${S.favs.length ? "No favorites match." : "No favorite plates yet. Build a plate, then tap Pin as favorite. You can also pin a meal from the log."}</div>`);
+  }).join("") : `<div class="empty">${S.favs.length ? "No favorites match." : "No favorite plates yet. Build a plate, then tap Pin as favorite. You can also pin a meal from the log."}</div>`)
+    + otherMatches([]);
 }
 let confirmUnpin = 0;
 function useFavorite(f) {

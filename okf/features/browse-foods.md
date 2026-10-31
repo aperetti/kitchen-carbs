@@ -23,6 +23,10 @@ links:
   plate still comes off with a tap.
 - No automatic Free snacks tab (decided 28 Oct, replacing the same day's carb-limit tab): a family that wants one
   makes a 'Free snacks' tag in Manage and puts foods in it by hand, like any tag.
+- Search across categories (decided 31 Oct): with a tag or Favorites chosen, a search lists that category's matches
+  first, then, under a full-width heading 'In other categories', the matching foods outside it. If the category has
+  none, it says so ('Nothing in Breakfast matches') and the other matches still show. 'Look up “…” and add it' appears
+  only when no food anywhere matches. With All chosen there is one list, as before.
 - Searching for several foods in a row (decided 29 Oct): tapping a card while a search is typed adds it, then clears the
   search and puts the cursor back in the search box, so the next name can be typed straight away.
 - Added-to-plate feedback (decided 29 Oct): the tapped card's photo flies to the plate count ('Plate (3)' on a phone,
