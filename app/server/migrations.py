@@ -194,10 +194,18 @@ def m014_favorite_photo(con):
     con.execute("ALTER TABLE favorites ADD COLUMN photo_candidate TEXT")   # waiting for the parent's check
 
 
+def m015_push_subscriptions(con):
+    """Phones that get a notification when a meal or entry is logged (okf/architecture/web-push.md)."""
+    con.execute("""CREATE TABLE push_subscriptions (
+      id INTEGER PRIMARY KEY, endpoint TEXT NOT NULL UNIQUE, p256dh TEXT NOT NULL, auth TEXT NOT NULL,
+      email TEXT, device TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL, last_ok TEXT, last_error TEXT)""")
+
+
 MIGRATIONS = [m001_schema, m002_sessions, m003_cooked_state, m004_moved_from, m005_portion_labels, m006_fiber,
               m007_food_confirmations, m008_meal_details, m009_barcode,
               m010_entered_carbs, m011_edited_later,
-              m012_soft_delete, m013_carbs_corrected, m014_favorite_photo]
+              m012_soft_delete, m013_carbs_corrected, m014_favorite_photo,
+              m015_push_subscriptions]
 LATEST = len(MIGRATIONS)
 
 

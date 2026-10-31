@@ -1232,3 +1232,71 @@ def test_dry_or_cooked_food_needs_its_ratio(app):
     f = client.post("/api/foods", json={**body, "cook_raw_g": 100, "cook_cooked_g": 240}).json()
     assert f["cook_ratio"] == 2.4
     assert client.post("/api/foods", json={**body, "name": "Bread", "basis": "as-sold"}).status_code == 200
+
+
+PHONE = {"endpoint": "https://fcm.googleapis.com/fcm/send/phone-1", "p256dh": "B" * 87, "auth": "a" * 22, "device": "Android · Chrome"}
+
+
+def test_notify_on_meal_and_entry(app, monkeypatch):
+    """okf/features/notify-family.md: every subscribed device but the one that logged it, with the logged numbers only."""
+    client, main = app
+    sent = []
+    monkeypatch.setattr(main.push, "_send_one", lambda vapid, subject, sub, payload: sent.append((sub["endpoint"], payload)))
+    monkeypatch.setattr(main.push, "send_later", lambda payload, skip="": main.push.send(payload, skip))
+    assert client.get("/api/push").json()["public_key"]
+    assert client.post("/api/push/subscribe", json=PHONE, headers={"X-Parent-Pin": "0000"}).status_code == 401
+    assert client.post("/api/push/subscribe", json={**PHONE, "endpoint": "https://192.168.0.1/x"}).status_code == 422
+    assert client.post("/api/push/subscribe", json={**PHONE, "endpoint": "http://fcm.googleapis.com/x"}).status_code == 422
+    client.post("/api/push/subscribe", json=PHONE)
+    tablet = {**PHONE, "endpoint": "https://web.push.apple.com/tablet"}
+    client.post("/api/push/subscribe", json=tablet)
+    body = meal(); body.update(bg=182, bg_source="meter", insulin=2.5, insulin_kind="bolus")
+    client.post("/api/meals", json=body, headers={"X-KC-Push": tablet["endpoint"]})
+    assert [e for e, _ in sent] == [PHONE["endpoint"]]
+    p = sent[0][1]
+    assert p["title"].startswith("Meal logged · ") and p["title"].endswith(" g carbs")
+    assert p["body"] == "18:05 · Pasta, cooked · BG 182 mg/dL · 2.5 u bolus"
+    client.post("/api/meals", json=body, headers={"X-KC-Push": tablet["endpoint"]})   # the same meal again: saved once, told once
+    assert len(sent) == 1
+    sent.clear()
+    client.post("/api/entries", json={"client_id": "entry-0001", "day": "2026-10-26", "time": "15:10", "bg": 95, "carbs": 15, "note": "juice"})
+    assert [p for _, p in sent][0] == {"title": "BG 95 mg/dL · 15 g carbs", "body": "Mon 26 Oct, 15:10 · juice", "tag": sent[0][1]["tag"], "url": "/#log"}
+    assert len(sent) == 2
+    devs = client.get("/api/push/devices", headers={"X-KC-Push": PHONE["endpoint"]}).json()
+    assert [d["mine"] for d in devs] == [True, False] and devs[0]["device"] == "Android · Chrome"
+    client.post("/api/push/unsubscribe", json={"endpoint": PHONE["endpoint"]}, headers={"X-Parent-Pin": ""})
+    assert len(client.get("/api/push/devices").json()) == 1
+
+
+def test_push_gone_and_qa(app, monkeypatch):
+    client, main = app
+    client.post("/api/push/subscribe", json=PHONE)
+    monkeypatch.setattr(main.push, "_send_one", lambda *a: "gone")
+    assert client.post("/api/push/test", json={"endpoint": PHONE["endpoint"]}).status_code == 502
+    assert client.get("/api/push/devices").json() == []   # the push service said it's gone
+    monkeypatch.setenv("KC_ENV", "qa")
+    assert client.get("/api/push").json() == {"enabled": False, "public_key": None}
+    assert client.post("/api/push/subscribe", json=PHONE).status_code == 400
+    assert main.push.send({"title": "x"}) == {"sent": 0, "failed": 0}
+
+
+def test_push_payload_is_encrypted_for_the_phone(app, monkeypatch):
+    """A real Web Push request (RFC 8291): only the phone's own keys can read it."""
+    import base64, http_ece, requests
+    from cryptography.hazmat.primitives import serialization
+    from cryptography.hazmat.primitives.asymmetric import ec
+    client, main = app
+    key, secret = ec.generate_private_key(ec.SECP256R1()), b"0123456789abcdef"
+    b64 = lambda b: base64.urlsafe_b64encode(b).decode().rstrip("=")
+    pub = key.public_key().public_bytes(serialization.Encoding.X962, serialization.PublicFormat.UncompressedPoint)
+    client.post("/api/push/subscribe", json={**PHONE, "p256dh": b64(pub), "auth": b64(secret)})
+    seen = {}
+    def fake_post(url, data=None, headers=None, timeout=None, **kw):
+        seen.update(url=url, data=data, headers=headers)
+        r = requests.Response(); r.status_code = 201; return r
+    monkeypatch.setattr(requests, "post", fake_post)
+    assert main.push.send({"title": "Meal logged · 30 g carbs"}) == {"sent": 1, "failed": 0}
+    assert seen["url"] == PHONE["endpoint"] and seen["headers"]["Authorization"].startswith("vapid t=")
+    assert b"carbs" not in seen["data"]
+    plain = http_ece.decrypt(seen["data"], private_key=key, auth_secret=secret, version="aes128gcm")
+    assert json.loads(plain) == {"title": "Meal logged · 30 g carbs"}

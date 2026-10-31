@@ -49,6 +49,8 @@ async function api(path, { method = "GET", body, form, parent = false } = {}) {
   const headers = {};
   if (body) headers["Content-Type"] = "application/json";
   if (parent) headers["X-Parent-Pin"] = pinStore.get();
+  const mine = store.get("push", "");   // this device's own saves don't notify it (okf/features/notify-family.md)
+  if (mine) headers["X-KC-Push"] = mine;
   let r;
   try { r = await fetch(path, { method, headers, body: form || (body && JSON.stringify(body)) }); }
   catch { setOffline(true); throw new ApiError(0, "Can't reach the kitchen server."); }
@@ -1725,6 +1727,21 @@ const mClick = async e => {
   }
   if (t.dataset.act === "lk-everywhere") { S.m.look.everywhere = true; lookupSearch(S.m.look.q); return; }
   if (t.dataset.act === "sign-out") { await api("/api/auth/logout", { method: "POST" }).catch(() => { }); location.reload(); return; }
+  if (["push-on", "push-off", "push-test"].includes(t.dataset.act) || t.dataset.pushdel) {
+    t.disabled = true;
+    try {
+      if (t.dataset.act === "push-on") await pushOn();
+      else if (t.dataset.act === "push-test") { await api("/api/push/test", { method: "POST", body: { endpoint: store.get("push", "") } }); toast("Test sent"); }
+      else if (t.dataset.act === "push-off") {
+        const sub = await (await pushReg())?.pushManager.getSubscription();
+        const endpoint = sub?.endpoint || store.get("push", "");
+        await sub?.unsubscribe(); if (endpoint) await api("/api/push/unsubscribe", { method: "POST", body: { endpoint } });
+        store.set("push", ""); toast("Notifications off for this device");
+      } else await api(`/api/push/devices/${t.dataset.pushdel}`, { method: "DELETE", parent: true });
+      renderPush();
+    } catch (err) { renderPush(err.message); }
+    return;
+  }
   if (t.dataset.act === "scale-raw") {   // okf/features/kitchen-scale.md: read an unknown scale's format
     const log = $("#rawLog"), lines = [], add = l => { lines.push(l); if (lines.length > 300) lines.shift(); log.textContent = lines.join("\n"); log.scrollTop = log.scrollHeight; };
     log.hidden = false; S.rawStop?.();
@@ -2527,6 +2544,7 @@ async function renderSettings() {
       <p class="meta">On: meals and entries from earlier days can be changed, deleted or added, and each change is marked ✎ in the log and 'Changed later' in the export.
         Off: earlier days are read-only. Moving a meal or entry to another date and time works either way.</p></section>` : ""}
     <div id="doseBox">${doseForm()}</div>
+    <div id="pushBox"></div>
     <div id="accountsBox"></div>
     <section class="form"><h2>Kitchen scale</h2>
       ${Scale.supported ? `<p class="meta">Connect the scale from the plate. The app reads the standard Bluetooth weight scale and the Decent Scale.
@@ -2539,7 +2557,57 @@ async function renderSettings() {
       <label class="field"><span>New PIN (4 to 8 digits)</span><input id="newPin" type="password" inputmode="numeric" pattern="\\d{4,8}" required></label></div>
       <div class="actions"><button class="btn">Change PIN</button><button type="button" class="btn quiet" data-act="form-reset">Cancel</button></div></form>
     </div></div>`;
-  S.accounts = null; renderAccounts();
+  S.accounts = null; renderAccounts(); renderPush();
+}
+
+/* ---------- notifications (okf/features/notify-family.md, okf/architecture/web-push.md) ---------- */
+const pushOk = () => window.isSecureContext && "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
+const deviceName = () => {
+  const u = navigator.userAgent, ios = isIOS();
+  const os = /Android/.test(u) ? "Android" : ios ? (/iPhone|iPod/.test(u) ? "iPhone" : "iPad") : /CrOS/.test(u) ? "Chromebook"
+    : /Windows/.test(u) ? "Windows" : /Mac/.test(u) ? "Mac" : /Linux/.test(u) ? "Linux" : "";
+  const br = /Edg\//.test(u) ? "Edge" : /SamsungBrowser/.test(u) ? "Samsung Internet" : /Firefox|FxiOS/.test(u) ? "Firefox"
+    : /CriOS|Chrome/.test(u) ? "Chrome" : /Safari/.test(u) ? "Safari" : "";
+  const app = matchMedia("(display-mode: standalone)").matches || navigator.standalone ? "installed app" : "";
+  return [os, br, app].filter(Boolean).join(" · ") || "Browser";
+};
+async function pushReg() {   // the worker registers at load; don't wait for ever if it couldn't
+  return Promise.race([navigator.serviceWorker.ready, new Promise(r => setTimeout(() => r(null), 4000))]);
+}
+const keyBytes = k => Uint8Array.from(atob(k.replace(/-/g, "+").replace(/_/g, "/")), c => c.charCodeAt(0));
+async function renderPush(msg = "") {
+  const box = $("#pushBox"); if (!box) return;
+  let info, devs;
+  try { [info, devs] = await Promise.all([api("/api/push"), api("/api/push/devices", { parent: true })]); } catch { return; }
+  const reg = info.enabled && pushOk() ? await pushReg() : null;
+  const sub = reg ? await reg.pushManager.getSubscription().catch(() => null) : null;
+  const on = !!sub && devs.some(d => d.mine);
+  if (!on && store.get("push", "")) store.set("push", "");
+  const here = !info.enabled ? `<p class="meta">Notifications are off in QA, so test meals never reach the family's phones.</p>`
+    : !pushOk() ? `<p class="meta">${isIOS() ? "On iPhone and iPad, notifications only work in the installed app: in Safari tap Share → <b>Add to Home Screen</b>, open Kitchen Carbs from the Home Screen, then turn them on here."
+        : "This browser can't show notifications."}</p>`
+    : Notification.permission === "denied" ? `<p class="meta warn">Notifications are blocked for Kitchen Carbs on this device. Allow them in the browser's site settings (on a phone, also Settings → Notifications), then come back here.</p>`
+    : !reg ? `<p class="meta">The app's background worker isn't running on this device yet. Reload the page and try again.</p>`
+    : on ? `<p>This device gets notifications.</p><div class="actions"><button type="button" class="btn" data-act="push-test">Send a test</button><button type="button" class="btn quiet" data-act="push-off">Turn off</button></div>`
+    : `<div class="actions"><button type="button" class="btn primary" data-act="push-on">Notify this device</button></div>`;
+  box.innerHTML = `<section class="form"><h2>Notifications</h2>
+    <p class="meta">A device that turns this on gets a notification whenever a meal is saved or an entry (BG, insulin or carbs) is added on another device, with the numbers that were logged. The calculated dose is never sent.</p>
+    ${here}<p class="err" role="alert">${esc(msg)}</p>
+    ${devs.length ? `<span class="label">Getting notifications</span><ul class="pushlist">${devs.map(d => `<li><span><b>${esc(d.device || "Device")}</b>${d.mine ? " (this device)" : ""}<br>
+        <span class="meta">${esc(d.email || "")}${d.last_error ? ` · <span class="warn">last try failed</span>` : ""}</span></span>
+        <button type="button" class="btn quiet small" data-pushdel="${d.id}">Remove</button></li>`).join("")}</ul>` : ""}</section>`;
+}
+async function pushOn() {
+  if (await Notification.requestPermission() !== "granted") return renderPush("Notifications weren't allowed on this device.");
+  const [info, reg] = await Promise.all([api("/api/push"), pushReg()]);
+  if (!reg) return renderPush("The app's background worker isn't running. Reload the page and try again.");
+  const key = keyBytes(info.public_key);
+  let sub = await reg.pushManager.getSubscription();
+  try { sub = sub || await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key }); }
+  catch { await sub?.unsubscribe(); sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key }); }
+  const j = sub.toJSON();
+  await api("/api/push/subscribe", { method: "POST", parent: true, body: { endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth, device: deviceName() } });
+  store.set("push", j.endpoint); toast("Notifications on for this device");
 }
 
 /* ---------- Google sign-in (okf/features/sign-in.md, okf/architecture/auth.md) ---------- */

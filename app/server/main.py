@@ -19,7 +19,7 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 
 from concurrent.futures import ThreadPoolExecutor
 
-from . import auth, core, db, dose, labels, lookup, migrations, nightscout, photos
+from . import auth, core, db, dose, labels, lookup, migrations, nightscout, photos, push
 
 WEB_DIR = os.path.join(os.path.dirname(__file__), "..", "web")
 SEED_DIR = os.path.join(os.path.dirname(__file__), "..", "seed")
@@ -1426,7 +1426,7 @@ def review_photo(pid: int, body: ReviewIn, c=Depends(con)):
 
 # ----- meals -----
 @app.post("/api/meals")
-def create_meal(body: MealIn, c=Depends(con)):
+def create_meal(body: MealIn, c=Depends(con), x_kc_push: str = Header(default="")):
     if body.day > today():
         fail(400, "A meal can't be logged for a future day.")
     existing = c.execute("SELECT id FROM meals WHERE client_id = ?", (body.client_id,)).fetchone()
@@ -1440,6 +1440,7 @@ def create_meal(body: MealIn, c=Depends(con)):
                       "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                       (mid, i.food_id, i.portion_id, i.food_name.strip(), i.portion_label, i.grams, i.carbs_per_100g, i.qty,
                        i.entered_carbs if i.entered_carbs is not None else core.carbs_exact(i.grams, i.carbs_per_100g, i.qty), i.entered_carbs))
+    notify(lambda: meal_notice(c, mid), x_kc_push)
     return {"id": mid, "duplicate": False}
 
 
@@ -1556,8 +1557,128 @@ def add_comment(mid: int, body: CommentIn, c=Depends(con)):
     return {"ok": True}
 
 
+# ----- notifications (okf/features/notify-family.md) -----
+INSULIN_KIND = {"rapid": "rapid-acting", "long": "long-acting", "bolus": "bolus", "basal": "basal"}
+
+
+def _when(day: str, hhmm: str) -> str:
+    return hhmm if day == today() else f"{date.fromisoformat(day).strftime('%a %-d %b')}, {hhmm}"
+
+
+def _facts(r, carbs=False) -> list[str]:
+    """What was typed, in the log's order. Insulin is only ever what was given, never the summary's dose (okf/rules/no-dosing.md)."""
+    out = [f"BG {r['bg']} mg/dL"] if r["bg"] is not None else []
+    if r["insulin"] is not None:
+        out.append(f"{r['insulin']:g} u {INSULIN_KIND.get(r['insulin_kind'], r['insulin_kind'] or '')}".strip())
+    if carbs and r["carbs"] is not None:
+        out.append(f"{r['carbs']:g} g carbs")
+    return out
+
+
+def meal_notice(c, mid: int) -> dict:
+    m = c.execute("SELECT * FROM meals WHERE id = ?", (mid,)).fetchone()
+    items = c.execute("SELECT food_name, carbs_exact FROM meal_items WHERE meal_id = ? ORDER BY id", (mid,)).fetchall()
+    total = core.whole_grams(sum(i["carbs_exact"] for i in items))
+    return {"title": f"Meal logged · {total} g carbs", "tag": f"meal-{mid}", "url": "/#log",
+            "body": " · ".join([_when(m["day"], m["time"]), ", ".join(i["food_name"] for i in items), *_facts(m)])}
+
+
+def entry_notice(e) -> dict:
+    return {"title": " · ".join(_facts(e, carbs=True)) or "Note added", "tag": f"entry-{e['id']}", "url": "/#log",
+            "body": " · ".join(x for x in (_when(e["day"], e["time"]), e["note"]) if x)}
+
+
+def notify(notice, skip: str):
+    """After the save: a notice that can't be built is logged, never turned into a failed save."""
+    try:
+        push.send_later(notice(), skip=skip)
+    except Exception:
+        push.log.exception("notification not sent")
+
+
+PUSH_HOSTS = ("fcm.googleapis.com", "updates.push.services.mozilla.com", ".push.apple.com", ".notify.windows.com")
+
+
+class PushSubIn(BaseModel):
+    endpoint: str = Field(max_length=1000)
+    p256dh: str = Field(min_length=20, max_length=200)
+    auth: str = Field(min_length=8, max_length=100)
+    device: str = Field(default="", max_length=80)
+
+    @field_validator("endpoint")
+    @classmethod
+    def push_service(cls, v):
+        """The server posts to this address, so only the browsers' own push services are accepted, never the home network."""
+        from urllib.parse import urlsplit
+        u = urlsplit(v)
+        host = (u.hostname or "").lower()
+        if u.scheme != "https" or not any(host == h or (h.startswith(".") and host.endswith(h)) for h in PUSH_HOSTS):
+            raise ValueError("That isn't a browser push address.")
+        return v
+
+
+class PushEndpointIn(BaseModel):
+    endpoint: str = Field(max_length=1000)
+
+
+@app.get("/api/push")
+def push_info(c=Depends(con)):
+    return {"enabled": push.enabled(), "public_key": push.public_key(c) if push.enabled() else None}
+
+
+@app.get("/api/push/devices", dependencies=[Depends(parent)])
+def push_devices(c=Depends(con), x_kc_push: str = Header(default="")):
+    return [{"id": r["id"], "email": r["email"], "device": r["device"], "created_at": r["created_at"], "last_ok": r["last_ok"],
+             "last_error": r["last_error"], "mine": bool(x_kc_push) and r["endpoint"] == x_kc_push}
+            for r in c.execute("SELECT * FROM push_subscriptions ORDER BY id")]
+
+
+@app.post("/api/push/subscribe", dependencies=[Depends(parent)])
+def push_subscribe(body: PushSubIn, request: Request, c=Depends(con)):
+    if not push.enabled():
+        fail(400, "Notifications are off in QA.")
+    origin = request.headers.get("origin", "")
+    with c:
+        if origin.startswith("https://"):   # the VAPID contact: the app's own address
+            db.set_setting(c, "push_subject", origin)
+        c.execute("INSERT INTO push_subscriptions(endpoint, p256dh, auth, email, device, created_at) VALUES (?, ?, ?, ?, ?, ?) "
+                  "ON CONFLICT(endpoint) DO UPDATE SET p256dh = excluded.p256dh, auth = excluded.auth, email = excluded.email, "
+                  "device = excluded.device, last_error = NULL",
+                  (body.endpoint, body.p256dh, body.auth, getattr(request.state, "email", None), body.device.strip(),
+                   now().strftime("%Y-%m-%d %H:%M")))
+    return {"ok": True}
+
+
+@app.post("/api/push/unsubscribe")
+def push_unsubscribe(body: PushEndpointIn, c=Depends(con)):
+    """Turning notifications off never needs the PIN."""
+    with c:
+        c.execute("DELETE FROM push_subscriptions WHERE endpoint = ?", (body.endpoint,))
+    return {"ok": True}
+
+
+@app.delete("/api/push/devices/{sid}", dependencies=[Depends(parent)])
+def push_remove(sid: int, c=Depends(con)):
+    with c:
+        c.execute("DELETE FROM push_subscriptions WHERE id = ?", (sid,))
+    return {"ok": True}
+
+
+@app.post("/api/push/test")
+def push_test(body: PushEndpointIn, c=Depends(con)):
+    if not c.execute("SELECT 1 FROM push_subscriptions WHERE endpoint = ?", (body.endpoint,)).fetchone():
+        fail(404, "This device isn't getting notifications.")
+    r = push.send({"title": "Kitchen Carbs test", "body": "Notifications work on this device.", "tag": "test", "url": "/#log"},
+                  only=body.endpoint)
+    if not r["sent"]:
+        row = c.execute("SELECT last_error FROM push_subscriptions WHERE endpoint = ?", (body.endpoint,)).fetchone()
+        fail(502, "The push service didn't take it" + (f": {row['last_error']}" if row and row["last_error"] else
+                                                         ". Turn notifications off and on again on this device."))
+    return r
+
+
 @app.post("/api/entries")
-def create_entry(body: EntryIn, c=Depends(con)):
+def create_entry(body: EntryIn, c=Depends(con), x_kc_push: str = Header(default="")):
     if body.day > today():
         fail(400, "An entry can't be logged for a future day.")
     if body.day < today() and not past_edits(c):
@@ -1571,6 +1692,7 @@ def create_entry(body: EntryIn, c=Depends(con)):
                         (body.client_id, body.day, body.time, body.carbs, body.bg, body.insulin,
                          body.insulin_kind if body.insulin is not None else None, body.note.strip(),
                          now().strftime("%Y-%m-%d %H:%M") if body.day < today() else None)).lastrowid
+    notify(lambda: entry_notice(get_entry(c, eid)), x_kc_push)
     return {"id": eid, "duplicate": False}
 
 

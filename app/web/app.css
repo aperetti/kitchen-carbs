@@ -534,6 +534,9 @@ body.signed-out .tabs, body.signed-out .platebar { display: none !important; }
   .scalebar[data-status="on"] .sname { display: none; }
 }
 .usescale { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.pushlist { list-style: none; margin: 6px 0 0; padding: 0; }
+.pushlist li { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.pushlist li > span { min-width: 0; overflow-wrap: anywhere; }
 .rawlog { max-height: 320px; overflow: auto; background: var(--sunk); border-radius: var(--r); padding: 12px; font-size: 13px; line-height: 1.5; white-space: pre-wrap; word-break: break-all; }
 /* with a scale connected the slider gets its own line, so 'Use' doesn't squeeze it */
 #plateView .pitem .wt:has(.usescale:not([hidden])) { flex-wrap: wrap; gap: 4px 12px; justify-content: flex-end; }

@@ -173,3 +173,15 @@ def test_v13_adds_favorite_photo(tmp_path, monkeypatch):
     assert migrations.run(db, **QUIET) == 13
     con = sqlite3.connect(db)
     assert con.execute("SELECT name, photo, photo_candidate FROM favorites").fetchall() == [("Breakfast", None, None)]
+
+
+def test_v14_adds_push_subscriptions(tmp_path, monkeypatch):
+    """Version 15 (okf/architecture/web-push.md): an empty table of phones; nothing else changes."""
+    real = migrations.MIGRATIONS
+    monkeypatch.setattr(migrations, "MIGRATIONS", real[:14]); monkeypatch.setattr(migrations, "LATEST", 14)
+    db = deployed_db(tmp_path)
+    monkeypatch.setattr(migrations, "MIGRATIONS", real); monkeypatch.setattr(migrations, "LATEST", len(real))
+    assert migrations.run(db, **QUIET) == 14
+    con = sqlite3.connect(db)
+    assert con.execute("SELECT COUNT(*) FROM push_subscriptions").fetchone() == (0,)
+    assert migrations.version(con) == 15

@@ -6,7 +6,7 @@ tags: [journey]
 timestamp: 2026-10-27
 status: draft
 links:
-  involves: [features/sign-in.md, features/install-app.md, features/food-lookup.md, features/manual-log.md, features/photo-style-setup.md, features/scan-label.md, features/favorite-plates.md, features/connect-nightscout.md, features/meal-glucose-view.md, features/glucose-stats-view.md, features/photo-pipeline.md, features/manage-foods.md, features/browse-foods.md, features/view-food.md, features/build-plate.md, features/kitchen-scale.md, features/log-meal.md, features/annotate-meal.md, features/review-log.md, features/export-log.md, features/fill-in-fiber.md, features/meal-dose-summary.md, features/confirm-food.md]
+  involves: [features/sign-in.md, features/install-app.md, features/food-lookup.md, features/manual-log.md, features/photo-style-setup.md, features/scan-label.md, features/favorite-plates.md, features/connect-nightscout.md, features/meal-glucose-view.md, features/glucose-stats-view.md, features/photo-pipeline.md, features/manage-foods.md, features/browse-foods.md, features/view-food.md, features/build-plate.md, features/kitchen-scale.md, features/log-meal.md, features/annotate-meal.md, features/review-log.md, features/export-log.md, features/fill-in-fiber.md, features/meal-dose-summary.md, features/confirm-food.md, features/notify-family.md]
 steps:
   - id: sign-in
     phase: Set up (once)
@@ -134,6 +134,15 @@ steps:
     risk: "Server off: meal not saved."
     helps: "Saved on the tablet and synced later, with a 'waiting to sync' line. 'Pin as favorite' keeps a usual plate for next time."
     features: [features/log-meal.md, features/favorite-plates.md]
+  - id: notified
+    phase: Mealtime
+    name: Other parent is told
+    doing: "The parent at work gets a notification on their phone: 'Meal logged · 48 g carbs', the time, foods, BG and insulin typed."
+    screen: "Phone notification → Log"
+    thinking: "I want to know he ate and what was given without calling home."
+    risk: "Reading the notification as a dose suggestion, or test meals from QA reaching a phone."
+    helps: "Shows only what was logged, never the calculated dose; QA sends nothing; turned on per device in Manage → Settings."
+    features: [features/notify-family.md]
   - id: after
     phase: After the meal
     name: Note what was eaten
