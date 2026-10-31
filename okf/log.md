@@ -105,3 +105,4 @@
 - 2026-10-30 — Favorites can have a plate photo: Gemini combines the photos of the favorite's foods into one, checked before use and labelled (features/favorite-plates.md).
 - 2026-10-30 — Foods with several portions open a portion chooser when tapped; it picks the starting amount and the plate slider still sets the weight (features/browse-foods.md).
 - 2026-10-30 — Scan several: each scanned food can be given tags before saving (features/food-lookup.md).
+- 2026-10-30 — Manage: 'Use this photo' saves unsaved changes to the food and its portions first; if the food can't be saved, the photo waits (features/manage-foods.md).

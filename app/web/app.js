@@ -1219,6 +1219,7 @@ function renderManage() {
 
 const $m = () => $("#mbody");
 function renderManageFoods() {
+  foodDirty = false;   // the form is drawn from the saved food
   const fibView = S.m.food === FIBER, f = S.m.food === "add" || fibView ? null : foodById(S.m.food), focus = S.m.food === "add" || fibView || f;
   $m().innerHTML = `<div class="split ${focus ? "focus" : ""}" style="flex:1;display:flex;min-width:0">
     <div class="list"><div class="rows" id="mRows">${manageRows()}</div></div>
@@ -1546,7 +1547,12 @@ function reviewPanel(f, p) {
       ${p.photo.original ? `<button class="btn small quiet" data-pact="use_original">Use my photo instead</button>` : ""}</div></div>`;
 }
 
-async function refreshFoods() { await loadFoods(); renderManage(); watchJobs(); }
+async function refreshFoods() {   // with unsaved changes in the food form, redraw only the list and portions around it
+  await loadFoods();
+  if (foodDirty && $("#foodForm") && foodById(S.m.food)) { if ($("#mRows")) $("#mRows").innerHTML = manageRows(); $("#portionsBox").innerHTML = portionsEditor(foodById(S.m.food)); }
+  else renderManage();
+  watchJobs();
+}
 async function parentCall(path, opts, pid, busyText) {
   S.m.err = "";
   if (pid) { S.m.busy[pid] = busyText; renderManage(); }
@@ -1556,6 +1562,51 @@ async function parentCall(path, opts, pid, busyText) {
   await refreshFoods();
 }
 
+/* The food form; true when saved. 'Use this photo' calls it too, so typed changes aren't lost (okf/features/manage-foods.md) */
+let foodDirty = false;   // the food form has changes not yet saved
+async function saveFoodForm({ quiet = false } = {}) {
+  const per100 = carbsPer100();   // worked out from "X g carbs per Y g" on save
+  if (per100 == null) { $("#fErr").textContent = "Enter the carbs and the amount they're for, in grams (carbs can't be more than the amount)."; return false; }
+  const isNew = S.m.food === "add", old = foodById(S.m.food), grams = parseFloat($("#fBase").value), carbs = parseFloat($("#fCarbs").value);
+  // the serving is kept as typed (okf/domain/food.md); a per-100 g food left at 100 g stays per 100 g
+  const fv = $("#fFiber").value === "" ? null : parseFloat($("#fFiber").value);   // fiber for the same amount (okf/domain/food.md)
+  const serving = isNew || old?.serving_grams != null || grams !== 100 ? { serving_grams: grams, serving_carbs: carbs, serving_fiber: fv } : { carbs_per_100g: per100, fiber_per_100g: fv };
+  const body = { name: $("#fName").value, tags: [...document.querySelectorAll("input[name=fTag]:checked")].map(x => +x.value), ...serving,
+    source_kind: $("#fKind").value, source_ref: $("#fRef").value, notes: $("#fNotes").value, verified: $("#fVer").checked, ...cookBody("f"),
+    barcode: $("#fCode").value.replace(/\D/g, "") || null };
+  if (body.barcode && !/^\d{8,14}$/.test(body.barcode)) { $("#fErr").textContent = "A barcode has 8 to 14 digits."; return false; }
+  try {
+    const f = await api(isNew ? "/api/foods" : `/api/foods/${S.m.food}`, { method: isNew ? "POST" : "PUT", body, parent: true });
+    if (isNew)   // the serving is the first, default portion
+      await api(`/api/foods/${f.id}/portions`, { method: "POST", parent: true, body: { label: $("#fPortion").value.trim() || "1 serving", grams, sort: 0, photo_note: $("#fNote").value } });
+    S.m.food = f.id; foodDirty = false;
+    if (!quiet) toast(isNew ? `Food added with its serving: ${carbs} g carbs per ${grams} g. Add more portions as multiples below.` : "Food saved");
+    if (isNew) { await loadFoods(); mNav(); } else if (!quiet) await refreshFoods();
+    return true;
+  } catch (err) { $("#fErr").textContent = err.message; return false; }
+}
+/* Portion names, grams and notes still being typed when a photo is accepted */
+async function savePortionEdits() {
+  const f = foodById(S.m.food); if (!f) return true;
+  for (const p of f.portions) {
+    const tr = $(`tr[data-pid="${p.id}"]`), note = $(`.noterow[data-of="${p.id}"] .pNote`); if (!tr) continue;
+    const label = tr.querySelector(".pLabel").value.trim(), grams = parseFloat(tr.querySelector(".pGrams").value), photo_note = note ? note.value.trim() : p.photo_note || "";
+    if (label === p.label && grams === p.grams && photo_note === (p.photo_note || "")) continue;
+    if (!(grams > 0) || !label) { toast("A portion needs a name and grams above 0."); return false; }
+    try { await api(`/api/portions/${p.id}`, { method: "PUT", parent: true, body: { label, grams, sort: p.sort, container: p.container, size_ref_id: p.size_ref_id, photo_note } }); }
+    catch (err) { toast(err.message); return false; }
+  }
+  return true;
+}
+async function acceptPhoto(pid, action) {
+  if (foodDirty && $("#foodForm") && !(await saveFoodForm({ quiet: true }))) {   // the photo waits until the food can be saved
+    $("#fErr").scrollIntoView({ block: "center", behavior: "smooth" }); toast("The food's changes couldn't be saved, so the photo is still waiting. See the note in the form.");
+    return;
+  }
+  if (!(await savePortionEdits())) return;
+  await parentCall(`/api/portions/${pid}/review`, { method: "POST", body: { action } });
+  if (!S.m.err) toast(action === "accept" ? "Photo accepted and changes saved" : "Using your photo; changes saved");
+}
 const mSubmit = async e => {
   e.preventDefault();
   const id = e.target.id;
@@ -1570,23 +1621,7 @@ const mSubmit = async e => {
     try { await api("/api/pin/check", { method: "POST", parent: true }); mNav({ replace: true }); }
     catch (err) { pinStore.set(""); $("#pinErr").textContent = err.message; }
   } else if (id === "foodForm") {
-    const per100 = carbsPer100();   // worked out from "X g carbs per Y g" on save
-    if (per100 == null) { $("#fErr").textContent = "Enter the carbs and the amount they're for, in grams (carbs can't be more than the amount)."; return; }
-    const isNew = S.m.food === "add", old = foodById(S.m.food), grams = parseFloat($("#fBase").value), carbs = parseFloat($("#fCarbs").value);
-    // the serving is kept as typed (okf/domain/food.md); a per-100 g food left at 100 g stays per 100 g
-    const fv = $("#fFiber").value === "" ? null : parseFloat($("#fFiber").value);   // fiber for the same amount (okf/domain/food.md)
-    const serving = isNew || old?.serving_grams != null || grams !== 100 ? { serving_grams: grams, serving_carbs: carbs, serving_fiber: fv } : { carbs_per_100g: per100, fiber_per_100g: fv };
-    const body = { name: $("#fName").value, tags: [...document.querySelectorAll("input[name=fTag]:checked")].map(x => +x.value), ...serving,
-      source_kind: $("#fKind").value, source_ref: $("#fRef").value, notes: $("#fNotes").value, verified: $("#fVer").checked, ...cookBody("f"),
-      barcode: $("#fCode").value.replace(/\D/g, "") || null };
-    if (body.barcode && !/^\d{8,14}$/.test(body.barcode)) { $("#fErr").textContent = "A barcode has 8 to 14 digits."; return; }
-    try {
-      const f = await api(isNew ? "/api/foods" : `/api/foods/${S.m.food}`, { method: isNew ? "POST" : "PUT", body, parent: true });
-      if (isNew)   // the serving is the first, default portion
-        await api(`/api/foods/${f.id}/portions`, { method: "POST", parent: true, body: { label: $("#fPortion").value.trim() || "1 serving", grams, sort: 0, photo_note: $("#fNote").value } });
-      S.m.food = f.id; toast(isNew ? `Food added with its serving: ${carbs} g carbs per ${grams} g. Add more portions as multiples below.` : "Food saved");
-      if (isNew) { await loadFoods(); mNav(); } else await refreshFoods();
-    } catch (err) { $("#fErr").textContent = err.message; }
+    await saveFoodForm();
   } else if (id === "batchCode") {
     addBatchCode($("#bCode").value); $("#bCode").value = "";
   } else if (id === "quickAdd") {
@@ -1729,11 +1764,13 @@ const mClick = async e => {
   if (a === "style") parentCall(`/api/portions/${pid}/style`, { method: "POST" }, pid, "Starting…");
   else if (a === "generate") parentCall(`/api/portions/${pid}/generate`, { method: "POST" }, pid, "Starting…");
   else if (a === "estimate") parentCall(`/api/portions/${pid}/estimate`, { method: "POST", body: { from_portion_id: +t.dataset.from } }, pid, "Starting…");
-  else if (["accept", "discard", "use_original"].includes(a)) parentCall(`/api/portions/${pid}/review`, { method: "POST", body: { action: a } });
+  else if (a === "accept" || a === "use_original") acceptPhoto(pid, a);
+  else if (a === "discard") parentCall(`/api/portions/${pid}/review`, { method: "POST", body: { action: a } });
   else if (a === "del") parentCall(`/api/portions/${pid}`, { method: "DELETE" });
 };
 
 const mChange = async e => {
+  if (e.target.closest("#foodForm")) foodDirty = true;
   if (e.target.id === "pastEdits") {   // okf/rules/same-day-edits.md
     try { S.settings = await api("/api/settings/past-edits", { method: "PUT", parent: true, body: { allowed: e.target.checked } });
       toast(S.settings.past_edits ? "Earlier days can be changed" : "Earlier days are read-only"); }
@@ -1815,6 +1852,7 @@ const mChange = async e => {
   }
 };
 const mInput = e => {
+  if (e.target.closest("#foodForm")) foodDirty = true;
   if (e.target.id === "lkQ") { lookupSearch(e.target.value); return; }
   if (e.target.matches("#fCarbs,#fBase")) { foodMath(); return; }
   if (e.target.id === "uCp") { $("#uConf").checked = false; usdaConfirm(); return; }
@@ -1948,7 +1986,7 @@ function lookupResults() {
 async function newBarcode(code) {
   const box = $("#fCode"), note = $("#fCodeNote"); if (!box) return;
   const f = S.foods.find(x => x.id === S.m.food), old = f?.barcode;
-  box.value = code;
+  box.value = code; foodDirty = true;
   if (code === old) { note.textContent = "That's the barcode this food already has."; return; }
   note.textContent = `Scanned ${code}. Checking Open Food Facts…`;
   try {

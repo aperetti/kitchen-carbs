@@ -3,7 +3,7 @@ type: Feature
 title: "Manage foods"
 description: "Parent adds/edits foods and portions: carbs/100 g, source, weighed grams, verify."
 tags: [feature, admin]
-timestamp: 2026-10-26
+timestamp: 2026-10-30
 status: draft
 links:
   uses: [domain/tag.md, domain/food.md, domain/portion.md, domain/nutrition-source.md, domain/carb-value.md]
@@ -21,3 +21,8 @@ Behind a simple parent PIN so the child doesn't change data by accident.
   own, warning when they differ, so a changed recipe isn't missed. Nothing else on the food changes; 'Save food' keeps it.
 - Each food says whether its carbs are as sold, dry / raw or cooked, and can keep a measured cooking ratio
   (dry and cooked weight of one batch) so the plate can take either weight (okf/domain/food.md, decided 28 Oct).
+- Accepting a photo saves the food too (decided 30 Oct: 'Use this photo' redrew the screen and lost changes typed into
+  the food but not yet saved). 'Use this photo' and 'Use my photo instead' first save any changes to the food form,
+  with the same checks as 'Save food' (a carbs change still clears confirmations, okf/features/confirm-food.md), and any
+  portion name, grams or note still being edited, then accept the photo. If the food can't be saved, the photo
+  waits and the form shows why. Other photo actions leave unsaved changes in the food form on screen.

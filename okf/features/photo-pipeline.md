@@ -17,7 +17,8 @@ links:
    Only one generation per portion at a time; a server restart marks an unfinished one as interrupted.
 3. When it finishes, the check panel appears in place (and a short notice names the portion); a failure shows its reason
    in the row with Try again.
-4. Side-by-side review → accept / regenerate / use original.
+4. Side-by-side review → accept / regenerate / use original. Accepting also saves unsaved changes to the food and its
+   portions first (decided 30 Oct, okf/features/manage-foods.md).
 5. Stand-in for an unphotographed portion: generate from a sibling portion's **styled** photo (decided 27 Oct: it already has
    the approved counter, dish and light), or its original when it has no styled photo yet; flagged estimated. A portion quick-added as a multiple of a serving starts this
    straight away from that serving's photo when it has one (decided 27 Oct).
