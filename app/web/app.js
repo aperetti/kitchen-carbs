@@ -926,7 +926,8 @@ const movedLabel = s => `${dayLabel(s.slice(0, 10))}, ${s.slice(11)}`;
 const whenBox = (x, kind) => `<div class="glab"><span class="label">When</span></div>
     <form class="whenform" id="whenForm" data-what="${kind}" data-id="${x.id}">
       <input type="date" id="whDay" value="${x.day}" max="${localDay()}" required aria-label="Date">
-      <input type="time" id="whTime" value="${x.time}" required aria-label="Time"><button class="btn small">Change</button></form>
+      <input type="time" id="whTime" value="${x.time}" required aria-label="Time"><button class="btn small" id="whSave">Change</button></form>
+    <p class="meta warn" id="whDirty" role="status" hidden>Not saved yet. Tap Change to save it. <button type="button" class="linkbtn" data-act="when-reset">Undo</button></p>
     ${x.moved_from || x.edited_at ? `<p class="meta moved"><span aria-hidden="true">✎</span> Modified</p>` : ""}`;
 
 /* Deleted meals and entries stay listed on their day and can be restored (okf/domain/meal-log.md) */
@@ -1098,6 +1099,7 @@ $("#v-log").addEventListener("click", async e => {
   }
   else if (t.dataset.act === "fix-carbs") { S.log.fixCarbs = true; renderMeal(); $("#cfTotal")?.select(); }
   else if (t.dataset.act === "fix-cancel") { S.log.fixCarbs = false; renderMeal(); }
+  else if (t.dataset.act === "when-reset") { $("#whenForm").reset(); whenDirty(); }
   else if (t.dataset.act === "edit-details") { S.log.editDetails = true; renderMeal(); }
   else if (t.dataset.act === "details-cancel") { S.log.editDetails = false; renderMeal(); }
   else if (t.dataset.meal) { S.log.editDetails = false; S.log.fixCarbs = false; S.log.sel = +t.dataset.meal; S.log.selEntry = null; S.log.adding = false; confirmDelete = 0; renderLog(); if (innerWidth <= 680) $("#mealDetail").scrollIntoView(); }
@@ -1116,7 +1118,15 @@ $("#v-log").addEventListener("click", async e => {
     location.href = `/api/export.csv?start=${from}&end=${to}`;
   }
 });
-$("#v-log").addEventListener("input", e => { if (e.target.closest("#entryForm")) entryPreview(); });
+$("#v-log").addEventListener("input", e => { if (e.target.closest("#entryForm")) entryPreview(); if (e.target.closest("#whenForm")) whenDirty(); });
+$("#v-log").addEventListener("change", e => { if (e.target.closest("#whenForm")) whenDirty(); });
+/* A changed date or time says it isn't saved until Change is tapped (okf/features/review-log.md) */
+function whenDirty() {
+  const f = $("#whenForm"); if (!f) return;
+  const day = $("#whDay"), time = $("#whTime");
+  const dirty = day.value !== day.defaultValue || time.value !== time.defaultValue;
+  f.classList.toggle("dirty", dirty); $("#whDirty").hidden = !dirty; $("#whSave").classList.toggle("primary", dirty);
+}
 $("#v-log").addEventListener("submit", async e => {
   if (e.target.id === "carbsFix") {   // a corrected total, with its reason (okf/domain/meal.md)
     e.preventDefault();

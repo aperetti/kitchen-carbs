@@ -566,6 +566,8 @@ body.signed-out .tabs, body.signed-out .platebar { display: none !important; }
 /* When: date and time on any day (okf/rules/same-day-edits.md) */
 .whenform { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .whenform input { height: 44px; border: 1px solid var(--line); border-radius: 10px; background: var(--paper); padding: 0 10px; font-size: 16px; color: var(--ink); }
+.whenform.dirty input { border: 2px solid var(--warn); padding: 0 9px; }
+#whDirty { margin: 6px 0 0; }
 .moved { font-style: normal; color: var(--warn); }
 p.moved { margin: 6px 0 0; }
 

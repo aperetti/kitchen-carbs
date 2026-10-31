@@ -13,3 +13,6 @@ links:
 Day view; previous/next day.
 - Change when: every meal and entry's details have its date and time, editable on any day; a moved entry is marked
   with where it was first logged (okf/rules/same-day-edits.md, decided 28 Oct).
+- Unsaved time (decided 31 Oct): as soon as the date or time differs from the saved one, both boxes get a warn-coloured
+  border, 'Change' becomes the primary button, and a line under them says 'Not saved yet. Tap Change to save it.' with
+  'Undo' to put the saved date and time back. Setting them back by hand clears it.
