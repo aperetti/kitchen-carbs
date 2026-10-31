@@ -757,3 +757,6 @@ p.moved { margin: 6px 0 0; }
   .adddlg.pickdlg { width: 100vw; height: fit-content; max-height: 80dvh; margin: auto 0 0; border-top: 1px solid var(--line); border-radius: 14px 14px 0 0; }
   .pickdlg .dlgbody { padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px)); }
 }
+/* tags on each Scan several food (okf/features/food-lookup.md) */
+.btags { display: flex; flex-wrap: wrap; gap: 0 20px; }
+.batchtab .btags .check { min-height: 40px; }

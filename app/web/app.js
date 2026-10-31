@@ -2218,7 +2218,7 @@ function batchTable() {
       : `<tr data-bi="${i}">
         <td data-l="Package">${r.image ? `<img src="${esc(r.image)}" alt="Package" referrerpolicy="no-referrer">` : `<span class="noimg">No photo</span>`}</td>
         <td data-l="Food"><input class="bName" value="${esc(r.name)}" maxlength="80" aria-label="Name"><span class="meta">${esc(r.code)}</span>
-          ${r.warnings.length ? `<ul class="warnlist">${r.warnings.map(w => `<li>${esc(w)}</li>`).join("")}</ul>` : ""}</td>
+          ${r.warnings.length ? `<ul class="warnlist">${r.warnings.map(w => `<li>${esc(w)}</li>`).join("")}</ul>` : ""}${tagChecks(r)}</td>
         <td data-l="Serving">${servingInputs(r)}</td>
         <td data-l="Carbs per serving">${carbInputs(r)}</td>
         <td data-l="Label">${r.label ? `<a href="${photoUrl(r.label)}" target="_blank" rel="noopener"><img ${sized(r.label, "72px")} alt="Nutrition label"></a>` : `<span class="meta">No label photo</span>`}</td>
@@ -2227,6 +2227,8 @@ function batchTable() {
         <td><button class="rm" data-bact="remove" data-bi="${i}" aria-label="Remove ${esc(r.name)}">×</button></td></tr>`).join("")}</tbody></table>
     ${completeBar()}`;
 }
+const tagChecks = r => S.tags.length ? `<div class="btags" role="group" aria-label="Tags">${S.tags.map(t =>   // okf/features/food-lookup.md
+  `<label class="check"><input type="checkbox" class="bTag" value="${t.id}" ${r.tags?.includes(t.id) ? "checked" : ""}><span>${esc(t.name)}</span></label>`).join("")}</div>` : "";
 const servingInputs = r => `<div class="bserv"><div class="bnum bportion">${labelInput("", r.portion || "1 serving", "bPortion")}<span>=</span></div>
   <div class="bnum"><input class="bGrams" type="number" step="0.1" min="0.1" inputmode="decimal" value="${r.grams ?? ""}" aria-label="Grams per serving"><span>g</span></div></div>
   <label class="check"><input type="checkbox" class="bConfServ" ${r.confServ ? "checked" : ""} ${r.grams ? "" : "disabled"}><span>Matches the package</span></label>`;
@@ -2249,6 +2251,7 @@ function batchFocus(r, i) {   // phones: one food at a time, laid out top to bot
       <div><span class="label">Check against the package</span><span class="meta">Barcode ${esc(r.code)}</span></div></div>
     ${r.warnings.length ? `<ul class="warnlist">${r.warnings.map(w => `<li>${esc(w)}</li>`).join("")}</ul>` : ""}
     <label class="field"><span>Name</span><input class="bName" value="${esc(r.name)}" maxlength="80"></label>
+    ${S.tags.length ? `<fieldset class="field tagpick"><legend>Tags (choose any)</legend>${tagChecks(r)}</fieldset>` : ""}
     <div class="field"><span>Serving: a number and unit, and its grams</span>${servingInputs(r)}</div>
     <div class="field"><span>Total carbohydrate per serving</span>${carbInputs(r)}</div>
     ${r.label ? `<a class="labelthumb" href="${photoUrl(r.label)}" target="_blank" rel="noopener"><img ${sized(r.label, "72px")} alt="Nutrition label"><span class="meta">Label photo · open full size</span></a>` : `<p class="meta">No label photo: compare with the package in your hand.</p>`}
@@ -2284,7 +2287,7 @@ async function addBatchCode(code) {
     const r = await api(`/api/lookup/off/${code}`, { parent: true }), x = r.reading;
     Object.assign(row, { status: "ready", name: x.product_name || "", grams: x.serving_grams, carbs: x.total_carbs_g_per_serving, fiber: x.fiber_g_per_serving,
       portion: suggestPortion(x.serving_size_text), warnings: r.warnings, label: r.label_photo, package: r.package_photo, image: r.product_image, ref: r.source_ref,
-      notes: readingNotes(x), confServ: false, confCarb: false, photo: true });
+      notes: readingNotes(x), confServ: false, confCarb: false, photo: true, tags: [] });
     const b = batch();
     if (PHONE_MQ.matches && b.focus == null) { b.focus = b.rows.indexOf(row); return redrawBatch(true); }   // open it to check
   } catch (err) { Object.assign(row, { status: "error", err: err.message }); }
@@ -2306,6 +2309,7 @@ function batchEdit(e) {   // a changed number clears its tick: the tick confirms
   else if (e.target.matches(".bConfCarb")) row.confCarb = e.target.checked;
   else if (e.target.matches(".bPhoto")) row.photo = e.target.checked;
   else if (e.target.matches(".bNote")) row.note = v;
+  else if (e.target.matches(".bTag")) { const id = +v; row.tags = e.target.checked ? [...new Set([...(row.tags || []), id])] : (row.tags || []).filter(x => x !== id); }
   else return false;
   refreshBatch(); return true;
 }
@@ -2337,7 +2341,7 @@ async function saveBatch() {   // saves the checked rows; returns what went wron
     if (!(r.grams > 0) || !(r.carbs >= 0) || r.carbs > r.grams || !r.name.trim()) { problems.push(`${r.name || r.code}: check the name, grams and carbs`); continue; }
     if (r.fiber != null && r.fiber > r.grams) { problems.push(`${r.name}: fiber can't be more than the serving`); continue; }
     try {   // both values ticked for this row (okf/rules/label-reading-needs-check.md)
-      const f = await api("/api/foods", { method: "POST", parent: true, body: { name: r.name, tags: [], serving_grams: r.grams, serving_carbs: r.carbs, serving_fiber: r.fiber ?? null,
+      const f = await api("/api/foods", { method: "POST", parent: true, body: { name: r.name, tags: r.tags || [], serving_grams: r.grams, serving_carbs: r.carbs, serving_fiber: r.fiber ?? null,
         source_kind: "openfoodfacts", source_ref: r.ref, notes: r.notes, verified: true, label_photo: r.label, package_photo: r.package } });
       const fp = await api(`/api/foods/${f.id}/portions`, { method: "POST", parent: true, body: { label: r.portion.trim(), grams: r.grams, sort: 0, photo_note: r.note || "" } });
       if (r.photo) await api(`/api/portions/${fp.portions[0].id}/generate`, { method: "POST", parent: true }).catch(err => toast(`${f.name} photo: ${err.message}`));

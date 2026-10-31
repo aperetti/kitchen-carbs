@@ -3,7 +3,7 @@ type: Feature
 title: "Look up a food"
 description: "Find nutrition facts while adding a food: name search across USDA (generic foods) and Open Food Facts (packaged), or a barcode photo / typed digits for a packaged product."
 tags: [feature, admin]
-timestamp: 2026-10-27
+timestamp: 2026-10-30
 status: draft
 links:
   uses: [domain/food.md, domain/nutrition-source.md, domain/carb-value.md, domain/nutrition-label.md, domain/portion.md]
@@ -36,6 +36,8 @@ links:
   list, but Complete is the obvious way out.
   Started from the **scan button beside the search on the Foods page**, it opens Scan several (parent PIN first) and
   Complete returns to the Foods page.
+  Tags (decided 30 Oct): each scanned food has 'Tags (choose any)', the same choices as the check screen, none ticked
+  to start with; they are saved with the food. Tags don't need a tick to save, unlike the serving and carbs.
 - **Packaged result**: same check screen as a label scan. Serving size and total carbohydrate each confirmed; creates a '1 serving' portion;
   the product's nutrition-panel photo, when Open Food Facts has one, is kept as the label photo; the package photo is shown beside it.
 - **FatSecret result** (decided 27 Oct, replacing USDA): the same check screen as a packaged food, using FatSecret's
