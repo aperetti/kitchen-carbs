@@ -27,5 +27,11 @@ Decided 29 Oct. 'Save to log' on the plate opens a modal before anything is save
 - 'What was given (optional)', under the steps (decided 29 Oct): insulin given (empty, never filled in from the dose),
   Bolus or Basal, when it was given (before, at the start, after, with minutes), and how long the meal took to eat.
   The BG in the box is saved with the meal as its BG, marked CGM or meter.
+- When (decided 31 Oct): a date and a time under the meal list, starting at today and the plate's time, so a meal
+  saved late (after the bolus, or the next morning) goes in at the right moment. The date can't be in the future.
+  Changing the time works the dose out again with that time's ratios, keeps the plate's time in step, and shows in the
+  heading. When the meal is set more than 15 minutes from now, the BG box isn't filled in from the CGM (that reading
+  is from now, not the meal) and a line says so: type the meter reading from then. Insulin on board is still now's.
+  A meal saved to an earlier day is marked ✎ like an entry added to an earlier day (okf/rules/same-day-edits.md).
 - Buttons: 'Save to log' saves the meal with these details; 'Back to plate' closes the modal. The dose isn't saved or sent anywhere.
 - Footnote: 'Worked out from your settings (changed …). Check it against the pump before giving.'

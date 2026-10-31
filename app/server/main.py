@@ -1433,8 +1433,10 @@ def create_meal(body: MealIn, c=Depends(con), x_kc_push: str = Header(default=""
     if existing:  # a queued meal sent twice is saved once
         return {"id": existing["id"], "duplicate": True}
     with c:
-        mid = c.execute(f"INSERT INTO meals(client_id, day, time, {', '.join(DETAILS)}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                        (body.client_id, body.day, body.time, *(getattr(body, k) for k in DETAILS))).lastrowid
+        mid = c.execute(f"INSERT INTO meals(client_id, day, time, edited_at, {', '.join(DETAILS)}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                        (body.client_id, body.day, body.time,   # added to an earlier day: marked (okf/rules/same-day-edits.md)
+                         now().strftime("%Y-%m-%d %H:%M") if body.day < today() else None,
+                         *(getattr(body, k) for k in DETAILS))).lastrowid
         for i in body.items:
             c.execute("INSERT INTO meal_items(meal_id, food_id, portion_id, food_name, portion_label, grams, carbs_per_100g, qty, carbs_exact, entered_carbs) "
                       "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",

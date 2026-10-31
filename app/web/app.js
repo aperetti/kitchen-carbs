@@ -715,12 +715,15 @@ const ARROWS = { DoubleUp: "⇈", SingleUp: "↑", FortyFiveUp: "↗", Flat: "�
 const u2 = x => (+x).toFixed(2);
 const agoMin = m => m < 1 ? "just now" : m < 120 ? `${m} min ago` : m < 2880 ? `${Math.round(m / 60)} hours ago` : `${Math.round(m / 1440)} days ago`;
 function openSummary() {
-  S.sum = { carbs: whole(plateExact()), at: S.plateTime || hhmm(), bg: "", typed: false, data: null, err: null };
-  doseDlg.innerHTML = `<div class="dlghead"><b>Meal summary · ${S.sum.at}</b><button class="rm" data-sum="close" aria-label="Back to plate">×</button></div>
+  S.sum = { carbs: whole(plateExact()), day: localDay(), at: S.plateTime || hhmm(), bg: "", typed: false, data: null, err: null };
+  doseDlg.innerHTML = `<div class="dlghead"><b id="sumHead">${sumHead()}</b><button class="rm" data-sum="close" aria-label="Back to plate">×</button></div>
     <div class="dlgbody">
       <ul class="summeal">${S.plate.map(x => `<li><span class="t">${esc(x.food_name)}<small>${x.entered != null ? "Entered by hand" : fmtG(x.grams) + stateLabel(x)}</small></span>
         <span class="c">${whole(x.entered ?? exact(x.grams, x.carbs_per_100g, x.qty))} g</span></li>`).join("")}
         <li class="sumtotal"><span class="t">Total carbs</span><span class="c">${S.sum.carbs} g</span></li></ul>
+      <div class="sumwhen"><span class="label">When</span>
+        <input type="date" id="sumDay" value="${S.sum.day}" max="${localDay()}" required aria-label="Date">
+        <input type="time" id="sumAt" value="${S.sum.at}" required aria-label="Time"></div>
       <label class="field sumbg"><span>Blood glucose (mg/dL)</span>
         <input id="sumBg" type="number" inputmode="numeric" min="20" max="600" step="1" placeholder="Meter reading"></label>
       <div id="sumCalc" aria-live="polite"><p class="meta">Working it out…</p></div>
@@ -730,18 +733,22 @@ function openSummary() {
   doseDlg.showModal(); loadDose();
 }
 let doseTimer = null;
+const sumHead = () => `Meal summary · ${S.sum.day === localDay() ? "" : dayLabel(S.sum.day) + ", "}${S.sum.at}`;
+/* A meal set away from now can't take the CGM's current reading as its BG (okf/features/meal-dose-summary.md) */
+const sumAway = () => Math.abs(Date.now() - new Date(`${S.sum.day}T${S.sum.at}`).getTime()) > 15 * 60e3;
 async function loadDose() {
   const s = S.sum; if (!s) return;
-  const bg = s.typed && s.bg !== "" ? `&bg=${encodeURIComponent(s.bg)}` : s.typed ? "&use_cgm=false" : "";
+  const bg = s.typed && s.bg !== "" ? `&bg=${encodeURIComponent(s.bg)}` : s.typed || sumAway() ? "&use_cgm=false" : "";
   try { s.data = await api(`/api/dose?carbs=${s.carbs}&at=${s.at}${bg}`); s.err = null; }
   catch (err) { s.data = null; s.err = err.status === 422 ? "Blood glucose must be between 20 and 600 mg/dL." : err.message || "Couldn't reach the server."; }
   if (S.sum !== s) return;
-  if (!s.typed && s.data?.bg_source === "cgm") $("#sumBg").value = s.data.cgm.sgv;   // filled in only from a fresh reading
+  if (!s.typed) $("#sumBg").value = s.data?.bg_source === "cgm" ? s.data.cgm.sgv : "";   // filled in only from a fresh reading
   drawDose();
 }
 function bgNote(d) {
   const c = d.cgm, cgm = c ? `${c.sgv} mg/dL ${ARROWS[c.direction] || ""}` : "";
   if (d.bg_source === "cgm") return `From the CGM: ${cgm}, ${agoMin(c.age_min)}. Type over it to use a meter reading.`;
+  if (!S.sum.typed && sumAway()) return `The meal is set for ${S.sum.day === localDay() ? "" : dayLabel(S.sum.day) + ", "}${S.sum.at}, so the CGM reading from now isn't used. Type the meter reading from then. Insulin on board is from now.`;
   if (d.bg_source === "typed") return c ? `Typed in. The CGM showed ${cgm}, ${agoMin(c.age_min)}.` : "Typed in.";
   if (c && !d.cgm_fresh) return `The last CGM reading was ${agoMin(c.age_min)} (${cgm}), too old to use. Type a meter reading.`;
   if (S.sum.typed && c) return "No BG, so no correction is added.";
@@ -772,6 +779,13 @@ function drawDose() {
     </dl>
     <p class="meta">Worked out from your settings${d.updated ? ` (changed ${esc(dayLabel(d.updated))})` : ""}. Check it against the pump before giving.</p>`;
 }
+doseDlg.addEventListener("change", e => {   // date or time of the meal: heading, plate time and the dose follow
+  if (!["sumDay", "sumAt"].includes(e.target.id) || !S.sum) return;
+  const day = $("#sumDay").value, at = $("#sumAt").value;
+  if (!day || !at || day > localDay()) return;
+  Object.assign(S.sum, { day, at }); S.plateTime = at; savePlate();
+  $("#sumHead").textContent = sumHead(); loadDose();
+});
 doseDlg.addEventListener("input", e => {
   if (e.target.id !== "sumBg" || !S.sum) return;
   S.sum.typed = true; S.sum.bg = e.target.value.trim();
@@ -785,7 +799,10 @@ doseDlg.addEventListener("click", async e => {
   else if (t.dataset.sum === "save") {
     let extra;
     try {
-      extra = readDetails(doseDlg);
+      const day = $("#sumDay").value, time = $("#sumAt").value;
+      if (!day || !time) throw new Error("Choose the meal's date and time.");
+      if (day > localDay()) throw new Error("A meal can't be logged for a future day.");
+      extra = { day, time, ...readDetails(doseDlg) };
       const bg = $("#sumBg").value.trim();
       if (bg !== "") {
         if (!(+bg >= 20 && +bg <= 600 && Number.isInteger(+bg))) throw new Error("Blood glucose must be a whole number between 20 and 600 mg/dL.");
@@ -849,7 +866,7 @@ async function saveMeal(btn, extra = {}) {
     toast("Saved on this tablet. It will sync when the server is back.");
   }
   S.plate = []; S.plateTime = null; savePlate();
-  S.log.day = localDay(); S.log.sel = null; location.hash = "log";
+  S.log.day = meal.day; S.log.sel = null; location.hash = "log";
 }
 
 async function syncQueue() {

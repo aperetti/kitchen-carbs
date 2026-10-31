@@ -111,3 +111,4 @@
 - 2026-10-31 — Notifications: phones that turn it on get a Web Push notification with the details when a meal is saved or a manual entry added (features/notify-family.md, architecture/web-push.md, journey step 'notified').
 - 2026-10-31 — Log: a meal row shows the BG saved with the meal (components/entry-row.md).
 - 2026-10-31 — Log: an edited but unsaved date or time is marked until Change is tapped (features/review-log.md).
+- 2026-10-31 — Meal summary: date and time can be changed before saving; a meal set away from now doesn't take the CGM BG; a meal saved to an earlier day is marked (features/meal-dose-summary.md).

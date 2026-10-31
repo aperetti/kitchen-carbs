@@ -1300,3 +1300,13 @@ def test_push_payload_is_encrypted_for_the_phone(app, monkeypatch):
     assert b"carbs" not in seen["data"]
     plain = http_ece.decrypt(seen["data"], private_key=key, auth_secret=secret, version="aes128gcm")
     assert json.loads(plain) == {"title": "Meal logged · 30 g carbs"}
+
+
+def test_meal_saved_to_an_earlier_day_is_marked(app):
+    """okf/features/meal-dose-summary.md: the summary's date can be earlier; such a meal is marked like a late entry."""
+    client, main = app
+    client.post("/api/meals", json=meal(day="2026-10-26", time="20:15", cid="late-meal-1"))
+    client.post("/api/meals", json=meal(time="12:00", cid="today-meal-1"))
+    rows = dict(main.db.connect().execute("SELECT client_id, edited_at FROM meals").fetchall())
+    assert rows["late-meal-1"] == "2026-10-27 18:30" and rows["today-meal-1"] is None
+    assert client.post("/api/meals", json=meal(day="2026-10-28", cid="future-1")).status_code == 400
