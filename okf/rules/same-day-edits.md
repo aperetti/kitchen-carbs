@@ -15,10 +15,13 @@ Decided 29 Oct, replacing 'older days are read-only': the parent wants to fix pa
   much was eaten, comments, adding a forgotten manual entry to that day, and deleting. The weighed foods and their
   carbs in a saved meal are not editable on any day (okf/rules/snapshot-log-values.md).
 - Every change made after the record's own day is marked so the history stays trustworthy for the care team:
-  the meal or entry shows 'Changed later, Thu 30 Oct, 21:50' (the last such change) in the log, its details and the
-  CSV export; a comment added later carries its own date. An entry added to an earlier day is marked the same way.
+  the meal or entry shows the modified mark (okf/design/components/entry-row.md) in the log and its details, and
+  'Changed later' with the date in the CSV export; a comment added later carries its own date. An entry added to an
+  earlier day is marked the same way.
 - Off: earlier days are read-only, as before 29 Oct. The server refuses the change, not just the screen.
 - Either way (decided 28 Oct): the date and time of any meal or manual entry, on any day, can be changed (logged after
-  midnight, or entered late). The entry keeps where it was first logged and shows 'Moved from Tue 27 Oct, 18:05' in
-  the log, its details and the CSV export. Moving it back to that original date and time clears the mark. A move to a
+  midnight, or entered late). The entry keeps where it was first logged; the log and its details show the modified
+  mark, and the CSV export shows 'Moved from Tue 27 Oct, 18:05'. Moving it back to that original date and time clears the mark. A move to a
   future day is refused.
+- Decided 31 Oct: the log doesn't show when or from where something changed, only that it did. The dates stay in the
+  database and the CSV export for the care team.

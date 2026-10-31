@@ -179,6 +179,8 @@ input[type="time"], input[type="date"], .field input, .field select, .field text
 .lrow .it { display: grid; font-size: 16px; min-width: 0; }
 .lrow .it b { font-weight: 500; }
 .lrow .it span { font-size: 14px; color: var(--vein); }
+.lrow .modmark { display: block; font-style: normal; color: var(--warn); font-size: 15px; line-height: 1.2; }
+.lrow .it .lcmt { font-style: italic; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 .lrow .c { text-align: right; color: var(--accent); font-size: 22px; font-weight: 500; font-variant-numeric: tabular-nums; }
 .dayfoot { padding-top: 14px; display: grid; gap: 10px; }
 .insline { padding: 8px 0; border-bottom: 1px solid var(--line); } .insline b { color: var(--ink); font-weight: 500; }

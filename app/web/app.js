@@ -893,7 +893,7 @@ function renderLog() {
     ${logRows(d)}
     ${deletedList(d)}
     <div class="dayfoot">
-      ${isToday ? "" : `<p class="meta">${d.editable ? "Changes to an earlier day are marked 'Changed later'." : "Earlier days are read-only. A parent can allow changes in Manage → Settings."} <button class="linkbtn" data-day="today">Go to today</button></p>`}
+      ${isToday ? "" : `<p class="meta">${d.editable ? "Changes to an earlier day are marked ✎ Modified." : "Earlier days are read-only. A parent can allow changes in Manage → Settings."} <button class="linkbtn" data-day="today">Go to today</button></p>`}
       <div class="exportrow"><span class="meta">Export CSV</span>
         <input type="date" id="exFrom" value="${shiftDay(d.day, -13)}" aria-label="From"><input type="date" id="exTo" value="${d.day}" aria-label="To">
         <button class="btn small" data-act="export">Download</button></div>
@@ -906,14 +906,14 @@ const fmtU = u => `${(+u).toFixed(2).replace(/0$/, "")} u`;           // 2.5 -> 
 const entrySummary = e => [e.bg != null && `BG ${e.bg}`, e.insulin != null && `${fmtU(e.insulin)} ${KIND[e.insulin_kind]}`,
   e.carbs != null && `${+e.carbs} g carbs`].filter(Boolean).join(" · ") || "Note";
 
-/* Date and time can change on any day; a moved entry says where it was first logged (okf/rules/same-day-edits.md) */
+/* Date and time can change on any day; the log only marks that it changed, the export keeps when (okf/rules/same-day-edits.md) */
+const modMark = x => x.moved_from || x.edited_at ? `<i class="modmark" title="Modified" aria-label="Modified">✎</i>` : "";
 const movedLabel = s => `${dayLabel(s.slice(0, 10))}, ${s.slice(11)}`;
 const whenBox = (x, kind) => `<div class="glab"><span class="label">When</span></div>
     <form class="whenform" id="whenForm" data-what="${kind}" data-id="${x.id}">
       <input type="date" id="whDay" value="${x.day}" max="${localDay()}" required aria-label="Date">
       <input type="time" id="whTime" value="${x.time}" required aria-label="Time"><button class="btn small">Change</button></form>
-    ${x.moved_from ? `<p class="meta moved">Moved from ${movedLabel(x.moved_from)}</p>` : ""}
-    ${x.edited_at ? `<p class="meta moved">Changed later, ${movedLabel(x.edited_at)}</p>` : ""}`;
+    ${x.moved_from || x.edited_at ? `<p class="meta moved"><span aria-hidden="true">✎</span> Modified</p>` : ""}`;
 
 /* Deleted meals and entries stay listed on their day and can be restored (okf/domain/meal-log.md) */
 const deletedList = d => !d.deleted?.length ? "" : `<details class="deleted"><summary>Deleted (${d.deleted.length})</summary>
@@ -928,18 +928,19 @@ function logRows(d) {
   if (!rows.length) return `<div class="empty">Nothing logged${d.day === localDay() ? " yet today" : " this day"}.</div>`;
   return rows.map(({ m, e }) => m
     ? `<button class="lrow ${m.id === S.log.sel && !S.log.selEntry && !S.log.adding ? "on" : ""}" data-meal="${m.id}">
-      <span class="tm">${m.time}</span><span class="it"><b>${esc(m.items.map(i => `${i.food_name} ${i.carbs} g carbs${i.entered_carbs != null ? " (by hand)" : ""}`).join(" · "))}</b>
-      <span>Eaten: ${m.eaten ? cap(m.eaten) : "not set"}${m.insulin != null ? ` · ${fmtU(m.insulin)} ${m.insulin_kind}` : ""}${m.two_h != null ? ` · 2 h ${m.two_h}` : ""}${m.comments.length ? ` · ${m.comments.length} comment${m.comments.length > 1 ? "s" : ""}` : ""}${m.moved_from ? ` · <i class="moved">moved from ${movedLabel(m.moved_from)}</i>` : ""}${m.edited_at ? ` · <i class="moved">changed later</i>` : ""}${m.carbs_corrected != null ? ` · <i class="moved">total corrected</i>` : ""}</span></span>
+      <span class="tm">${m.time}${modMark(m)}</span><span class="it"><b>${esc(m.items.map(i => `${i.food_name} ${i.carbs} g carbs${i.entered_carbs != null ? " (by hand)" : ""}`).join(" · "))}</b>
+      <span>Eaten: ${m.eaten ? cap(m.eaten) : "not set"}${m.insulin != null ? ` · ${fmtU(m.insulin)} ${m.insulin_kind}` : ""}${m.two_h != null ? ` · 2 h ${m.two_h}` : ""}${m.carbs_corrected != null ? ` · <i class="moved">Carbs edited</i>` : ""}</span>
+      ${m.comments.length ? `<span class="lcmt">${esc(m.comments.map(c => c.text).join(" · "))}</span>` : ""}</span>
       <span class="c">${m.total}</span></button>`
     : `<button class="lrow entry ${e.id === S.log.selEntry ? "on" : ""}" data-entry="${e.id}">
-      <span class="tm">${e.time}</span><span class="it"><b>${esc(entrySummary(e))}</b>${e.note || e.moved_from || e.edited_at ? `<span>${[e.note && esc(e.note), e.moved_from && `<i class="moved">moved from ${movedLabel(e.moved_from)}</i>`, e.edited_at && `<i class="moved">changed later</i>`].filter(Boolean).join(" · ")}</span>` : ""}</span>
+      <span class="tm">${e.time}${modMark(e)}</span><span class="it"><b>${esc(entrySummary(e))}</b>${e.note ? `<span>${esc(e.note)}</span>` : ""}</span>
       <span class="c">${e.carbs != null ? whole(e.carbs) : ""}</span></button>`).join("");
 }
 
 function renderEntryForm() {
   $("#mealDetail").innerHTML = `<form class="form" id="entryForm">
     <h2>Add entry${S.log.data.day === localDay() ? "" : ` to ${dayLabel(S.log.data.day)}`}</h2>
-    <p class="meta">Record what happened. Leave out anything you don't have.${S.log.data.day === localDay() ? "" : " It will be marked 'Changed later'."}</p>
+    <p class="meta">Record what happened. Leave out anything you don't have.${S.log.data.day === localDay() ? "" : " It will be marked ✎ Modified."}</p>
     <label class="timefield">Time <input type="time" id="enTime" value="${hhmm()}" required></label>
     <div class="fieldrow">
       <label class="field"><span>BG from the meter, mg/dL</span><input id="enBg" type="number" inputmode="numeric" min="20" max="600" step="1"></label>
@@ -2511,7 +2512,7 @@ async function renderSettings() {
       <div class="actions"><button class="btn">Save contact</button><button type="button" class="btn quiet" data-act="form-reset">Cancel</button></div></form>` : ""}
     ${st ? `<section class="form"><h2>Log</h2>
       <label class="check"><input type="checkbox" id="pastEdits" ${st.past_edits ? "checked" : ""}>Allow changes to earlier days</label>
-      <p class="meta">On: meals and entries from earlier days can be changed, deleted or added, and each change is marked 'Changed later' in the log and the export.
+      <p class="meta">On: meals and entries from earlier days can be changed, deleted or added, and each change is marked ✎ in the log and 'Changed later' in the export.
         Off: earlier days are read-only. Moving a meal or entry to another date and time works either way.</p></section>` : ""}
     <div id="doseBox">${doseForm()}</div>
     <div id="accountsBox"></div>

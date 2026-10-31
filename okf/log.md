@@ -106,3 +106,4 @@
 - 2026-10-30 — Foods with several portions open a portion chooser when tapped; it picks the starting amount and the plate slider still sets the weight (features/browse-foods.md).
 - 2026-10-30 — Scan several: each scanned food can be given tags before saving (features/food-lookup.md).
 - 2026-10-30 — Manage: 'Use this photo' saves unsaved changes to the food and its portions first; if the food can't be saved, the photo waits (features/manage-foods.md).
+- 2026-10-31 — Log: a pencil icon marks a moved or later-changed meal or entry instead of the dates; meal rows show their comments and 'Carbs edited' when the total was changed by hand (components/entry-row.md, rules/same-day-edits.md).
