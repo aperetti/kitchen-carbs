@@ -25,8 +25,12 @@ links:
     (breakfast before 10:30, lunch until 15:00, dinner after, the app's own times), `brand: Kitchen Carbs`,
     `code` (the origin ID), and `notes` (how much was eaten).
   - smbg: `subType: manual`, `units: mg/dL`, `value`.
-  - insulin: `dose {total, units: Units}`, `formulation.simple.actingType` rapid (bolus, rapid-acting) or long
-    (basal, long-acting); a meal's insulin at the meal time minus its 'given before' minutes.
+  - Insulin goes as the types Tidepool charts and counts as bolus or basal, not its generic `insulin` event (which
+    Tidepool shows without the bolus/basal split). A meal's insulin is at the meal time minus its 'given before' minutes.
+    - bolus (bolus or rapid-acting, and insulin with no type): `subType: normal`, `normal` = the units given.
+    - basal (basal or long-acting): `deliveryType: scheduled`, `rate` = units ÷ 24 per hour, `duration` 24 hours,
+      cut short at the next long-acting dose so two never overlap (Tidepool then shows less than the dose for that
+      day). Changing a dose, or adding the next one, re-sends the earlier one with its new length.
 - tidepool_sent (migration 16): each origin ID sent, a hash of what was sent and when. Each run builds the records
   wanted from 'Send from' on, uploads the new or changed ones (up to 1,000 a request), and deletes the ones no longer
   wanted with `DELETE /v1/data_sets/{id}/data` and their origin IDs. Changing server or account starts a fresh table.

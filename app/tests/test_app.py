@@ -1429,10 +1429,19 @@ def test_tidepool_sync(app, monkeypatch):
     client.post("/api/tidepool/sync")
     assert f"kc-meal-{mid}-bg" not in tp.records                                         # CGM BG never sent
     assert tp.records[f"kc-entry-{eid}-bg"]["value"] == 65 and tp.records[f"kc-entry-{eid}-bg"]["units"] == "mg/dL"
-    ins = tp.records[f"kc-meal-{mid}-insulin"]
-    assert ins["dose"] == {"total": 2.5, "units": "Units"} and ins["formulation"]["simple"]["actingType"] == "rapid"
+    ins = tp.records[f"kc-meal-{mid}-insulin"]                                       # bolus as Tidepool's bolus
+    assert (ins["type"], ins["subType"], ins["normal"]) == ("bolus", "normal", 2.5)
     assert ins["deviceTime"] == "2026-10-27T17:50:00"                                   # 15 min before eating
-    assert tp.records[f"kc-entry-{eid}-insulin"]["formulation"]["simple"]["actingType"] == "long"
+    bas = tp.records[f"kc-entry-{eid}-insulin"]                                         # long-acting spread over 24 h
+    assert (bas["type"], bas["deliveryType"], bas["duration"]) == ("basal", "scheduled", 24 * 3600 * 1000)
+    assert abs(bas["rate"] * 24 - 1) < 0.001
+    # a long-acting dose ends at the next one 20 h later; a rapid one in between doesn't cut it
+    e2 = client.post("/api/entries", json={**entry(insulin=12, insulin_kind="long", cid="entry-0002"), "day": "2026-10-26", "time": "22:00"}).json()["id"]
+    client.post("/api/entries", json={**entry(insulin=1, insulin_kind="rapid", cid="entry-0003"), "time": "08:00"})
+    client.post("/api/tidepool/sync")
+    assert tp.records[f"kc-entry-{e2}-insulin"]["duration"] == 20 * 3600 * 1000 and tp.records[f"kc-entry-{e2}-insulin"]["rate"] == 0.5
+    assert tp.records[f"kc-entry-{eid}-insulin"]["duration"] == 24 * 3600 * 1000
+    client.delete(f"/api/entries/{e2}")
     assert not any("dose" in k for r in tp.records.values() for k in r if k != "dose")
     # an edit replaces, a delete removes, a kind switched off is removed
     client.put(f"/api/entries/{eid}", json={"bg": 70, "carbs": 20, "note": "juice"})

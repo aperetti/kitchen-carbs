@@ -19,7 +19,8 @@ CLIENT, VERSION = "app.kitchencarbs", "1.0.0"
 DEDUPLICATOR = "org.tidepool.deduplicator.dataset.delete.origin"
 KINDS = ("carbs", "bg", "insulin")
 SYNC_EVERY_S, SETTLE_S, BATCH = 300, 20, 1000
-ACTING = {"bolus": "rapid", "rapid": "rapid", "basal": "long", "long": "long"}
+BASAL_KINDS = {"basal", "long"}   # everything else typed is a bolus (okf/architecture/tidepool-client.md)
+BASAL_SPREAD_MS = 24 * 3600 * 1000
 
 _wake = threading.Event()
 _lock = threading.Lock()
@@ -133,15 +134,35 @@ def _smbg(oid, when, device, value) -> dict:
     return {**_base(oid, when, device), "type": "smbg", "subType": "manual", "units": "mg/dL", "value": int(value)}
 
 
-def _insulin(oid, when, device, units, kind) -> dict:
-    acting = ACTING.get(kind or "", "rapid")
-    return {**_base(oid, when, device), "type": "insulin", "dose": {"total": units, "units": "Units"},
-            "formulation": {"name": f"{acting}-acting insulin", "simple": {"actingType": acting}}}
+def _bolus(oid, when, device, units) -> dict:
+    return {**_base(oid, when, device), "type": "bolus", "subType": "normal", "normal": units}
+
+
+def _basal(oid, when, device, units, duration_ms) -> dict:
+    """A long-acting injection as Tidepool's basal: the dose spread evenly over 24 hours, or until the next one."""
+    return {**_base(oid, when, device), "type": "basal", "deliveryType": "scheduled",
+            "rate": round(units * 3600000 / BASAL_SPREAD_MS, 4), "duration": duration_ms,
+            "insulinFormulation": {"simple": {"actingType": "long"}}}
+
+
+def _insulin(doses: list, device: str, out: dict) -> None:
+    """doses: (origin ID, when, units, kind). Basal doses end at the next one so they never overlap."""
+    basal = sorted((d for d in doses if d[3] in BASAL_KINDS), key=lambda d: d[1]["time"])
+    for i, (oid, when, units, _) in enumerate(basal):
+        start = datetime.fromisoformat(when["time"].replace("Z", "+00:00"))
+        dur = BASAL_SPREAD_MS
+        if i + 1 < len(basal):
+            nxt = datetime.fromisoformat(basal[i + 1][1]["time"].replace("Z", "+00:00"))
+            dur = max(60000, min(dur, int((nxt - start).total_seconds() * 1000)))
+        out[oid] = _basal(oid, when, device, units, dur)
+    for oid, when, units, kind in doses:
+        if kind not in BASAL_KINDS:
+            out[oid] = _bolus(oid, when, device, units)
 
 
 def wanted(c, cfg) -> dict:
     """Every record that should be in Tidepool now, by origin ID. Never CGM, never a calculated dose."""
-    k, out, device = cfg["kinds"], {}, f"KitchenCarbs-{cfg['server']}"
+    k, out, device, doses = cfg["kinds"], {}, f"KitchenCarbs-{cfg['server']}", []
     for m in c.execute("SELECT * FROM meals WHERE day >= ? AND deleted_at IS NULL", (cfg["from"],)).fetchall():
         when = _when(m["day"], m["time"])
         if k["carbs"]:
@@ -155,7 +176,7 @@ def wanted(c, cfg) -> dict:
             out[oid] = _smbg(oid, when, device, m["bg"])
         if k["insulin"] and m["insulin"] is not None:
             oid = f"kc-meal-{m['id']}-insulin"
-            out[oid] = _insulin(oid, _when(m["day"], m["time"], m["insulin_offset_min"] or 0), device, m["insulin"], m["insulin_kind"])
+            doses.append((oid, _when(m["day"], m["time"], m["insulin_offset_min"] or 0), m["insulin"], m["insulin_kind"]))
     for e in c.execute("SELECT * FROM log_entries WHERE day >= ? AND deleted_at IS NULL", (cfg["from"],)).fetchall():
         when = _when(e["day"], e["time"])
         if k["carbs"] and e["carbs"] is not None:
@@ -166,7 +187,8 @@ def wanted(c, cfg) -> dict:
             out[oid] = _smbg(oid, when, device, e["bg"])
         if k["insulin"] and e["insulin"] is not None:
             oid = f"kc-entry-{e['id']}-insulin"
-            out[oid] = _insulin(oid, when, device, e["insulin"], e["insulin_kind"])
+            doses.append((oid, when, e["insulin"], e["insulin_kind"]))
+    _insulin(doses, device, out)
     return out
 
 
