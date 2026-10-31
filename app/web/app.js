@@ -943,8 +943,7 @@ const movedLabel = s => `${dayLabel(s.slice(0, 10))}, ${s.slice(11)}`;
 const whenBox = (x, kind) => `<div class="glab"><span class="label">When</span></div>
     <form class="whenform" id="whenForm" data-what="${kind}" data-id="${x.id}">
       <input type="date" id="whDay" value="${x.day}" max="${localDay()}" required aria-label="Date">
-      <input type="time" id="whTime" value="${x.time}" required aria-label="Time"><button class="btn small" id="whSave">Change</button></form>
-    <p class="meta warn" id="whDirty" role="status" hidden>Not saved yet. Tap Change to save it. <button type="button" class="linkbtn" data-act="when-reset">Undo</button></p>
+      <input type="time" id="whTime" value="${x.time}" required aria-label="Time"></form>
     ${x.moved_from || x.edited_at ? `<p class="meta moved"><span aria-hidden="true">✎</span> Modified</p>` : ""}`;
 
 /* Deleted meals and entries stay listed on their day and can be restored (okf/domain/meal-log.md) */
@@ -1005,7 +1004,65 @@ function renderEntry(e) {
       ${e.insulin != null ? `<div><span class="label">Insulin given</span><b>${fmtU(e.insulin)}</b> ${KIND[e.insulin_kind]}</div>` : ""}</div>
     ${e.note ? `<p class="notes">${esc(e.note)}</p>` : ""}
     ${whenBox(e, "entries")}
-    ${ed ? `<div class="actions"><button class="btn quiet small" data-act="del-entry">Delete entry</button></div>` : `<p class="meta">Read-only, except the date and time</p>`}`;
+    ${ed ? `<div class="actions"><button class="btn quiet small" data-act="del-entry">Delete entry</button></div>` : `<p class="meta">Read-only, except the date and time</p>`}
+    ${saveBar}`;
+  logBaseline();
+}
+
+/* One Save for every change to a logged meal or entry (okf/features/review-log.md): nothing is saved as it's typed;
+   a bar floats up as soon as anything differs from what's saved. */
+const saveBar = `<div class="savebar" id="logSave" hidden role="region" aria-label="Unsaved changes">
+    <span class="sbtext">Unsaved changes</span><p class="err" id="logErr" role="alert"></p>
+    <div class="actions"><button type="button" class="btn primary" data-act="log-save">Save changes</button><button type="button" class="btn quiet" data-act="log-discard">Discard</button></div></div>`;
+function logSnap() {
+  const v = id => $(id)?.value ?? null, f = $("#mdetForm");
+  return { day: v("#whDay"), time: v("#whTime"), eaten: $(".eatseg .on")?.dataset.eaten ?? "", total: v("#cfTotal"), cmt: (v("#cmtText") || "").trim(),
+    det: f ? JSON.stringify([...f.querySelectorAll("input")].map(i => i.value).concat([...f.querySelectorAll("button.on")].map(b => b.dataset.dkind || b.dataset.dwhen))) : null };
+}
+function logBaseline() { S.log.base = logSnap(); S.log.done = new Set(); document.body.classList.remove("unsaved"); logDirty(); }
+function logDirty() {
+  const b = S.log.base, n = logSnap(), bar = $("#logSave"); if (!b || !bar) return false;
+  const parts = { "#whenForm": n.day !== b.day || n.time !== b.time, "#mdetForm": n.det !== b.det, ".eatseg": n.eaten !== b.eaten,
+    "#carbsFix": n.total !== b.total, "#cmtForm": !!n.cmt };
+  for (const [sel, on] of Object.entries(parts)) $(sel)?.classList.toggle("dirty", on);
+  const any = Object.values(parts).some(Boolean);
+  if (bar.hidden === any) { bar.hidden = !any; if (!any) $("#logErr").textContent = ""; }
+  document.body.classList.toggle("unsaved", any);
+  return any;
+}
+async function saveLogEdits(btn) {
+  const b = S.log.base, n = logSnap(), err = $("#logErr"), entry = !!S.log.selEntry, id = entry ? S.log.selEntry : S.log.sel;
+  const steps = [];
+  err.textContent = "";
+  try {   // everything is checked before anything is saved
+    if (!n.day || !n.time) throw new Error("Choose a date and a time.");
+    if (n.day > localDay()) throw new Error("It can't be moved to a future day.");
+    if (!entry && n.det !== b.det) {
+      const m = S.log.data.meals.find(x => x.id === id), bg = $("#mdBg").value.trim(), body = readDetails($("#mdetForm"));
+      if (bg !== "" && !(Number.isInteger(+bg) && +bg >= 20 && +bg <= 600)) throw new Error("Blood glucose must be a whole number between 20 and 600 mg/dL.");
+      Object.assign(body, { bg: bg === "" ? null : +bg, bg_source: bg === "" ? null : +bg === m.bg ? m.bg_source : "meter" });
+      steps.push(["details", () => api(`/api/meals/${id}/details`, { method: "PUT", body })]);
+    }
+    if (!entry && n.eaten !== b.eaten) steps.push(["eaten", () => api(`/api/meals/${id}`, { method: "PATCH", body: { eaten: n.eaten } })]);
+    if (!entry && n.total !== b.total) {   // a corrected total, with its reason (okf/domain/meal.md)
+      const total = +n.total, reason = $("#cfReason").value.trim();
+      if (n.total === "" || !(total >= 0 && total <= 1000)) throw new Error("Total carbs are between 0 and 1000 g.");
+      if (reason.length < 3) { $("#cfReason").focus(); throw new Error("Say why the carbs changed."); }
+      steps.push(["carbs", () => api(`/api/meals/${id}/carbs`, { method: "PUT", body: { total, reason } })]);
+    }
+    if (!entry && n.cmt) steps.push(["cmt", () => api(`/api/meals/${id}/comments`, { method: "POST", body: { text: n.cmt } })]);
+    if (n.day !== b.day || n.time !== b.time)   // last: it can move the meal to another day (okf/rules/same-day-edits.md)
+      steps.push(["when", () => api(`/api/${entry ? "entries" : "meals"}/${id}/when`, { method: "PUT", body: { day: n.day, time: n.time } })]);
+  } catch (e) { err.textContent = e.message; return; }
+  btn.disabled = true;
+  for (const [k, run] of steps) {
+    if (S.log.done.has(k)) continue;   // a retry after a failure doesn't repeat what was saved
+    try { await run(); S.log.done.add(k); }
+    catch (e) { err.textContent = (S.log.done.size ? "Some changes were saved. " : "") + e.message; btn.disabled = false; return; }
+  }
+  toast("Changes saved");
+  if (entry) S.log.selEntry = id; else { S.log.sel = id; S.log.selEntry = null; }
+  S.log.base = null; loadLog(n.day);   // follow it to its day
 }
 
 async function renderMeal() {
@@ -1017,27 +1074,29 @@ async function renderMeal() {
   el.innerHTML = `
     <div class="mdh"><b>${m.time}</b><span class="c">${m.total} <small>g carbs</small></span></div>
     ${m.carbs_corrected != null ? `<p class="meta moved">Corrected from ${m.items_total} g, the foods' own total. The reason is in the comments.</p>` : ""}
-    ${ed && !S.log.fixCarbs ? `<button class="linkbtn fixlink" data-act="fix-carbs">Change total carbs</button>` : ""}
-    ${ed && S.log.fixCarbs ? `<form id="carbsFix" class="carbsfix"><p class="meta">For a discrepancy found later. The foods keep their saved carbs; the meal's total, the day's totals and the export use the new number.</p>
+    ${ed ? `<button class="linkbtn fixlink" data-act="fix-carbs">Change total carbs</button>
+      <form id="carbsFix" class="carbsfix" hidden><p class="meta">For a discrepancy found later. The foods keep their saved carbs; the meal's total, the day's totals and the export use the new number.</p>
         <label class="field"><span>Total carbs</span><span class="unitin"><input id="cfTotal" type="number" inputmode="decimal" min="0" max="1000" step="any" required value="${m.total}"> g</span></label>
-        <label class="field"><span>Why it changed (required)</span><input id="cfReason" maxlength="400" required minlength="3" placeholder="e.g. only ate half the pasta, label was wrong" autocomplete="off"></label>
-        <div class="actions"><button class="btn primary small">Save</button><button type="button" class="btn quiet small" data-act="fix-cancel">Cancel</button></div></form>` : ""}
+        <label class="field"><span>Why it changed (required)</span><input id="cfReason" maxlength="400" minlength="3" placeholder="e.g. only ate half the pasta, label was wrong" autocomplete="off"></label>
+        <button type="button" class="linkbtn" data-act="fix-cancel">Keep the total as it was</button></form>` : ""}
     <span class="meta">${m.items.map(i => `${esc(i.food_name)}, ${i.carbs} g carbs (${i.entered_carbs != null ? "entered by hand" : fmtG(itemG(i))})`).join(" · ")}</span>
     ${whenBox(m, "meals")}
-    <div class="glab"><span class="label">BG, insulin and time to eat</span>${ed && !S.log.editDetails ? `<button class="linkbtn" data-act="edit-details">${detailSummary(m) ? "Edit" : "Add"}</button>` : ""}</div>
-    ${ed && S.log.editDetails ? `<form id="mdetForm" class="mdetform"><label class="field"><span>Blood glucose (mg/dL)</span><input id="mdBg" type="number" inputmode="numeric" min="20" max="600" step="1" value="${m.bg ?? ""}" placeholder="Meter reading"></label>
-        ${detailFields(m)}<div class="actions"><button class="btn primary small">Save</button><button type="button" class="btn quiet small" data-act="details-cancel">Cancel</button></div></form>`
+    <div class="glab"><span class="label">BG, insulin and time to eat</span></div>
+    ${ed ? `<form id="mdetForm" class="mdetform"><label class="field"><span>Blood glucose (mg/dL)${m.bg != null && m.bg_source === "cgm" ? " · from the CGM" : ""}</span><input id="mdBg" type="number" inputmode="numeric" min="20" max="600" step="1" value="${m.bg ?? ""}" placeholder="Meter reading"></label>
+        ${detailFields(m)}</form>`
       : `<p class="${detailSummary(m) ? "" : "meta"}">${esc(detailSummary(m)) || "None added"}</p>`}
     ${S.session?.glucose ? `<div class="glab"><span class="label">Glucose · mg/dL</span><span class="meta" id="gUpdated"></span></div><div id="gBox"><p class="meta">Loading glucose…</p></div>` : ""}
     <div class="glab"><span class="label">How much was eaten</span>${ed ? "" : `<span class="meta">Read-only</span>`}</div>
-    ${ed ? `<div class="seg neutral" role="group" aria-label="How much was eaten">${EATEN.map(x => `<button data-eaten="${x}" class="${m.eaten === x ? "on" : ""}">${cap(x)}</button>`).join("")}</div>
+    ${ed ? `<div class="seg neutral eatseg" role="group" aria-label="How much was eaten">${EATEN.map(x => `<button type="button" data-eaten="${x}" class="${m.eaten === x ? "on" : ""}" aria-pressed="${m.eaten === x}">${cap(x)}</button>`).join("")}</div>
       <p class="note">This is a note. Carbs stay as served.</p>` : `<p>${m.eaten ? cap(m.eaten) : "Not set"}</p>`}
     <div class="glab"><span class="label">Comments</span></div>
     <div class="cmt">${m.comments.map(c => `<div><span class="tm">${c.time.length > 5 ? movedLabel(c.time) : c.time}</span>${esc(c.text)}</div>`).join("") || (ed ? "" : `<span class="meta">None</span>`)}
-      ${ed ? `<form class="cmtform" id="cmtForm"><input id="cmtText" maxlength="500" placeholder="Add a comment" aria-label="Add a comment" autocomplete="off"><button class="btn small">Add</button></form>` : ""}</div>
+      ${ed ? `<form class="cmtform" id="cmtForm"><input id="cmtText" maxlength="500" placeholder="Add a comment" aria-label="Add a comment" autocomplete="off"></form>` : ""}</div>
     <div class="actions" style="padding-top:12px"><button class="btn quiet small" data-act="pin-meal">Pin as favorite</button>
       ${ed ? `<button class="btn quiet small" data-act="del-meal">Delete meal</button>` : ""}</div>
-    <form class="cmtform" id="pinMeal" hidden><input id="pinMealName" maxlength="60" value="${suggestName(m.time)}" aria-label="Favorite name"><button class="btn small">Pin</button></form>`;
+    <form class="cmtform" id="pinMeal" hidden><input id="pinMealName" maxlength="60" value="${suggestName(m.time)}" aria-label="Favorite name"><button class="btn small">Pin</button></form>
+    ${saveBar}`;
+  logBaseline();
   if (S.session?.glucose) loadCurve(m);
 }
 
@@ -1092,8 +1151,15 @@ function curveSvg(w) {
 
 let confirmDelete = 0;
 $("#v-log").addEventListener("click", async e => {
+  if (e.target.closest("#mealDetail")) setTimeout(logDirty);   // after the switches below have moved
   const t = e.target.closest("[data-day],[data-meal],[data-entry],[data-kind],[data-eaten],[data-act],[data-period],[data-restore]"); if (!t) return;
   const d = S.log.data;
+  if (t.matches("[data-day],[data-meal],[data-entry],[data-period],[data-restore],[data-act=add-entry]") && logDirty()) {
+    toast("Save or discard the changes first");   // nothing typed is lost without a choice
+    const bar = $("#logSave"); bar.classList.remove("nudge"); void bar.offsetWidth; bar.classList.add("nudge"); return;
+  }
+  if (t.dataset.act === "log-save") return saveLogEdits(t);
+  if (t.dataset.act === "log-discard") { S.log.base = null; return renderMeal(); }
   if (t.dataset.restore) {
     const [kind, id] = t.dataset.restore.split(":");
     try {
@@ -1114,15 +1180,13 @@ $("#v-log").addEventListener("click", async e => {
     if (Date.now() - confirmEntry > 4000) { confirmEntry = Date.now(); t.textContent = "Tap again to delete"; return; }
     try { await api(`/api/entries/${S.log.selEntry}`, { method: "DELETE" }); toast("Entry deleted. It can be restored from Deleted, below the day."); S.log.selEntry = null; loadLog(d.day); } catch (err) { toast(err.message); }
   }
-  else if (t.dataset.act === "fix-carbs") { S.log.fixCarbs = true; renderMeal(); $("#cfTotal")?.select(); }
-  else if (t.dataset.act === "fix-cancel") { S.log.fixCarbs = false; renderMeal(); }
-  else if (t.dataset.act === "when-reset") { $("#whenForm").reset(); whenDirty(); }
-  else if (t.dataset.act === "edit-details") { S.log.editDetails = true; renderMeal(); }
-  else if (t.dataset.act === "details-cancel") { S.log.editDetails = false; renderMeal(); }
-  else if (t.dataset.meal) { S.log.editDetails = false; S.log.fixCarbs = false; S.log.sel = +t.dataset.meal; S.log.selEntry = null; S.log.adding = false; confirmDelete = 0; renderLog(); if (innerWidth <= 680) $("#mealDetail").scrollIntoView(); }
-  else if (t.dataset.eaten) {
-    const m = d.meals.find(x => x.id === S.log.sel), v = m.eaten === t.dataset.eaten ? "" : t.dataset.eaten;
-    try { await api(`/api/meals/${m.id}`, { method: "PATCH", body: { eaten: v } }); m.eaten = v || null; renderLog(); } catch (err) { toast(err.message); }
+  else if (t.dataset.act === "fix-carbs") { t.hidden = true; $("#carbsFix").hidden = false; $("#cfTotal").select(); }
+  else if (t.dataset.act === "fix-cancel") { $("#carbsFix").reset(); $("#carbsFix").hidden = true; $(".fixlink").hidden = false; logDirty(); }
+  else if (t.dataset.meal) { S.log.sel = +t.dataset.meal; S.log.selEntry = null; S.log.adding = false; confirmDelete = 0; renderLog(); if (innerWidth <= 680) $("#mealDetail").scrollIntoView(); }
+  else if (t.dataset.eaten) {   // chosen here, saved with the rest; tapping the chosen one clears it
+    const on = !t.classList.contains("on");
+    t.parentElement.querySelectorAll("button").forEach(b => { b.classList.toggle("on", on && b === t); b.setAttribute("aria-pressed", on && b === t); });
+    logDirty();
   }
   else if (t.dataset.act === "pin-meal") { $("#pinMeal").hidden = false; $("#pinMealName").select(); }
   else if (t.dataset.act === "del-meal") {
@@ -1135,49 +1199,11 @@ $("#v-log").addEventListener("click", async e => {
     location.href = `/api/export.csv?start=${from}&end=${to}`;
   }
 });
-$("#v-log").addEventListener("input", e => { if (e.target.closest("#entryForm")) entryPreview(); if (e.target.closest("#whenForm")) whenDirty(); });
-$("#v-log").addEventListener("change", e => { if (e.target.closest("#whenForm")) whenDirty(); });
-/* A changed date or time says it isn't saved until Change is tapped (okf/features/review-log.md) */
-function whenDirty() {
-  const f = $("#whenForm"); if (!f) return;
-  const day = $("#whDay"), time = $("#whTime");
-  const dirty = day.value !== day.defaultValue || time.value !== time.defaultValue;
-  f.classList.toggle("dirty", dirty); $("#whDirty").hidden = !dirty; $("#whSave").classList.toggle("primary", dirty);
-}
+$("#v-log").addEventListener("input", e => { if (e.target.closest("#entryForm")) entryPreview(); if (e.target.closest("#mealDetail")) logDirty(); });
+$("#v-log").addEventListener("change", e => { if (e.target.closest("#mealDetail")) logDirty(); });
 $("#v-log").addEventListener("submit", async e => {
-  if (e.target.id === "carbsFix") {   // a corrected total, with its reason (okf/domain/meal.md)
-    e.preventDefault();
-    const total = +$("#cfTotal").value, reason = $("#cfReason").value.trim();
-    if (reason.length < 3) { toast("Say why the carbs changed."); return; }
-    if (!(total >= 0 && total <= 1000) || $("#cfTotal").value === "") { toast("Total carbs are between 0 and 1000 g."); return; }
-    try {
-      const r = await api(`/api/meals/${S.log.sel}/carbs`, { method: "PUT", body: { total, reason } });
-      S.log.fixCarbs = false; toast(r.corrected ? `Total changed to ${r.total} g` : `Back to the foods' own total, ${r.total} g`); loadLog(S.log.data.day);
-    } catch (err) { toast(err.message); }
-    return;
-  }
-  if (e.target.id === "mdetForm") {   // okf/features/annotate-meal.md: same day only
-    e.preventDefault();
-    const m = S.log.data.meals.find(x => x.id === S.log.sel), bg = $("#mdBg").value.trim();
-    try {
-      const body = readDetails(e.target);
-      if (bg !== "" && !(Number.isInteger(+bg) && +bg >= 20 && +bg <= 600)) throw new Error("Blood glucose must be a whole number between 20 and 600 mg/dL.");
-      Object.assign(body, { bg: bg === "" ? null : +bg, bg_source: bg === "" ? null : +bg === m.bg ? m.bg_source : "meter" });
-      Object.assign(m, await api(`/api/meals/${m.id}/details`, { method: "PUT", body }));
-      S.log.editDetails = false; toast("Meal details saved"); loadLog(S.log.data.day);
-    } catch (err) { toast(err.message); }
-    return;
-  }
-  if (e.target.id === "whenForm") {   // okf/rules/same-day-edits.md: any day, marked as moved
-    e.preventDefault();
-    const { what: kind, id } = e.target.dataset, day = $("#whDay").value, time = $("#whTime").value;
-    try {
-      const r = await api(`/api/${kind}/${id}/when`, { method: "PUT", body: { day, time } });
-      toast(r.moved_from ? `Moved to ${dayLabel(day)}, ${time}` : `Back to ${dayLabel(day)}, ${time}`);
-      if (kind === "meals") { S.log.sel = +id; S.log.selEntry = null; } else S.log.selEntry = +id;
-      loadLog(day);   // follow it to its day
-    } catch (err) { toast(err.message); }
-    return;
+  if (["carbsFix", "mdetForm", "whenForm", "cmtForm"].includes(e.target.id)) {   // Enter in any of them: the one Save
+    e.preventDefault(); if (logDirty()) saveLogEdits($("[data-act=log-save]")); return;
   }
   if (e.target.id === "entryForm") {
     e.preventDefault();
@@ -1198,9 +1224,6 @@ $("#v-log").addEventListener("submit", async e => {
     if (name && await pinFavorite(`/api/meals/${S.log.sel}/favorite`, { name })) $("#pinMeal").hidden = true;
     return;
   }
-  if (e.target.id !== "cmtForm") return; e.preventDefault();
-  const text = $("#cmtText").value.trim(); if (!text) return;
-  try { await api(`/api/meals/${S.log.sel}/comments`, { method: "POST", body: { text } }); loadLog(S.log.day); } catch (err) { toast(err.message); }
 });
 
 /* ---------- manage (parent PIN) ---------- */

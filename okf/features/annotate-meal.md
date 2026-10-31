@@ -12,5 +12,5 @@ links:
 # Annotate meal
 From the log, tap a meal: choose an 'eaten' option, add a comment. Comments show with their time.
 - Meal details (decided 29 Oct): BG, insulin (Bolus or Basal) and when it was given, and how long the meal took to eat
-  (okf/domain/meal.md). Shown on the meal when set; 'Edit details' changes them, on earlier days too while
+  (okf/domain/meal.md). Editable in place on the meal and saved with the log's one Save button (okf/features/review-log.md), on earlier days too while
   the setting allows it (okf/rules/same-day-edits.md). All optional.

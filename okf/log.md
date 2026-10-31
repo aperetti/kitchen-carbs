@@ -112,3 +112,4 @@
 - 2026-10-31 — Log: a meal row shows the BG saved with the meal (components/entry-row.md).
 - 2026-10-31 — Log: an edited but unsaved date or time is marked until Change is tapped (features/review-log.md).
 - 2026-10-31 — Meal summary: date and time can be changed before saving; a meal set away from now doesn't take the CGM BG; a meal saved to an earlier day is marked (features/meal-dose-summary.md).
+- 2026-10-31 — Log: a meal's date, time, BG, insulin, eaten, carbs and comment are edited in place and saved together from a floating 'Save changes' bar (features/review-log.md).

@@ -569,8 +569,21 @@ body.signed-out .tabs, body.signed-out .platebar { display: none !important; }
 .sumwhen { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 14px 0 4px; }
 .sumwhen .label { flex: 1 1 100%; }
 .sumwhen input { height: 48px; border: 1px solid var(--line); border-radius: 10px; background: var(--paper); padding: 0 10px; font-size: 17px; color: var(--ink); }
-.whenform.dirty input { border: 2px solid var(--warn); padding: 0 9px; }
-#whDirty { margin: 6px 0 0; }
+.dirty input { border: 2px solid var(--warn) !important; }
+.seg.dirty { outline: 2px solid var(--warn); outline-offset: 2px; }
+.savebar { position: sticky; bottom: 0; z-index: 5; margin: 8px -12px 0; padding: 12px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px;
+  background: var(--paper); border: 2px solid var(--warn); border-radius: var(--r); box-shadow: 0 -6px 20px rgba(0,0,0,.12); }
+.savebar .sbtext { font-weight: 500; color: var(--warn); }
+.savebar .err { flex: 1 1 100%; margin: 0; order: 3; }
+.savebar .err:empty { display: none; }
+.savebar .actions { margin-left: auto; padding: 0; }
+.savebar.nudge { animation: nudge .35s ease 2; }
+@keyframes nudge { 0%, 100% { transform: none; } 25% { transform: translateX(-6px); } 75% { transform: translateX(6px); } }
+@media (prefers-reduced-motion: reduce) { .savebar.nudge { animation: none; } }
+@media (max-width: 680px) {   /* pinned to the screen, so it stays in reach from the list above too */
+  .savebar { position: fixed; left: 12px; right: 12px; bottom: max(12px, env(safe-area-inset-bottom)); margin: 0; }
+  .savebar .actions { margin-left: 0; width: 100%; } .savebar .actions .btn { flex: 1; }
+  body.unsaved { padding-bottom: 150px; } body.unsaved .toast { bottom: calc(160px + env(safe-area-inset-bottom, 0px)); } }
 .moved { font-style: normal; color: var(--warn); }
 p.moved { margin: 6px 0 0; }
 
