@@ -6,7 +6,7 @@ tags: [journey]
 timestamp: 2026-10-27
 status: draft
 links:
-  involves: [features/sign-in.md, features/install-app.md, features/food-lookup.md, features/manual-log.md, features/photo-style-setup.md, features/scan-label.md, features/favorite-plates.md, features/connect-nightscout.md, features/meal-glucose-view.md, features/glucose-stats-view.md, features/photo-pipeline.md, features/manage-foods.md, features/browse-foods.md, features/view-food.md, features/build-plate.md, features/kitchen-scale.md, features/log-meal.md, features/annotate-meal.md, features/review-log.md, features/export-log.md, features/fill-in-fiber.md, features/meal-dose-summary.md, features/confirm-food.md, features/notify-family.md]
+  involves: [features/sign-in.md, features/install-app.md, features/food-lookup.md, features/manual-log.md, features/photo-style-setup.md, features/scan-label.md, features/favorite-plates.md, features/connect-nightscout.md, features/meal-glucose-view.md, features/glucose-stats-view.md, features/photo-pipeline.md, features/manage-foods.md, features/browse-foods.md, features/view-food.md, features/build-plate.md, features/kitchen-scale.md, features/log-meal.md, features/annotate-meal.md, features/review-log.md, features/export-log.md, features/fill-in-fiber.md, features/meal-dose-summary.md, features/confirm-food.md, features/notify-family.md, features/tidepool-sync.md]
 steps:
   - id: sign-in
     phase: Set up (once)
@@ -24,8 +24,8 @@ steps:
     screen: "Manage → Nightscout (parent PIN)"
     thinking: "I don't want this app changing anything in Nightscout."
     risk: "Using the API secret, which gives full write access."
-    helps: "Asks for a readable token only; test shows the latest reading; token stays on the home server."
-    features: [features/connect-nightscout.md]
+    helps: "Asks for a readable token only; test shows the latest reading; token stays on the home server. Tidepool can be connected in Settings to receive the log's carbs, meter BG and insulin, each switched on separately."
+    features: [features/connect-nightscout.md, features/tidepool-sync.md]
   - id: style-setup
     phase: Set up (once)
     name: Set the photo style

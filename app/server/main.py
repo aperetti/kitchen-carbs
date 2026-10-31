@@ -19,7 +19,7 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 
 from concurrent.futures import ThreadPoolExecutor
 
-from . import auth, core, db, dose, labels, lookup, migrations, nightscout, photos, push, report
+from . import auth, core, db, dose, labels, lookup, migrations, nightscout, photos, push, report, tidepool
 
 WEB_DIR = os.path.join(os.path.dirname(__file__), "..", "web")
 SEED_DIR = os.path.join(os.path.dirname(__file__), "..", "seed")
@@ -463,6 +463,7 @@ async def lifespan(_app):
         seed()
     if os.environ.get("KC_NIGHTSCOUT_SYNC", "1") == "1":
         nightscout.start_background_sync()
+        tidepool.start_background_sync()
         threading.Thread(target=db.backup_loop, name="backup", daemon=True).start()
     yield
 
@@ -510,6 +511,15 @@ async def same_origin_writes(request: Request, call_next):
         if _host(origin) not in hosts:
             return JSONResponse({"detail": "Changes must come from the app's own page."}, status_code=403)
     return await call_next(request)
+
+
+@app.middleware("http")
+async def tidepool_follows_the_log(request: Request, call_next):
+    """A saved, changed or deleted meal or entry is sent to Tidepool soon (okf/features/tidepool-sync.md)."""
+    response = await call_next(request)
+    if request.method != "GET" and response.status_code < 300 and request.url.path.startswith(("/api/meals", "/api/entries")):
+        tidepool.poke()
+    return response
 
 
 @app.middleware("http")
@@ -1890,6 +1900,76 @@ def export_pdf(start: str, end: str, c=Depends(con)):
     pdf = report.build(first.isoformat(), last.isoformat(), days, overview, low, high, now())
     return Response(pdf, media_type="application/pdf",
                     headers={"Content-Disposition": f'attachment; filename="kitchen-carbs_{first}_{last}.pdf"'})
+
+
+# ----- Tidepool (okf/features/tidepool-sync.md) -----
+class TidepoolIn(BaseModel):
+    server: Literal["test", "tidepool"]
+    email: str = Field(max_length=200)
+    password: str = Field(default="", max_length=200)     # empty: keep the saved one
+    target: str = Field(default="", max_length=40, pattern=r"^[0-9a-fA-F-]*$")
+    send_from: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}$")
+    carbs: bool = True
+    bg: bool = False
+    insulin: bool = False
+
+
+@app.get("/api/tidepool", dependencies=[Depends(parent)])
+def tidepool_status(c=Depends(con)):
+    return tidepool.public(c)
+
+
+@app.put("/api/tidepool", dependencies=[Depends(parent)])
+def tidepool_save(body: TidepoolIn, c=Depends(con)):
+    """Checks the login with Tidepool, then saves and turns sending on (okf/rules/tidepool-login-server-only.md)."""
+    if not tidepool.enabled():
+        fail(400, "Tidepool is off in QA, so test meals never reach the real record.")
+    old = tidepool.config(c)
+    password = body.password or old["password"]
+    email = body.email.strip()
+    if not email or not password:
+        fail(422, "Enter the Tidepool email and password.")
+    try:
+        tidepool.login(body.server, email, password)
+    except tidepool.TidepoolError as e:
+        fail(400, str(e))
+    with c:
+        if (body.server, email.lower(), body.target) != (old["server"], old["email"].lower(), old["target"]):
+            tidepool.forget(c)
+        for k, v in {"server": body.server, "email": email, "password": password, "target": body.target, "from": body.send_from,
+                     "kinds": json.dumps({"carbs": body.carbs, "bg": body.bg, "insulin": body.insulin}), "on": "on"}.items():
+            db.set_setting(c, "tp_" + k, v)
+    tidepool.poke()
+    return tidepool.public(c)
+
+
+@app.post("/api/tidepool/sync", dependencies=[Depends(parent)])
+def tidepool_sync_now(c=Depends(con)):
+    try:
+        r = tidepool.sync_once()
+    except tidepool.TidepoolError as e:
+        fail(502, str(e))
+    if not r:
+        fail(400, "Connect Tidepool first.")
+    return {**tidepool.public(c), **r}
+
+
+@app.post("/api/tidepool/off", dependencies=[Depends(parent)])
+def tidepool_off(c=Depends(con)):
+    """Stops sending; what's in Tidepool stays."""
+    with c:
+        db.set_setting(c, "tp_on", "")
+    return tidepool.public(c)
+
+
+@app.delete("/api/tidepool/data", dependencies=[Depends(parent)])
+def tidepool_remove(c=Depends(con)):
+    """Deletes Kitchen Carbs' own data set from Tidepool, and turns sending off."""
+    try:
+        tidepool.remove_all()
+    except tidepool.TidepoolError as e:
+        fail(502, str(e))
+    return tidepool.public(c)
 
 
 # ----- meal summary dose (okf/features/meal-dose-summary.md, okf/rules/no-dosing.md) -----

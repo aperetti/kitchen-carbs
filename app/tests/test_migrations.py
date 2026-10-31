@@ -184,4 +184,15 @@ def test_v14_adds_push_subscriptions(tmp_path, monkeypatch):
     assert migrations.run(db, **QUIET) == 14
     con = sqlite3.connect(db)
     assert con.execute("SELECT COUNT(*) FROM push_subscriptions").fetchone() == (0,)
-    assert migrations.version(con) == 15
+    assert migrations.version(con) == len(real)
+
+
+def test_v15_adds_tidepool_sent(tmp_path, monkeypatch):
+    """Version 16 (okf/architecture/tidepool-client.md): an empty record of what was sent to Tidepool."""
+    real = migrations.MIGRATIONS
+    monkeypatch.setattr(migrations, "MIGRATIONS", real[:15]); monkeypatch.setattr(migrations, "LATEST", 15)
+    db = deployed_db(tmp_path)
+    monkeypatch.setattr(migrations, "MIGRATIONS", real); monkeypatch.setattr(migrations, "LATEST", len(real))
+    assert migrations.run(db, **QUIET) == 15
+    con = sqlite3.connect(db)
+    assert con.execute("SELECT COUNT(*) FROM tidepool_sent").fetchone() == (0,) and migrations.version(con) == 16

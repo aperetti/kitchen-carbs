@@ -1352,3 +1352,108 @@ def test_pdf_text_keeps_only_font_characters():
     from server import report
     assert report.safe("Crème ✎ → café") == "Crème   café"
     assert report.units(2.5) == "2.5" and report.units(3.0) == "3" and report.units(0.05) == "0.05"
+
+
+class FakeTidepool:
+    """Tidepool's login, data sets and delete-by-origin deduplication, as the client uses them."""
+    def __init__(self):
+        self.records, self.datasets, self.calls, self.fail_next = {}, [], [], None
+
+    def resp(self, status, body=None, headers=None):
+        import requests
+        r = requests.Response(); r.status_code = status
+        r._content = json.dumps(body).encode() if body is not None else b""
+        r.headers.update({"content-type": "application/json", **(headers or {})})
+        return r
+
+    def post(self, url, auth=None, timeout=None):
+        assert url.endswith("/auth/login")
+        if auth != ("mom@example.com", "pw-right"):
+            return self.resp(401, {})
+        return self.resp(200, {"userid": "u1"}, {"x-tidepool-session-token": "tok"})
+
+    def request(self, method, url, json=None, timeout=None, headers=None):
+        assert headers["X-Tidepool-Session-Token"] == "tok"
+        path = url.split(".org", 1)[1]
+        self.calls.append((method, path.split("?")[0]))
+        if self.fail_next:
+            status, self.fail_next = self.fail_next, None
+            return self.resp(status, {"code": "x"})
+        if method == "GET" and "/data_sets" in path:
+            return self.resp(200, self.datasets)
+        if method == "POST" and path == "/v1/users/u1/data_sets":
+            assert json["dataSetType"] == "continuous" and json["deduplicator"]["name"].endswith("delete.origin")
+            self.datasets.append({"id": "ds1", "dataSetType": "continuous"})
+            return self.resp(201, {"data": {"id": "ds1"}})
+        if method == "POST" and path == "/v1/data_sets/ds1/data":
+            for r in json:
+                self.records[r["origin"]["id"]] = r
+            return self.resp(200, {})
+        if method == "DELETE" and path == "/v1/data_sets/ds1/data":
+            for s in json:
+                self.records.pop(s["origin"]["id"], None)
+            return self.resp(200, {})
+        if method == "DELETE" and path == "/v1/data_sets/ds1":
+            self.records.clear(); self.datasets.clear()
+            return self.resp(200, {})
+        return self.resp(404, {})
+
+
+TP = {"server": "test", "email": "mom@example.com", "password": "pw-right", "send_from": "2026-10-20"}
+
+
+def test_tidepool_sync(app, monkeypatch):
+    """okf/features/tidepool-sync.md: only switched-on kinds, never CGM BG or a dose; edits replace, deletes remove."""
+    client, main = app
+    tp = FakeTidepool()
+    monkeypatch.setattr(main.tidepool.requests, "post", tp.post)
+    monkeypatch.setattr(main.tidepool.requests, "request", tp.request)
+    monkeypatch.setattr(main.tidepool, "_session", {})
+    assert client.put("/api/tidepool", json={**TP, "password": "pw-wrong"}).status_code == 400
+    assert client.get("/api/tidepool").json()["on"] is False
+    body = meal(); body.update(bg=182, bg_source="cgm", insulin=2.5, insulin_kind="bolus", insulin_offset_min=15)
+    mid = client.post("/api/meals", json=body).json()["id"]
+    eid = client.post("/api/entries", json=entry(bg=65, carbs=15, insulin=1, insulin_kind="long", note="juice")).json()["id"]
+    s = client.put("/api/tidepool", json=TP).json()
+    assert s["on"] and s["password_saved"] and "password" not in s and s["kinds"] == {"carbs": True, "bg": False, "insulin": False}
+    r = client.post("/api/tidepool/sync").json()
+    assert (r["sent"], r["removed"], r["sent"]) == (2, 0, 2)
+    food = tp.records[f"kc-meal-{mid}"]
+    assert food["type"] == "food" and food["nutrition"]["carbohydrate"] == {"net": main.core.whole_grams(sum(
+        i["carbs_exact"] for i in main.db.connect().execute("SELECT carbs_exact FROM meal_items WHERE meal_id = ?", (mid,)))), "units": "grams"}
+    assert food["meal"] == "dinner" and food["deviceTime"] == "2026-10-27T18:05:00" and food["name"] == "Pasta, cooked"
+    assert tp.records[f"kc-entry-{eid}-carbs"]["nutrition"]["carbohydrate"]["net"] == 15
+    assert client.post("/api/tidepool/sync").json()["sent"] == 0                         # nothing changed: nothing sent
+    # BG and insulin switched on: meter BG only, insulin as typed at the time given
+    client.put("/api/tidepool", json={**TP, "password": "", "bg": True, "insulin": True})
+    client.post("/api/tidepool/sync")
+    assert f"kc-meal-{mid}-bg" not in tp.records                                         # CGM BG never sent
+    assert tp.records[f"kc-entry-{eid}-bg"]["value"] == 65 and tp.records[f"kc-entry-{eid}-bg"]["units"] == "mg/dL"
+    ins = tp.records[f"kc-meal-{mid}-insulin"]
+    assert ins["dose"] == {"total": 2.5, "units": "Units"} and ins["formulation"]["simple"]["actingType"] == "rapid"
+    assert ins["deviceTime"] == "2026-10-27T17:50:00"                                   # 15 min before eating
+    assert tp.records[f"kc-entry-{eid}-insulin"]["formulation"]["simple"]["actingType"] == "long"
+    assert not any("dose" in k for r in tp.records.values() for k in r if k != "dose")
+    # an edit replaces, a delete removes, a kind switched off is removed
+    client.put(f"/api/entries/{eid}", json={"bg": 70, "carbs": 20, "note": "juice"})
+    client.delete(f"/api/meals/{mid}")
+    r = client.post("/api/tidepool/sync").json()
+    assert tp.records[f"kc-entry-{eid}-carbs"]["nutrition"]["carbohydrate"]["net"] == 20
+    assert f"kc-entry-{eid}-insulin" not in tp.records and not any(k.startswith(f"kc-meal-{mid}") for k in tp.records)
+    client.put("/api/tidepool", json={**TP, "password": "", "bg": False})
+    client.post("/api/tidepool/sync")
+    assert sorted(tp.records) == [f"kc-entry-{eid}-carbs"]
+    # an error is kept for the screen; removing deletes only our data set
+    tp.fail_next = 500
+    client.post(f"/api/meals/{mid}/restore")
+    assert client.post("/api/tidepool/sync").status_code == 502 and "500" in client.get("/api/tidepool").json()["last_error"]
+    assert client.post("/api/tidepool/sync").json()["sent"] == 1
+    s = client.delete("/api/tidepool/data").json()
+    assert tp.records == {} and s["on"] is False and s["sent"] == 0 and ("DELETE", "/v1/data_sets/ds1") in tp.calls
+
+
+def test_tidepool_off_in_qa(app, monkeypatch):
+    client, main = app
+    monkeypatch.setenv("KC_ENV", "qa")
+    assert client.put("/api/tidepool", json=TP).status_code == 400
+    assert main.tidepool.sync_once() == {}

@@ -1735,6 +1735,14 @@ const mSubmit = async e => {
     const code = $("#lkCode").value.replace(/\D/g, "");
     if (code.length < 8) { S.m.look.err = "A barcode has 8 to 14 digits."; refreshLookup(); return; }
     openLookup("off", code);
+  } else if (id === "tpForm") {   // the login is checked with Tidepool before it's saved
+    const btn = e.target.querySelector(".btn.primary"); btn.disabled = true;
+    try {
+      await api("/api/tidepool", { method: "PUT", parent: true, body: { server: $("[data-tpserver].on")?.dataset.tpserver || "test",
+        email: $("#tpEmail").value.trim(), password: $("#tpPw").value, target: $("#tpTarget").value.trim(), send_from: $("#tpFrom").value,
+        carbs: $("#tpCarbs").checked, bg: $("#tpBg").checked, insulin: $("#tpIns").checked } });
+      toast("Tidepool connected. Sending within a minute."); renderTidepool();
+    } catch (err) { renderTidepool(err.message); }
   } else if (id === "approveDevice") {
     try { await api("/api/accounts/approve-device", { method: "POST", parent: true, body: { code: $("#devCode").value } }); e.target.reset(); S.accounts = null; renderAccounts(); toast("Approved. The other device signs in within a few seconds."); }
     catch (err) { toast(err.message); }
@@ -1781,7 +1789,7 @@ const mSubmit = async e => {
 
 let confirmFood = 0;
 const mClick = async e => {
-  const t = e.target.closest("[data-mtab],[data-mfood],[data-addtab],[data-lk],[data-pact],[data-act],[data-tact],[data-mult],[data-quality],[data-bact]"); if (!t) return;
+  const t = e.target.closest("[data-mtab],[data-mfood],[data-addtab],[data-lk],[data-pact],[data-act],[data-tact],[data-mult],[data-quality],[data-bact],[data-pushdel],[data-tpserver]"); if (!t) return;
   if (t.dataset.addtab || t.dataset.mfood || t.dataset.mtab) S.m.look.scanning = false;   // the camera closes when you move away
   if (t.dataset.mtab) { if (S.m.tab !== t.dataset.mtab) { S.m.tab = t.dataset.mtab; mNav(); } return; }
   if (t.dataset.lk) { const [src, ...id] = t.dataset.lk.split(":"); openLookup(src, id.join(":")); return; }
@@ -1812,6 +1820,20 @@ const mClick = async e => {
   }
   if (t.dataset.act === "lk-everywhere") { S.m.look.everywhere = true; lookupSearch(S.m.look.q); return; }
   if (t.dataset.act === "sign-out") { await api("/api/auth/logout", { method: "POST" }).catch(() => { }); location.reload(); return; }
+  if (t.dataset.tpserver) {
+    t.parentElement.querySelectorAll("button").forEach(b => { b.classList.toggle("on", b === t); b.setAttribute("aria-pressed", b === t); }); return;
+  }
+  if (["tp-sync", "tp-off", "tp-remove"].includes(t.dataset.act)) {
+    if (t.dataset.act === "tp-remove" && Date.now() - confirmTpRemove > 4000) { confirmTpRemove = Date.now(); t.textContent = "Tap again to remove"; return; }
+    t.disabled = true;
+    try {
+      if (t.dataset.act === "tp-sync") { const r = await api("/api/tidepool/sync", { method: "POST", parent: true }); toast(`Sent ${r.sent}, removed ${r.removed}`); }
+      else if (t.dataset.act === "tp-off") { await api("/api/tidepool/off", { method: "POST", parent: true }); toast("Tidepool sending off"); }
+      else { confirmTpRemove = 0; await api("/api/tidepool/data", { method: "DELETE", parent: true }); toast("Removed what Kitchen Carbs sent to Tidepool"); }
+      renderTidepool();
+    } catch (err) { renderTidepool(err.message); }
+    return;
+  }
   if (["push-on", "push-off", "push-test"].includes(t.dataset.act) || t.dataset.pushdel) {
     t.disabled = true;
     try {
@@ -2630,6 +2652,7 @@ async function renderSettings() {
         Off: earlier days are read-only. Moving a meal or entry to another date and time works either way.</p></section>` : ""}
     <div id="doseBox">${doseForm()}</div>
     <div id="pushBox"></div>
+    <div id="tidepoolBox"></div>
     <div id="accountsBox"></div>
     <section class="form"><h2>Kitchen scale</h2>
       ${Scale.supported ? `<p class="meta">Connect the scale from the plate. The app reads the standard Bluetooth weight scale and the Decent Scale.
@@ -2642,7 +2665,39 @@ async function renderSettings() {
       <label class="field"><span>New PIN (4 to 8 digits)</span><input id="newPin" type="password" inputmode="numeric" pattern="\\d{4,8}" required></label></div>
       <div class="actions"><button class="btn">Change PIN</button><button type="button" class="btn quiet" data-act="form-reset">Cancel</button></div></form>
     </div></div>`;
-  S.accounts = null; renderAccounts(); renderPush();
+  S.accounts = null; renderAccounts(); renderPush(); renderTidepool();
+}
+
+/* ---------- Tidepool (okf/features/tidepool-sync.md) ---------- */
+let confirmTpRemove = 0;
+async function renderTidepool(msg = "") {
+  const box = $("#tidepoolBox"); if (!box) return;
+  let t; try { t = S.tp = await api("/api/tidepool", { parent: true }); } catch { return; }
+  if (!t.available) { box.innerHTML = `<section class="form"><h2>Tidepool</h2><p class="meta">Tidepool is off in QA, so test meals never reach the real record.</p></section>`; return; }
+  const k = t.kinds;
+  box.innerHTML = `<form class="form" id="tpForm"><h2>Tidepool</h2>
+    <p class="meta">Sends the log to the family's Tidepool account and keeps it in step: new, changed and deleted meals and entries follow within a minute.
+      Kitchen Carbs' records sit in their own data set, so the pump's and CGM's data are never changed.</p>
+    ${t.on ? `<p>Sending to <b>${esc(t.server_name)}</b> as ${esc(t.email)}. ${t.last_sync ? `Last sent ${esc(movedLabel(t.last_sync))}` : "Not sent yet"} · ${t.sent} record${t.sent === 1 ? "" : "s"} in Tidepool.</p>`
+      : t.email ? `<p class="meta">Not sending. Save to start again.</p>` : ""}
+    ${t.last_error ? `<p class="warn">Last try failed: ${esc(t.last_error)}</p>` : ""}
+    <fieldset class="field tagpick"><legend>Server</legend><div class="seg neutral" role="radiogroup">
+      ${[["test", "Test server"], ["tidepool", "Tidepool"]].map(([v, l]) => `<button type="button" data-tpserver="${v}" class="${t.server === v ? "on" : ""}" aria-pressed="${t.server === v}">${l}</button>`).join("")}</div></fieldset>
+    <p class="meta">Try the test server first with a free account from external.integration.tidepool.org, then switch to Tidepool.</p>
+    <div class="fieldrow"><label class="field"><span>Tidepool email</span><input id="tpEmail" type="email" autocomplete="off" maxlength="200" value="${esc(t.email)}" required></label>
+      <label class="field"><span>Password</span><input id="tpPw" type="password" autocomplete="new-password" maxlength="200" placeholder="${t.password_saved ? "Saved. Type to change it" : ""}"></label></div>
+    <label class="field"><span>Send to account ID (only when signing in as a caregiver; from the person's Tidepool profile link)</span><input id="tpTarget" maxlength="40" autocomplete="off" spellcheck="false" value="${esc(t.target)}"></label>
+    <label class="field"><span>Send from</span><input id="tpFrom" type="date" max="${localDay()}" value="${esc(t.from)}" required></label>
+    <fieldset class="field"><legend>What to send</legend>
+      <label class="check"><input type="checkbox" id="tpCarbs" ${k.carbs ? "checked" : ""}><span>Carbs: each meal with its foods, and carbs typed in entries</span></label>
+      <label class="check"><input type="checkbox" id="tpBg" ${k.bg ? "checked" : ""}><span>Meter BG typed on meals and entries (never CGM)</span></label>
+      <label class="check"><input type="checkbox" id="tpIns" ${k.insulin ? "checked" : ""}><span>Insulin typed on meals and entries</span></label>
+      <p class="meta warn">Only send insulin if the pump's or pen's own data doesn't reach Tidepool, or Tidepool will count the same insulin twice.</p>
+      <p class="meta">Switching a kind off removes what was sent of it.</p></fieldset>
+    <p class="err" role="alert">${esc(msg)}</p>
+    <div class="actions"><button class="btn primary">${t.on ? "Save" : "Connect and send"}</button>
+      ${t.on ? `<button type="button" class="btn" data-act="tp-sync">Send now</button><button type="button" class="btn quiet" data-act="tp-off">Turn off</button>` : ""}
+      ${t.sent || t.dataset ? `<button type="button" class="btn quiet" data-act="tp-remove">${Date.now() - confirmTpRemove < 4000 ? "Tap again to remove" : "Remove from Tidepool"}</button>` : ""}</div></form>`;
 }
 
 /* ---------- notifications (okf/features/notify-family.md, okf/architecture/web-push.md) ---------- */

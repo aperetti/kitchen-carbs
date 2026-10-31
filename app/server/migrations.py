@@ -201,11 +201,16 @@ def m015_push_subscriptions(con):
       email TEXT, device TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL, last_ok TEXT, last_error TEXT)""")
 
 
+def m016_tidepool_sent(con):
+    """What has been sent to Tidepool, by origin ID, so changes are re-sent and removals deleted (okf/architecture/tidepool-client.md)."""
+    con.execute("CREATE TABLE tidepool_sent (origin_id TEXT PRIMARY KEY, hash TEXT NOT NULL, sent_at TEXT NOT NULL)")
+
+
 MIGRATIONS = [m001_schema, m002_sessions, m003_cooked_state, m004_moved_from, m005_portion_labels, m006_fiber,
               m007_food_confirmations, m008_meal_details, m009_barcode,
               m010_entered_carbs, m011_edited_later,
               m012_soft_delete, m013_carbs_corrected, m014_favorite_photo,
-              m015_push_subscriptions]
+              m015_push_subscriptions, m016_tidepool_sent]
 LATEST = len(MIGRATIONS)
 
 

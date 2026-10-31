@@ -116,3 +116,4 @@
 - 2026-10-31 — Log: 'Add entry' scrolls to the new entry's form (features/manual-log.md).
 - 2026-10-31 — Log: a manual entry's BG, carbs, insulin and note can be edited in place and saved with the Save bar (features/manual-log.md).
 - 2026-10-31 — Export: a formatted PDF of the log for a date range, beside the CSV (features/export-log.md).
+- 2026-10-31 — Tidepool: send the log's carbs, meter BG and insulin (each switchable) to the family's Tidepool account from Settings, kept in step with edits and deletes (features/tidepool-sync.md, architecture/tidepool-client.md, two rules).
