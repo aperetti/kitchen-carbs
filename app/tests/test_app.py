@@ -1310,3 +1310,25 @@ def test_meal_saved_to_an_earlier_day_is_marked(app):
     rows = dict(main.db.connect().execute("SELECT client_id, edited_at FROM meals").fetchall())
     assert rows["late-meal-1"] == "2026-10-27 18:30" and rows["today-meal-1"] is None
     assert client.post("/api/meals", json=meal(day="2026-10-28", cid="future-1")).status_code == 400
+
+
+def test_edit_entry_values(app, monkeypatch):
+    """okf/features/manual-log.md: values fixed or added later, same checks as adding, marked after its day."""
+    client, main = app
+    sent = []
+    monkeypatch.setattr(main.push, "send_later", lambda payload, skip="": sent.append(payload))
+    eid = client.post("/api/entries", json=entry(bg=142)).json()["id"]
+    r = client.put(f"/api/entries/{eid}", json={"bg": 124, "carbs": 15, "insulin": 1.5, "insulin_kind": "rapid", "note": " juice "})
+    assert r.status_code == 200 and (r.json()["bg"], r.json()["carbs"], r.json()["insulin"], r.json()["note"], r.json()["edited_at"]) == (124, 15, 1.5, "juice", None)
+    assert client.put(f"/api/entries/{eid}", json={}).status_code == 422                                  # can't be emptied
+    assert client.put(f"/api/entries/{eid}", json={"insulin": 2}).status_code == 422                      # kind missing
+    assert client.put(f"/api/entries/{eid}", json={"insulin": 2.53, "insulin_kind": "rapid"}).status_code == 422
+    assert client.put(f"/api/entries/{eid}", json={"insulin": 2, "insulin_kind": "bolus"}).status_code == 422
+    r = client.put(f"/api/entries/{eid}", json={"bg": 124, "insulin_kind": "long"})                      # no insulin: no kind kept
+    assert r.json()["insulin"] is None and r.json()["insulin_kind"] is None
+    assert len(sent) == 1                                                                                 # editing never notifies
+    old = client.post("/api/entries", json=entry(cid="entry-old-1", day="2026-10-26", bg=90)).json()["id"]
+    assert client.put(f"/api/entries/{old}", json={"bg": 95}).json()["edited_at"] == "2026-10-27 18:30"
+    client.put("/api/settings/past-edits", json={"allowed": False})
+    assert client.put(f"/api/entries/{old}", json={"bg": 99}).status_code == 409
+    assert client.put("/api/entries/9999", json={"bg": 99}).status_code == 404

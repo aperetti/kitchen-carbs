@@ -217,11 +217,8 @@ class MealPatch(BaseModel):
     time: str | None = Field(default=None, pattern=TIME_RE)
 
 
-class EntryIn(BaseModel):
+class EntryValues(BaseModel):
     """okf/domain/manual-entry.md: a record of what happened. Nothing here is calculated (okf/rules/no-dosing.md)."""
-    client_id: str = Field(min_length=8, max_length=64)
-    day: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}$")
-    time: str = Field(pattern=TIME_RE)
     carbs: float | None = Field(default=None, ge=0, le=500)
     bg: int | None = Field(default=None, ge=20, le=600)          # mg/dL, meter
     insulin: float | None = Field(default=None, gt=0, le=100)    # units given
@@ -238,6 +235,12 @@ class EntryIn(BaseModel):
             if abs(self.insulin * 20 - round(self.insulin * 20)) > 1e-6:
                 raise ValueError("Insulin is recorded in steps of 0.05 units.")
         return self
+
+
+class EntryIn(EntryValues):
+    client_id: str = Field(min_length=8, max_length=64)
+    day: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}$")
+    time: str = Field(pattern=TIME_RE)
 
 
 class CommentIn(BaseModel):
@@ -1696,6 +1699,19 @@ def create_entry(body: EntryIn, c=Depends(con), x_kc_push: str = Header(default=
                          now().strftime("%Y-%m-%d %H:%M") if body.day < today() else None)).lastrowid
     notify(lambda: entry_notice(get_entry(c, eid)), x_kc_push)
     return {"id": eid, "duplicate": False}
+
+
+@app.put("/api/entries/{eid}")
+def edit_entry(eid: int, body: EntryValues, c=Depends(con)):
+    """Fix a value or add insulin or carbs later (okf/features/manual-log.md); marked when after its day."""
+    e = get_entry(c, eid)
+    require_editable(c, e)
+    with c:
+        c.execute("UPDATE log_entries SET carbs = ?, bg = ?, insulin = ?, insulin_kind = ?, note = ? WHERE id = ?",
+                  (body.carbs, body.bg, body.insulin, body.insulin_kind if body.insulin is not None else None,
+                   body.note.strip(), eid))
+        mark_later(c, "log_entries", e)
+    return dict(get_entry(c, eid))
 
 
 @app.delete("/api/entries/{eid}")

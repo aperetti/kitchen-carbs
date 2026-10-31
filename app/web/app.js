@@ -999,10 +999,21 @@ function entryPreview() {
 let confirmEntry = 0;
 function renderEntry(e) {
   const ed = S.log.data.editable;
+  const val = v => v ?? "";
   $("#mealDetail").innerHTML = `<div class="mdh"><b>${e.time}</b>${e.carbs != null ? `<span class="c">${+e.carbs} <small>g carbs</small></span>` : ""}</div>
-    <div class="entryfacts">${e.bg != null ? `<div><span class="label">BG (meter)</span><b>${e.bg}</b> mg/dL</div>` : ""}
+    ${ed ? `<form class="form entval" id="entValForm">
+      <div class="fieldrow">
+        <label class="field"><span>BG from the meter, mg/dL</span><input id="evBg" type="number" inputmode="numeric" min="20" max="600" step="1" value="${val(e.bg)}"></label>
+        <label class="field"><span>Carbs, g (not from the food list)</span><input id="evCarbs" type="number" inputmode="decimal" min="0" max="500" step="0.5" value="${e.carbs != null ? +e.carbs : ""}"></label></div>
+      <div class="fieldrow">
+        <label class="field"><span>Insulin given, units</span><input id="evIns" type="number" inputmode="decimal" min="0.05" max="100" step="0.05" value="${val(e.insulin)}"></label>
+        <fieldset class="field tagpick"><legend>Insulin type</legend><div class="seg neutral" role="radiogroup">
+          ${["rapid", "long"].map(k => `<button type="button" data-ekind="${k}" class="${e.insulin_kind === k ? "on" : ""}" aria-pressed="${e.insulin_kind === k}">${k === "rapid" ? "Rapid-acting" : "Long-acting"}</button>`).join("")}</div></fieldset></div>
+      <label class="field"><span>Note</span><input id="evNote" maxlength="500" value="${esc(e.note || "")}"></label>
+      <p class="note">The app records what you enter. It doesn't calculate or check insulin amounts.</p></form>`
+    : `<div class="entryfacts">${e.bg != null ? `<div><span class="label">BG (meter)</span><b>${e.bg}</b> mg/dL</div>` : ""}
       ${e.insulin != null ? `<div><span class="label">Insulin given</span><b>${fmtU(e.insulin)}</b> ${KIND[e.insulin_kind]}</div>` : ""}</div>
-    ${e.note ? `<p class="notes">${esc(e.note)}</p>` : ""}
+    ${e.note ? `<p class="notes">${esc(e.note)}</p>` : ""}`}
     ${whenBox(e, "entries")}
     ${ed ? `<div class="actions"><button class="btn quiet small" data-act="del-entry">Delete entry</button></div>` : `<p class="meta">Read-only, except the date and time</p>`}
     ${saveBar}`;
@@ -1016,13 +1027,14 @@ const saveBar = `<div class="savebar" id="logSave" hidden role="region" aria-lab
     <div class="actions"><button type="button" class="btn primary" data-act="log-save">Save changes</button><button type="button" class="btn quiet" data-act="log-discard">Discard</button></div></div>`;
 function logSnap() {
   const v = id => $(id)?.value ?? null, f = $("#mdetForm");
-  return { day: v("#whDay"), time: v("#whTime"), eaten: $(".eatseg .on")?.dataset.eaten ?? "", total: v("#cfTotal"), cmt: (v("#cmtText") || "").trim(),
+  const ev = $("#entValForm");
+  return { day: v("#whDay"), time: v("#whTime"), ent: ev ? JSON.stringify([v("#evBg"), v("#evCarbs"), v("#evIns"), ev.querySelector("[data-ekind].on")?.dataset.ekind ?? "", v("#evNote").trim()]) : null, eaten: $(".eatseg .on")?.dataset.eaten ?? "", total: v("#cfTotal"), cmt: (v("#cmtText") || "").trim(),
     det: f ? JSON.stringify([...f.querySelectorAll("input")].map(i => i.value).concat([...f.querySelectorAll("button.on")].map(b => b.dataset.dkind || b.dataset.dwhen))) : null };
 }
 function logBaseline() { S.log.base = logSnap(); S.log.done = new Set(); document.body.classList.remove("unsaved"); logDirty(); }
 function logDirty() {
   const b = S.log.base, n = logSnap(), bar = $("#logSave"); if (!b || !bar) return false;
-  const parts = { "#whenForm": n.day !== b.day || n.time !== b.time, "#mdetForm": n.det !== b.det, ".eatseg": n.eaten !== b.eaten,
+  const parts = { "#whenForm": n.day !== b.day || n.time !== b.time, "#entValForm": n.ent !== b.ent, "#mdetForm": n.det !== b.det, ".eatseg": n.eaten !== b.eaten,
     "#carbsFix": n.total !== b.total, "#cmtForm": !!n.cmt };
   for (const [sel, on] of Object.entries(parts)) $(sel)?.classList.toggle("dirty", on);
   const any = Object.values(parts).some(Boolean);
@@ -1042,6 +1054,18 @@ async function saveLogEdits(btn) {
       if (bg !== "" && !(Number.isInteger(+bg) && +bg >= 20 && +bg <= 600)) throw new Error("Blood glucose must be a whole number between 20 and 600 mg/dL.");
       Object.assign(body, { bg: bg === "" ? null : +bg, bg_source: bg === "" ? null : +bg === m.bg ? m.bg_source : "meter" });
       steps.push(["details", () => api(`/api/meals/${id}/details`, { method: "PUT", body })]);
+    }
+    if (entry && n.ent !== b.ent) {   // the same checks as adding an entry (okf/domain/manual-entry.md)
+      const [bg, carbs, ins, kind, note] = JSON.parse(n.ent), num = x => x === "" ? null : +x;
+      const body = { bg: num(bg), carbs: num(carbs), insulin: num(ins), insulin_kind: ins === "" ? null : kind || null, note };
+      if (body.bg != null && !(Number.isInteger(body.bg) && body.bg >= 20 && body.bg <= 600)) throw new Error("BG must be a whole number between 20 and 600 mg/dL.");
+      if (body.carbs != null && !(body.carbs >= 0 && body.carbs <= 500)) throw new Error("Carbs are between 0 and 500 g.");
+      if (body.insulin != null) {
+        if (!(body.insulin > 0 && body.insulin <= 100) || Math.abs(body.insulin * 20 - Math.round(body.insulin * 20)) > 1e-6) throw new Error("Insulin is between 0.05 and 100 units, in steps of 0.05.");
+        if (!body.insulin_kind) throw new Error("Choose rapid or long-acting for the insulin.");
+      }
+      if (body.bg == null && body.carbs == null && body.insulin == null && !note) throw new Error("An entry needs carbs, a BG reading, insulin or a note. To remove it, delete the entry.");
+      steps.push(["entry", () => api(`/api/entries/${id}`, { method: "PUT", body })]);
     }
     if (!entry && n.eaten !== b.eaten) steps.push(["eaten", () => api(`/api/meals/${id}`, { method: "PATCH", body: { eaten: n.eaten } })]);
     if (!entry && n.total !== b.total) {   // a corrected total, with its reason (okf/domain/meal.md)
@@ -1152,7 +1176,7 @@ function curveSvg(w) {
 let confirmDelete = 0;
 $("#v-log").addEventListener("click", async e => {
   if (e.target.closest("#mealDetail")) setTimeout(logDirty);   // after the switches below have moved
-  const t = e.target.closest("[data-day],[data-meal],[data-entry],[data-kind],[data-eaten],[data-act],[data-period],[data-restore]"); if (!t) return;
+  const t = e.target.closest("[data-day],[data-meal],[data-entry],[data-kind],[data-ekind],[data-eaten],[data-act],[data-period],[data-restore]"); if (!t) return;
   const d = S.log.data;
   if (t.matches("[data-day],[data-meal],[data-entry],[data-period],[data-restore],[data-act=add-entry]") && logDirty()) {
     toast("Save or discard the changes first");   // nothing typed is lost without a choice
@@ -1187,6 +1211,11 @@ $("#v-log").addEventListener("click", async e => {
   else if (t.dataset.act === "fix-carbs") { t.hidden = true; $("#carbsFix").hidden = false; $("#cfTotal").select(); }
   else if (t.dataset.act === "fix-cancel") { $("#carbsFix").reset(); $("#carbsFix").hidden = true; $(".fixlink").hidden = false; logDirty(); }
   else if (t.dataset.meal) { S.log.sel = +t.dataset.meal; S.log.selEntry = null; S.log.adding = false; confirmDelete = 0; renderLog(); if (innerWidth <= 680) $("#mealDetail").scrollIntoView(); }
+  else if (t.dataset.ekind) {   // an entry's insulin type, saved with the rest
+    const on = !t.classList.contains("on");
+    t.parentElement.querySelectorAll("button").forEach(b => { b.classList.toggle("on", on && b === t); b.setAttribute("aria-pressed", on && b === t); });
+    logDirty();
+  }
   else if (t.dataset.eaten) {   // chosen here, saved with the rest; tapping the chosen one clears it
     const on = !t.classList.contains("on");
     t.parentElement.querySelectorAll("button").forEach(b => { b.classList.toggle("on", on && b === t); b.setAttribute("aria-pressed", on && b === t); });
@@ -1206,7 +1235,7 @@ $("#v-log").addEventListener("click", async e => {
 $("#v-log").addEventListener("input", e => { if (e.target.closest("#entryForm")) entryPreview(); if (e.target.closest("#mealDetail")) logDirty(); });
 $("#v-log").addEventListener("change", e => { if (e.target.closest("#mealDetail")) logDirty(); });
 $("#v-log").addEventListener("submit", async e => {
-  if (["carbsFix", "mdetForm", "whenForm", "cmtForm"].includes(e.target.id)) {   // Enter in any of them: the one Save
+  if (["carbsFix", "mdetForm", "whenForm", "cmtForm", "entValForm"].includes(e.target.id)) {   // Enter in any of them: the one Save
     e.preventDefault(); if (logDirty()) saveLogEdits($("[data-act=log-save]")); return;
   }
   if (e.target.id === "entryForm") {

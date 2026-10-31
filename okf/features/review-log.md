@@ -18,7 +18,7 @@ Day view; previous/next day.
   eaten, the total carbs (with its reason) and a new comment. Nothing is saved as it is typed or tapped. As soon as
   anything differs from what is saved, the changed parts get a warn-coloured border and a bar floats at the bottom of
   the meal: 'Unsaved changes' with 'Save changes' and 'Discard'. Putting everything back by hand hides it.
-  An entry works the same way for its date and time.
+  An entry works the same way for its date, time, BG, carbs, insulin and note.
 - Save changes checks everything first (BG 20–600, insulin in 0.05 u steps, a reason of 3+ characters when the
   carbs changed, no future date) and saves nothing until it all passes; the problem shows in the bar. Then it saves
   the details, eaten, carbs and comment, and the date and time last, and follows the meal to its day.

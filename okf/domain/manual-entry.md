@@ -11,5 +11,6 @@ links:
 ---
 # Manual entry
 - Fields: time, carbs (g), BG (mg/dL, from a meter), insulin (units, to 0.05), insulin kind (rapid | long), note. At least one value.
-- Insulin is a **record of what was given**, typed by the parent from the pump or pen. The app never fills it in.
+- Insulin is a **record of what was given**, typed by the parent from the pump or pen. The app never fills it in,
+  also when an entry is edited later (okf/features/manual-log.md).
 - Manual carbs count towards the day's carb total. Meter BG is shown as a separate marker, never mixed into CGM statistics.
