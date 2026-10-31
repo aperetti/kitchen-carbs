@@ -12,6 +12,8 @@ links:
 # Manual log entry
 - Log → 'Add entry', on the day shown: today, or an earlier day while earlier days can be changed
   (okf/rules/same-day-edits.md; marked 'Changed later'). Time defaults to now.
+- Tapping 'Add entry' brings the new entry's form into view (decided 31 Oct: on a phone it opened below the day's
+  list, out of sight), scrolling smoothly unless the device asks for reduced motion.
 - The day shows insulin totals by kind as plain facts. No ratios, no 'insulin on board', no suggestions.
 - On a meal's glucose curve, meter BG readings show as squares and insulin as labelled ticks.
 - Exported in the CSV with meals.

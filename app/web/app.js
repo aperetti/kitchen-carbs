@@ -1172,7 +1172,11 @@ $("#v-log").addEventListener("click", async e => {
   }
   if (t.dataset.day) { const day = t.dataset.day === "today" ? localDay() : shiftDay(d.day, +t.dataset.day); S.log.sel = null; loadLog(day); }
   else if (t.dataset.period) { S.log.period = t.dataset.period === "day" ? "day" : +t.dataset.period; if (S.log.period !== "day") await loadPeriod(); renderLog(); }
-  else if (t.dataset.act === "add-entry") { S.log.adding = true; S.log.selEntry = null; renderLog(); }
+  else if (t.dataset.act === "add-entry") {   // the form opens below the list on a phone: bring it into view
+    S.log.adding = true; S.log.selEntry = null; renderLog();
+    $("#mealDetail").scrollTop = 0;
+    $("#entryForm")?.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
+  }
   else if (t.dataset.act === "entry-cancel") { S.log.adding = false; renderLog(); }
   else if (t.dataset.kind) { S.log.kind = S.log.kind === t.dataset.kind ? null : t.dataset.kind; entryPreview(); }
   else if (t.dataset.entry) { S.log.selEntry = +t.dataset.entry; S.log.adding = false; confirmEntry = 0; renderLog(); if (innerWidth <= 680) $("#mealDetail").scrollIntoView(); }
