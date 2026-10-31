@@ -20,7 +20,7 @@ DEDUPLICATOR = "org.tidepool.deduplicator.dataset.delete.origin"
 KINDS = ("carbs", "bg", "insulin")
 SYNC_EVERY_S, SETTLE_S, BATCH = 300, 20, 1000
 BASAL_KINDS = {"basal", "long"}   # everything else typed is a bolus (okf/architecture/tidepool-client.md)
-BASAL_SPREAD_MS = 24 * 3600 * 1000
+BASAL_HOURS = 24   # default spread of a long-acting dose; a parent sets 1-168 (Tidepool's longest basal is 7 days)
 
 _wake = threading.Event()
 _lock = threading.Lock()
@@ -41,7 +41,8 @@ def config(c) -> dict:
     kinds = json.loads(g("kinds", '{"carbs": true, "bg": false, "insulin": false}'))
     return {"on": g("on") == "on", "server": g("server", "test"), "email": g("email", ""), "password": g("password", ""),
             "target": g("target", ""), "from": g("from") or (date.today() - timedelta(days=30)).isoformat(),
-            "kinds": {k: bool(kinds.get(k)) for k in KINDS}, "dataset": g("dataset", ""), "userid": g("userid", ""),
+            "kinds": {k: bool(kinds.get(k)) for k in KINDS},
+            "basal_hours": int(g("basal_hours") or BASAL_HOURS), "dataset": g("dataset", ""), "userid": g("userid", ""),
             "last_sync": g("last_sync"), "last_error": g("last_error"), "sent": c.execute("SELECT COUNT(*) FROM tidepool_sent").fetchone()[0]}
 
 
@@ -138,23 +139,23 @@ def _bolus(oid, when, device, units) -> dict:
     return {**_base(oid, when, device), "type": "bolus", "subType": "normal", "normal": units}
 
 
-def _basal(oid, when, device, units, duration_ms) -> dict:
-    """A long-acting injection as Tidepool's basal: the dose spread evenly over 24 hours, or until the next one."""
+def _basal(oid, when, device, units, hours, duration_ms) -> dict:
+    """A long-acting injection as Tidepool's basal: the dose spread evenly over the set hours, or until the next one."""
     return {**_base(oid, when, device), "type": "basal", "deliveryType": "scheduled",
-            "rate": round(units * 3600000 / BASAL_SPREAD_MS, 4), "duration": duration_ms,
+            "rate": round(units / hours, 4), "duration": duration_ms,
             "insulinFormulation": {"simple": {"actingType": "long"}}}
 
 
-def _insulin(doses: list, device: str, out: dict) -> None:
+def _insulin(doses: list, device: str, hours: int, out: dict) -> None:
     """doses: (origin ID, when, units, kind). Basal doses end at the next one so they never overlap."""
     basal = sorted((d for d in doses if d[3] in BASAL_KINDS), key=lambda d: d[1]["time"])
     for i, (oid, when, units, _) in enumerate(basal):
         start = datetime.fromisoformat(when["time"].replace("Z", "+00:00"))
-        dur = BASAL_SPREAD_MS
+        dur = hours * 3600 * 1000
         if i + 1 < len(basal):
             nxt = datetime.fromisoformat(basal[i + 1][1]["time"].replace("Z", "+00:00"))
             dur = max(60000, min(dur, int((nxt - start).total_seconds() * 1000)))
-        out[oid] = _basal(oid, when, device, units, dur)
+        out[oid] = _basal(oid, when, device, units, hours, dur)
     for oid, when, units, kind in doses:
         if kind not in BASAL_KINDS:
             out[oid] = _bolus(oid, when, device, units)
@@ -188,7 +189,7 @@ def wanted(c, cfg) -> dict:
         if k["insulin"] and e["insulin"] is not None:
             oid = f"kc-entry-{e['id']}-insulin"
             doses.append((oid, when, e["insulin"], e["insulin_kind"]))
-    _insulin(doses, device, out)
+    _insulin(doses, device, cfg["basal_hours"], out)
     return out
 
 

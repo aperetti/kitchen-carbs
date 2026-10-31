@@ -1441,6 +1441,13 @@ def test_tidepool_sync(app, monkeypatch):
     client.post("/api/tidepool/sync")
     assert tp.records[f"kc-entry-{e2}-insulin"]["duration"] == 20 * 3600 * 1000 and tp.records[f"kc-entry-{e2}-insulin"]["rate"] == 0.5
     assert tp.records[f"kc-entry-{eid}-insulin"]["duration"] == 24 * 3600 * 1000
+    # a weekly insulin: the parent sets the spread
+    assert client.put("/api/tidepool", json={**TP, "password": "", "bg": True, "insulin": True, "basal_hours": 200}).status_code == 422
+    client.put("/api/tidepool", json={**TP, "password": "", "bg": True, "insulin": True, "basal_hours": 168})
+    assert client.get("/api/tidepool").json()["basal_hours"] == 168
+    client.post("/api/tidepool/sync")
+    assert tp.records[f"kc-entry-{eid}-insulin"]["duration"] == 168 * 3600 * 1000
+    assert tp.records[f"kc-entry-{eid}-insulin"]["rate"] == round(1 / 168, 4)
     client.delete(f"/api/entries/{e2}")
     assert not any("dose" in k for r in tp.records.values() for k in r if k != "dose")
     # an edit replaces, a delete removes, a kind switched off is removed

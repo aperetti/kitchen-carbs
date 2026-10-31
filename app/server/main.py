@@ -1912,6 +1912,7 @@ class TidepoolIn(BaseModel):
     carbs: bool = True
     bg: bool = False
     insulin: bool = False
+    basal_hours: int = Field(default=tidepool.BASAL_HOURS, ge=1, le=168)
 
 
 @app.get("/api/tidepool", dependencies=[Depends(parent)])
@@ -1937,7 +1938,8 @@ def tidepool_save(body: TidepoolIn, c=Depends(con)):
         if (body.server, email.lower(), body.target) != (old["server"], old["email"].lower(), old["target"]):
             tidepool.forget(c)
         for k, v in {"server": body.server, "email": email, "password": password, "target": body.target, "from": body.send_from,
-                     "kinds": json.dumps({"carbs": body.carbs, "bg": body.bg, "insulin": body.insulin}), "on": "on"}.items():
+                     "kinds": json.dumps({"carbs": body.carbs, "bg": body.bg, "insulin": body.insulin}),
+                     "basal_hours": str(body.basal_hours), "on": "on"}.items():
             db.set_setting(c, "tp_" + k, v)
     tidepool.poke()
     return tidepool.public(c)

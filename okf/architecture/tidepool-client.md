@@ -28,9 +28,10 @@ links:
   - Insulin goes as the types Tidepool charts and counts as bolus or basal, not its generic `insulin` event (which
     Tidepool shows without the bolus/basal split). A meal's insulin is at the meal time minus its 'given before' minutes.
     - bolus (bolus or rapid-acting, and insulin with no type): `subType: normal`, `normal` = the units given.
-    - basal (basal or long-acting): `deliveryType: scheduled`, `rate` = units ÷ 24 per hour, `duration` 24 hours,
-      cut short at the next long-acting dose so two never overlap (Tidepool then shows less than the dose for that
-      day). Changing a dose, or adding the next one, re-sends the earlier one with its new length.
+    - basal (basal or long-acting): `deliveryType: scheduled`, `rate` = units ÷ hours per hour, `duration` the hours set in
+      settings (`tp_basal_hours`, 24 by default, 1–168; Tidepool's longest basal is 7 days), cut short at the next long-acting dose so two never overlap (Tidepool then shows less than the dose for that
+      day). Changing a dose, or adding the next one, re-sends the earlier one with its new length;
+      changing the hours re-sends every basal.
 - tidepool_sent (migration 16): each origin ID sent, a hash of what was sent and when. Each run builds the records
   wanted from 'Send from' on, uploads the new or changed ones (up to 1,000 a request), and deletes the ones no longer
   wanted with `DELETE /v1/data_sets/{id}/data` and their origin IDs. Changing server or account starts a fresh table.

@@ -712,8 +712,8 @@ p.moved { margin: 6px 0 0; }
 .mdet .mrow { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px 12px; }
 .mdet .field { margin: 0; }
 .mdet .mlab { flex: 1 1 100%; font-size: 15px; color: var(--vein); }
-.mdet .unitin { display: inline-flex; align-items: center; gap: 6px; color: var(--vein); }
-.mdet .unitin input { width: 96px; height: 44px; border: 1px solid var(--line); border-radius: 10px; background: var(--paper); padding: 0 10px; font-size: 18px; color: var(--ink); }
+.mdet .unitin, .tphours .unitin { display: inline-flex; align-items: center; gap: 6px; color: var(--vein); }
+.mdet .unitin input, .tphours .unitin input { width: 96px; height: 44px; border: 1px solid var(--line); border-radius: 10px; background: var(--paper); padding: 0 10px; font-size: 18px; color: var(--ink); }
 .mdet .unitin[hidden] { display: none; }
 .mdet .seg button { min-height: 44px; }
 .sumgiven { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--line); }

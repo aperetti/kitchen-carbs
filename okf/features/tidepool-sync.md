@@ -21,8 +21,8 @@ available and each one switchable.
   - **Meter BG** (off by default): BG typed from a meter, on a meal or an entry. A meal's BG taken from the CGM is
     never sent; Tidepool gets CGM from the CGM itself.
   - **Insulin** (off by default): insulin typed on a meal or an entry, at the time it was given: bolus or
-    rapid-acting as a Tidepool bolus, basal or long-acting as a basal spread evenly over the next 24 hours (or until
-    the next long-acting dose), so Tidepool's bolus/basal split and daily totals include it. It warns: 'Only turn this on if the pump's or pen's own data doesn't reach
+    rapid-acting as a Tidepool bolus, basal or long-acting as a basal spread evenly over the hours set beside the
+    switch (24 by default, 1 hour to 7 days, for daily to weekly insulins), or until the next long-acting dose, so Tidepool's bolus/basal split and daily totals include it. It warns: 'Only turn this on if the pump's or pen's own data doesn't reach
     Tidepool, or Tidepool will count the same insulin twice.'
 - 'Connect' signs in once to check the login, then saving turns sending on. The status shows the server, the account,
   when it last sent and how many records are in Tidepool, or the last error in the warn colour.

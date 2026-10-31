@@ -1740,7 +1740,7 @@ const mSubmit = async e => {
     try {
       await api("/api/tidepool", { method: "PUT", parent: true, body: { server: $("[data-tpserver].on")?.dataset.tpserver || "test",
         email: $("#tpEmail").value.trim(), password: $("#tpPw").value, target: $("#tpTarget").value.trim(), send_from: $("#tpFrom").value,
-        carbs: $("#tpCarbs").checked, bg: $("#tpBg").checked, insulin: $("#tpIns").checked } });
+        carbs: $("#tpCarbs").checked, bg: $("#tpBg").checked, insulin: $("#tpIns").checked, basal_hours: +$("#tpHours").value || 24 } });
       toast("Tidepool connected. Sending within a minute."); renderTidepool();
     } catch (err) { renderTidepool(err.message); }
   } else if (id === "approveDevice") {
@@ -2692,6 +2692,8 @@ async function renderTidepool(msg = "") {
       <label class="check"><input type="checkbox" id="tpCarbs" ${k.carbs ? "checked" : ""}><span>Carbs: each meal with its foods, and carbs typed in entries</span></label>
       <label class="check"><input type="checkbox" id="tpBg" ${k.bg ? "checked" : ""}><span>Meter BG typed on meals and entries (never CGM)</span></label>
       <label class="check"><input type="checkbox" id="tpIns" ${k.insulin ? "checked" : ""}><span>Insulin typed on meals and entries</span></label>
+      <label class="field tphours"><span>Spread each basal or long-acting dose over</span><span class="unitin"><input id="tpHours" type="number" inputmode="numeric" min="1" max="168" step="1" value="${t.basal_hours}" required><span>hours</span></span></label>
+      <p class="meta">Tidepool shows basal as a rate over time. 24 for a daily insulin, 42 for Tresiba, 168 for a weekly one. A dose ends early when the next long-acting dose is logged.</p>
       <p class="meta warn">Only send insulin if the pump's or pen's own data doesn't reach Tidepool, or Tidepool will count the same insulin twice.</p>
       <p class="meta">Switching a kind off removes what was sent of it.</p></fieldset>
     <p class="err" role="alert">${esc(msg)}</p>
