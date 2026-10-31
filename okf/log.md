@@ -115,3 +115,4 @@
 - 2026-10-31 — Log: a meal's date, time, BG, insulin, eaten, carbs and comment are edited in place and saved together from a floating 'Save changes' bar (features/review-log.md).
 - 2026-10-31 — Log: 'Add entry' scrolls to the new entry's form (features/manual-log.md).
 - 2026-10-31 — Log: a manual entry's BG, carbs, insulin and note can be edited in place and saved with the Save bar (features/manual-log.md).
+- 2026-10-31 — Export: a formatted PDF of the log for a date range, beside the CSV (features/export-log.md).

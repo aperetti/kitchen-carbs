@@ -1332,3 +1332,23 @@ def test_edit_entry_values(app, monkeypatch):
     client.put("/api/settings/past-edits", json={"allowed": False})
     assert client.put(f"/api/entries/{old}", json={"bg": 99}).status_code == 409
     assert client.put("/api/entries/9999", json={"bg": 99}).status_code == 404
+
+
+def test_export_pdf(app):
+    """okf/features/export-log.md: the same range as the CSV, as a PDF file; up to 92 days."""
+    client, _ = app
+    body = meal(); body.update(bg=65, bg_source="meter", insulin=2.5, insulin_kind="bolus")
+    client.post("/api/meals", json=body)
+    client.post("/api/entries", json=entry(bg=142, insulin=1.5, insulin_kind="rapid", note="Crème brûlée ✎ → café"))
+    r = client.get("/api/export.pdf?start=2026-10-21&end=2026-10-27")
+    assert r.status_code == 200 and r.headers["content-type"] == "application/pdf"
+    assert r.content.startswith(b"%PDF") and 'filename="kitchen-carbs_2026-10-21_2026-10-27.pdf"' in r.headers["content-disposition"]
+    assert client.get("/api/export.pdf?start=2026-10-27&end=2026-10-21").status_code == 400
+    assert client.get("/api/export.pdf?start=2026-01-01&end=2026-10-27").status_code == 400
+    assert client.get("/api/export.pdf?start=2026-10-20&end=2026-10-20").status_code == 200   # nothing logged
+
+
+def test_pdf_text_keeps_only_font_characters():
+    from server import report
+    assert report.safe("Crème ✎ → café") == "Crème   café"
+    assert report.units(2.5) == "2.5" and report.units(3.0) == "3" and report.units(0.05) == "0.05"

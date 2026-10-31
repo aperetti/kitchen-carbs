@@ -19,7 +19,7 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 
 from concurrent.futures import ThreadPoolExecutor
 
-from . import auth, core, db, dose, labels, lookup, migrations, nightscout, photos, push
+from . import auth, core, db, dose, labels, lookup, migrations, nightscout, photos, push, report
 
 WEB_DIR = os.path.join(os.path.dirname(__file__), "..", "web")
 SEED_DIR = os.path.join(os.path.dirname(__file__), "..", "seed")
@@ -1852,6 +1852,44 @@ def export_csv(start: str, end: str, c=Depends(con)):
     name = f"kitchen-carbs_{first}_{last}.csv"
     return Response(buf.getvalue(), media_type="text/csv",
                     headers={"Content-Disposition": f'attachment; filename="{name}"'})
+
+
+@app.get("/api/export.pdf")
+def export_pdf(start: str, end: str, c=Depends(con)):
+    """The same values as the CSV, laid out to read and print (okf/features/export-log.md)."""
+    try:
+        first, last = date.fromisoformat(start), date.fromisoformat(end)
+    except ValueError:
+        fail(400, "Use dates like 2026-10-27.")
+    n = (last - first).days + 1
+    if n < 1:
+        fail(400, "Choose a start date before the end date.")
+    if n > 92:
+        fail(400, "A PDF covers up to 92 days. Choose a shorter range.")
+    low, high = targets(c)
+    meals, entries = meals_for_days(c, first.isoformat(), last.isoformat()), entries_for_days(c, first.isoformat(), last.isoformat())
+    glucose = has_glucose(c)
+    days, carbs_all = [], 0.0
+    for k in range(n):
+        day = (first + timedelta(days=k)).isoformat()
+        dm, de = [m for m in meals if m["day"] == day], [e for e in entries if e["day"] == day]
+        for m in dm:
+            m["ms"] = meal_ms(m["day"], m["time"])
+        carbs = sum(m["total_exact"] for m in dm) + sum(e["carbs"] or 0 for e in de)
+        carbs_all += carbs
+        s0, e0 = day_bounds_ms(day)
+        pts = readings(c, s0, e0) if glucose else []
+        if not (dm or de):
+            continue
+        days.append({"day": day, "meals": dm, "entries": de, "carbs": core.whole_grams(carbs), "start_ms": s0, "points": pts,
+                     "insulin": insulin_totals(de + dm), "glucose": core.glucose_stats(pts, low, high, s0, e0) if pts else None})
+    s0, e0 = day_bounds_ms(first.isoformat(), n)
+    overview = {"days": n, "logged_days": len(days), "meals": len(meals), "entries": len(entries),
+                "carbs_per_day": core.whole_grams(carbs_all / n), "insulin": insulin_totals(entries + meals),
+                "glucose": core.glucose_stats(readings(c, s0, e0), low, high, s0, e0) if glucose else None}
+    pdf = report.build(first.isoformat(), last.isoformat(), days, overview, low, high, now())
+    return Response(pdf, media_type="application/pdf",
+                    headers={"Content-Disposition": f'attachment; filename="kitchen-carbs_{first}_{last}.pdf"'})
 
 
 # ----- meal summary dose (okf/features/meal-dose-summary.md, okf/rules/no-dosing.md) -----

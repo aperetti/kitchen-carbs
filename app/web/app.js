@@ -925,9 +925,9 @@ function renderLog() {
     ${deletedList(d)}
     <div class="dayfoot">
       ${isToday ? "" : `<p class="meta">${d.editable ? "Changes to an earlier day are marked ✎ Modified." : "Earlier days are read-only. A parent can allow changes in Manage → Settings."} <button class="linkbtn" data-day="today">Go to today</button></p>`}
-      <div class="exportrow"><span class="meta">Export CSV</span>
+      <div class="exportrow"><span class="meta">Export</span>
         <input type="date" id="exFrom" value="${shiftDay(d.day, -13)}" aria-label="From"><input type="date" id="exTo" value="${d.day}" aria-label="To">
-        <button class="btn small" data-act="export">Download</button></div>
+        <button class="btn small" data-act="export" data-fmt="pdf">PDF</button><button class="btn small quiet" data-act="export" data-fmt="csv">CSV</button></div>
     </div>`;
   renderMeal();
 }
@@ -1229,7 +1229,9 @@ $("#v-log").addEventListener("click", async e => {
   else if (t.dataset.act === "export") {
     const from = $("#exFrom").value, to = $("#exTo").value;
     if (!from || !to || from > to) { toast("Choose a start date before the end date."); return; }
-    location.href = `/api/export.csv?start=${from}&end=${to}`;
+    // a formatted PDF to read or send, or the CSV for a spreadsheet (okf/features/export-log.md)
+    if (t.dataset.fmt === "pdf" && (Date.parse(to) - Date.parse(from)) / 864e5 + 1 > 92) { toast("A PDF covers up to 92 days. Choose a shorter range."); return; }
+    location.href = `/api/export.${t.dataset.fmt === "pdf" ? "pdf" : "csv"}?start=${from}&end=${to}`;
   }
 });
 $("#v-log").addEventListener("input", e => { if (e.target.closest("#entryForm")) entryPreview(); if (e.target.closest("#mealDetail")) logDirty(); });
