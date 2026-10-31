@@ -34,6 +34,7 @@ links:
       changing the hours re-sends every basal.
 - tidepool_sent (migration 16): each origin ID sent, a hash of what was sent and when. Each run builds the records
   wanted from 'Send from' on, uploads the new or changed ones (up to 1,000 a request), and deletes the ones no longer
-  wanted with `DELETE /v1/data_sets/{id}/data` and their origin IDs. Changing server or account starts a fresh table.
+  wanted with `DELETE /v1/data_sets/{id}/data` and their origin IDs. A resend blanks every hash but keeps the
+  origin IDs, so everything uploads again and records no longer wanted are still deleted. Changing server or account starts a fresh table.
 - Runs every 5 minutes and within about a minute of a meal or entry being saved, changed or deleted. Errors are kept
   for the settings screen; the next run tries again. KC_ENV=qa never sends.

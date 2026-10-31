@@ -28,7 +28,8 @@ available and each one switchable.
   when it last sent and how many records are in Tidepool, or the last error in the warn colour.
 - Kept in step: a new or changed meal or entry is sent within a minute (and every 5 minutes anyway); a deleted one,
   or one whose kind is switched off, is removed from Tidepool. Edits re-send the record, replacing the old one.
-- 'Send now' sends straight away. 'Turn off' stops sending and leaves what's in Tidepool. 'Remove from Tidepool'
+- 'Send now' sends what's new or changed straight away. 'Resend everything' sends every record again (Tidepool
+  replaces each by its origin ID, so nothing doubles), for when Tidepool looks out of step. 'Turn off' stops sending and leaves what's in Tidepool. 'Remove from Tidepool'
   (tapped twice) deletes everything Kitchen Carbs sent, and nothing else.
 - Kitchen Carbs' records live in their own Tidepool data set ('Kitchen Carbs'), apart from the pump's and CGM's, so
   nothing from other devices is changed or removed.

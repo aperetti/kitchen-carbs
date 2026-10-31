@@ -1946,9 +1946,10 @@ def tidepool_save(body: TidepoolIn, c=Depends(con)):
 
 
 @app.post("/api/tidepool/sync", dependencies=[Depends(parent)])
-def tidepool_sync_now(c=Depends(con)):
+def tidepool_sync_now(resend: bool = False, c=Depends(con)):
+    """Send now, or with ?resend=1 send every record again (okf/features/tidepool-sync.md)."""
     try:
-        r = tidepool.sync_once()
+        r = tidepool.sync_once(resend)
     except tidepool.TidepoolError as e:
         fail(502, str(e))
     if not r:

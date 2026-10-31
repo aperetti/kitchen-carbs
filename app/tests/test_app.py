@@ -1424,6 +1424,8 @@ def test_tidepool_sync(app, monkeypatch):
     assert food["meal"] == "dinner" and food["deviceTime"] == "2026-10-27T18:05:00" and food["name"] == "Pasta, cooked"
     assert tp.records[f"kc-entry-{eid}-carbs"]["nutrition"]["carbohydrate"]["net"] == 15
     assert client.post("/api/tidepool/sync").json()["sent"] == 0                         # nothing changed: nothing sent
+    assert client.post("/api/tidepool/sync?resend=1").json()["sent"] == 2                # a resend sends it all again
+    assert len(tp.records) == 2
     # BG and insulin switched on: meter BG only, insulin as typed at the time given
     client.put("/api/tidepool", json={**TP, "password": "", "bg": True, "insulin": True})
     client.post("/api/tidepool/sync")

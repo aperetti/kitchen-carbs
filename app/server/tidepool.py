@@ -198,8 +198,8 @@ def _hash(rec) -> str:
 
 
 # ----- sending -----
-def sync_once() -> dict:
-    """Upload what's new or changed, delete what's gone. Returns {sent, removed} or {} when not set up."""
+def sync_once(resend: bool = False) -> dict:
+    """Upload what's new or changed (everything, with resend), delete what's gone. Returns {sent, removed} or {} when not set up."""
     if not enabled():
         return {}
     with _lock:
@@ -211,7 +211,7 @@ def sync_once() -> dict:
             try:
                 ds = dataset(c, cfg)
                 want = wanted(c, cfg)
-                sent = {r["origin_id"]: r["hash"] for r in c.execute("SELECT origin_id, hash FROM tidepool_sent")}
+                sent = {r["origin_id"]: "" if resend else r["hash"] for r in c.execute("SELECT origin_id, hash FROM tidepool_sent")}
                 changed = [(oid, rec, _hash(rec)) for oid, rec in want.items() if sent.get(oid) != _hash(rec)]
                 gone = [oid for oid in sent if oid not in want]
                 stamp = datetime.now().strftime("%Y-%m-%d %H:%M")

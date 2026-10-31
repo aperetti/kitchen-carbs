@@ -1823,11 +1823,12 @@ const mClick = async e => {
   if (t.dataset.tpserver) {
     t.parentElement.querySelectorAll("button").forEach(b => { b.classList.toggle("on", b === t); b.setAttribute("aria-pressed", b === t); }); return;
   }
-  if (["tp-sync", "tp-off", "tp-remove"].includes(t.dataset.act)) {
+  if (["tp-sync", "tp-resend", "tp-off", "tp-remove"].includes(t.dataset.act)) {
     if (t.dataset.act === "tp-remove" && Date.now() - confirmTpRemove > 4000) { confirmTpRemove = Date.now(); t.textContent = "Tap again to remove"; return; }
     t.disabled = true;
     try {
       if (t.dataset.act === "tp-sync") { const r = await api("/api/tidepool/sync", { method: "POST", parent: true }); toast(`Sent ${r.sent}, removed ${r.removed}`); }
+      else if (t.dataset.act === "tp-resend") { const r = await api("/api/tidepool/sync?resend=1", { method: "POST", parent: true }); toast(`Resent ${r.sent}, removed ${r.removed}`); }
       else if (t.dataset.act === "tp-off") { await api("/api/tidepool/off", { method: "POST", parent: true }); toast("Tidepool sending off"); }
       else { confirmTpRemove = 0; await api("/api/tidepool/data", { method: "DELETE", parent: true }); toast("Removed what Kitchen Carbs sent to Tidepool"); }
       renderTidepool();
@@ -2698,7 +2699,7 @@ async function renderTidepool(msg = "") {
       <p class="meta">Switching a kind off removes what was sent of it.</p></fieldset>
     <p class="err" role="alert">${esc(msg)}</p>
     <div class="actions"><button class="btn primary">${t.on ? "Save" : "Connect and send"}</button>
-      ${t.on ? `<button type="button" class="btn" data-act="tp-sync">Send now</button><button type="button" class="btn quiet" data-act="tp-off">Turn off</button>` : ""}
+      ${t.on ? `<button type="button" class="btn" data-act="tp-sync">Send now</button><button type="button" class="btn" data-act="tp-resend">Resend everything</button><button type="button" class="btn quiet" data-act="tp-off">Turn off</button>` : ""}
       ${t.sent || t.dataset ? `<button type="button" class="btn quiet" data-act="tp-remove">${Date.now() - confirmTpRemove < 4000 ? "Tap again to remove" : "Remove from Tidepool"}</button>` : ""}</div></form>`;
 }
 
