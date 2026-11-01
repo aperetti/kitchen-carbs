@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # Release what was just deployed (okf/architecture/releases.md). Run on the laptop after tools/deploy.sh succeeds.
-#   1. 'Unreleased' in CHANGELOG.md becomes today's version; committed and tagged
+#   tools/release.sh --deployed   tag what just reached production, then publish
+#   tools/release.sh              only publish tags not yet on GitHub
+#   1. with --deployed, 'Unreleased' in CHANGELOG.md becomes today's version; committed and tagged
 #   2. main and the tags go to GitHub, and each tag without a GitHub release gets one with its notes
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -10,7 +12,9 @@ notes() {   # the CHANGELOG section for a version, without its heading
   awk -v v="$1" '/^## /{on = index($0, "## " v " ") == 1 || $0 == "## " v; next} on' CHANGELOG.md | sed -e :a -e '/^\n*$/{$d;N;ba' -e '}'
 }
 
-if grep -q '^## Unreleased' CHANGELOG.md; then
+if [ "${1:-}" != "--deployed" ]; then
+  echo "Publishing only (pass --deployed right after a production deploy to tag it)."
+elif grep -q '^## Unreleased' CHANGELOG.md; then
   [ -n "$(notes Unreleased | tr -d '[:space:]')" ] || { echo "Write the release notes under '## Unreleased' first."; exit 1; }
   v="v$(date +%Y.%m.%d)"; n=1
   while git rev-parse -q --verify "refs/tags/$v$([ $n -gt 1 ] && echo ".$n")" >/dev/null; do n=$((n + 1)); done
