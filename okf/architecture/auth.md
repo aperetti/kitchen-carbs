@@ -35,6 +35,9 @@ links:
 - Production and QA refuse to start without a Firebase project (KC_ENV prod or qa), so a missing setting can't
   quietly open the app; only dev runs without sign-in.
 - The parent PIN locks for 10 minutes after 10 wrong tries in 10 minutes.
-- Security headers on every response: X-Content-Type-Options nosniff and Referrer-Policy same-origin. The API docs
+- Security headers on every response: X-Content-Type-Options nosniff and Referrer-Policy same-origin, and
+  Content-Security-Policy frame-ancestors: only the app itself and the origins in KC_FRAME_ANCESTORS (.env, e.g. the
+  family's Home Assistant) may show it in a frame, so another site can't frame it and trick a signed-in parent into
+  clicking. The API docs
   pages are off. Firebase only allows sign-in from its 'Authorized domains', so the site needs a host name
   there (an IP address may not be accepted).

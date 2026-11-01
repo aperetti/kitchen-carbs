@@ -576,6 +576,8 @@ async def signed_in_only(request: Request, call_next):
     return response
 
 
+# Only the app and the dashboards named in .env may frame it (okf/architecture/auth.md)
+FRAME_ANCESTORS = " ".join(["'self'", *os.environ.get("KC_FRAME_ANCESTORS", "").split()])
 HOST_OK = re.compile(r"^(?:[A-Za-z0-9](?:[A-Za-z0-9.-]{0,251}[A-Za-z0-9])?|\[[0-9A-Fa-f:.]+\])(?::\d{1,5})?$")
 
 
@@ -587,6 +589,7 @@ async def plain_host_and_headers(request: Request, call_next):
     response = await call_next(request)
     response.headers.setdefault("X-Content-Type-Options", "nosniff")
     response.headers.setdefault("Referrer-Policy", "same-origin")
+    response.headers.setdefault("Content-Security-Policy", f"frame-ancestors {FRAME_ANCESTORS}")
     return response
 
 

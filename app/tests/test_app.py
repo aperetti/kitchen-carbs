@@ -1106,6 +1106,7 @@ def test_security_review_fixes(app, monkeypatch):
     for path in ("/api/docs", "/api/openapi.json", "/redoc", "/docs"):          # API docs are off
         assert client.get(path).status_code in (401, 404), path
     assert client.get("/").headers["x-content-type-options"] == "nosniff"
+    assert client.get("/").headers["content-security-policy"] == "frame-ancestors 'self'"   # no other site frames it
     monkeypatch.delenv("FIREBASE_PROJECT_ID")
     # nothing guarded may be kept by Cloudflare or another shared cache
     assert client.get("/api/log").headers["cache-control"] == "private, no-store"

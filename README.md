@@ -60,7 +60,8 @@ cd app && ../.venv/bin/python -m pytest tests   # all tests
 ## Production on the homelab
 Production runs on a home server in `~/t1d/kitchen-carbs`; the keys are in `~/t1d/.env` and the ports in
 `~/t1d/kitchen-carbs/.env` (`PROD_PORT=8092`, `QA_PORT=8093`). `KC_OFF_CONTACT` in `~/t1d/.env` is the contact
-address sent to Open Food Facts. To ship a new version from the laptop (`SERVER` is your `user@host`):
+address sent to Open Food Facts, and `KC_FRAME_ANCESTORS` (space-separated origins, e.g. a Home Assistant
+dashboard) the sites allowed to show the app in a frame. To ship a new version from the laptop (`SERVER` is your `user@host`):
 
     rsync -a --exclude .git --exclude .venv --exclude data-dev --exclude data --exclude data-qa \
       --exclude __pycache__ --exclude .pytest_cache --exclude .env ./ $SERVER:t1d/kitchen-carbs/
