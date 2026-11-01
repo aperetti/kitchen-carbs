@@ -213,7 +213,7 @@ def m017_nightscout_sent(con):
 
 def m018_meal_rating(con):
     """A parent's rating of how fast glucose rose after a meal (okf/domain/meal-rating.md)."""
-    con.execute("ALTER TABLE meals ADD COLUMN rise TEXT")   # slow, steady, fast
+    con.execute("ALTER TABLE meals ADD COLUMN rise TEXT")   # fast, medium, slow
 
 
 MIGRATIONS = [m001_schema, m002_sessions, m003_cooked_state, m004_moved_from, m005_portion_labels, m006_fiber,

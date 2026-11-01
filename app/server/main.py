@@ -734,7 +734,7 @@ def check_pin():
 
 # ----- foods -----
 def food_ratings(c) -> dict:
-    """How fast glucose rose in the meals each food was in (okf/domain/meal-rating.md): {food_id: {"fast": 2, "steady": 1}}."""
+    """How fast glucose rose in the meals each food was in (okf/domain/meal-rating.md): {food_id: {"fast": 2, "medium": 1}}."""
     out = {}
     for r in c.execute("SELECT DISTINCT i.food_id, m.id, m.rise FROM meal_items i JOIN meals m ON m.id = i.meal_id "
                        "WHERE i.food_id IS NOT NULL AND m.deleted_at IS NULL AND m.rise IS NOT NULL"):
@@ -1665,7 +1665,7 @@ def restore_meal(mid: int, c=Depends(con)):
 
 
 class RatingIn(BaseModel):
-    rise: Literal["slow", "steady", "fast"] | None = None
+    rise: Literal["fast", "medium", "slow"] | None = None
 
 
 @app.put("/api/meals/{mid}/rating")

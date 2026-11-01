@@ -1692,11 +1692,11 @@ def test_meal_rating(app):
     assert client.put(f"/api/meals/{m1}/rating", json={"rise": "fast"}).status_code == 200   # an earlier day
     assert client.put(f"/api/meals/{m2}/rating", json={"rise": "fast"}).status_code == 200
     assert client.put(f"/api/meals/{m3}/rating", json={"rise": "loud"}).status_code == 422
-    client.put(f"/api/meals/{m3}/rating", json={"rise": "steady"})
+    client.put(f"/api/meals/{m3}/rating", json={"rise": "medium"})
     day = client.get("/api/log?day=2026-10-26").json()["meals"][0]
     assert (day["rise"], day["edited_at"]) == ("fast", marked)              # not marked 'changed later' again
     pasta = next(f for f in client.get("/api/foods").json() if f["id"] == "pasta-cooked")
-    assert pasta["ratings"] == {"fast": 2, "steady": 1}
+    assert pasta["ratings"] == {"fast": 2, "medium": 1}
     client.put(f"/api/meals/{m2}/rating", json={})                                             # cleared
     client.delete(f"/api/meals/{m3}")
     pasta = next(f for f in client.get("/api/foods").json() if f["id"] == "pasta-cooked")

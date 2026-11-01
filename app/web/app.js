@@ -941,7 +941,7 @@ function renderLog() {
 }
 const cap = s => s[0].toUpperCase() + s.slice(1);
 const KIND = { rapid: "rapid-acting", long: "long-acting", bolus: "bolus", basal: "basal" };
-const RISE = ["slow", "steady", "fast"];   // okf/domain/meal-rating.md
+const RISE = ["fast", "medium", "slow"];   // the words and order Loop and twiist use (okf/domain/meal-rating.md)
 const fmtU = u => `${(+u).toFixed(2).replace(/0$/, "")} u`;           // 2.5 -> "2.50" -> "2.5 u"; 0.05 stays
 const entrySummary = e => [e.bg != null && `BG ${e.bg}`, e.insulin != null && `${fmtU(e.insulin)} ${KIND[e.insulin_kind]}`,
   e.carbs != null && `${+e.carbs} g carbs`].filter(Boolean).join(" · ") || "Note";

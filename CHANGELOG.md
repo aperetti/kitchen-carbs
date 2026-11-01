@@ -8,7 +8,7 @@ Each version is what went to the family's kitchen on that date (okf/architecture
   BG go to Nightscout as treatments, so OpenAPS can forecast with them, starting 30 days back. Edits and deletes
   follow within a minute. Long-acting insulin goes only as a note, so it is never counted as insulin on board; set
   it as the basal rate in the Nightscout profile. The token needs a role with `api:treatments:*`.
-- **Rate a meal**: in the log, rate how fast glucose rose after each meal (slow, steady or fast). The curve now also shows how much glucose rose in the first hour and when it peaked. Each food's details
+- **Rate a meal**: in the log, rate how fast glucose rose after each meal (fast, medium or slow, as in Loop and twiist). The curve now also shows how much glucose rose in the first hour and when it peaked. Each food's details
   show how the meals it was in were rated, and its card says "Fast rise" or "Slow rise" when most of them agree.
   The ratings are in the CSV and PDF too.
 
