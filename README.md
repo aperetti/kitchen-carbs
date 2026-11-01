@@ -1,9 +1,72 @@
 # Kitchen Carbs
 
-A kitchen-tablet app for looking up carbs by portion, adding up a plate, logging meals, and seeing
-glucose after meals from Nightscout. It shows carbs only and never suggests insulin doses.
+> [!CAUTION]
+> ## ⚠️ Early alpha · built with AI · use at your own risk
+> **Kitchen Carbs was developed with AI (Claude) by a parent, for one family. Treat it as an early alpha that
+> carries a lot of risk.** It has not been clinically validated, independently reviewed or tested at scale, and
+> it is **not a medical device**.
+>
+> - Carb counts, food data, photos and calculations can be wrong. AI wrote much of the code and AI reads labels
+>   and makes the photos; any of it can contain mistakes.
+> - The meal summary works out an insulin dose from settings a parent types in. **Never give insulin based on
+>   this app alone.** Check every number against the package label, your pump or meter, and your care team's
+>   plan.
+> - Security has been reviewed, but this is hobby software holding health data. Run it only on hardware you
+>   control, behind sign-in, and keep backups.
+> - It comes with no warranty of any kind (GPL v3, sections 15 and 16).
+>
+> If you are not comfortable checking its work every time, don't use it.
 
-The design and rules come from the OKF concept map in `okf/` (see `PLAN.md`).
+![Kitchen Carbs in about a minute](docs/media/sizzle.gif)
+
+*[Sizzle reel as MP4](docs/media/sizzle.mp4). All demos use made-up data: no real meals, readings or doses.*
+
+A kitchen-tablet and phone app for a family managing a child's type 1 diabetes: look up carbs by portion, add up
+a plate by weight, log meals with BG and insulin, see the CGM curve after each meal from Nightscout, export a
+report for the care team, and optionally sync to Tidepool. The design and rules come from the OKF concept map in
+`okf/` (see `PLAN.md`).
+
+## Demo reels
+
+### Build a plate
+Foods are photo cards sorted by tags. Search, tap to add, pick a portion, then set the real weight with the
+slider or a Bluetooth kitchen scale; the plate adds up the carbs.
+
+![Build a plate](docs/media/plate.gif) · [MP4](docs/media/plate.mp4)
+
+### Meal summary
+Save to log opens a summary: date and time, BG from the CGM (or a meter reading), a dose worked out from the
+parent's own ratios (shown only here, never stored or sent), and what was actually given.
+
+![Meal summary](docs/media/summary.gif) · [MP4](docs/media/summary.mp4)
+
+### The log
+Each day with time in range, the glucose curve after each meal, edits with a floating Save bar, comments, and
+manual entries for juice, meter readings or long-acting insulin.
+
+![The log](docs/media/log.gif) · [MP4](docs/media/log.mp4)
+
+### Foods and photos
+Behind a parent PIN: each food's source and checked carbs, its portions, and photos styled by Gemini to match the
+family's own plates, each checked by a parent before use.
+
+![Foods and photos](docs/media/manage.gif) · [MP4](docs/media/manage.mp4)
+
+### Reports
+A formatted PDF (or CSV) of any date range: daily glucose traces with meals marked, time in range, and every meal
+and dose as logged.
+
+![PDF report](docs/media/export.gif) · [MP4](docs/media/export.mp4)
+
+### Settings and sync
+Insulin ratios by time of day, the log's rules, push notifications to parents' phones, and Tidepool sync.
+
+![Settings](docs/media/settings.gif) · [MP4](docs/media/settings.mp4)
+
+### On a phone
+The same app on a phone: add foods, open the plate, check the log.
+
+<img src="docs/media/phone.gif" alt="On a phone" width="300"> · [MP4](docs/media/phone.mp4)
 
 ## Environments
 
