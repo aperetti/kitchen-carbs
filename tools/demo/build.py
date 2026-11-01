@@ -26,7 +26,8 @@ for n in ("plate", "summary", "log", "manage", "settings", "phone"):
     ff("-ss", "1.2", "-i", f"{D}/{n}.webm", "-vf", "fps=30", *X264, f"{OUT}/{n}.mp4")
 ff("-i", f"{D}/export.mp4", *X264, f"{OUT}/export.mp4")
 
-# the sizzle: cards and the key moments, cut at the captions (index, offset in seconds), a little faster
+# the sizzle: cards and the key moments, cut at the captions (index, offset in seconds), a little faster,
+# each sliding in from the right over the one before
 marks = {n: [m["t"] for m in json.load(open(f"{D}/{n}.json"))] for n in ("plate", "summary", "log", "manage", "settings", "phone")}
 marks["export"] = [0.3, 12.5]
 CUTS = [("card", "title", 3.2), ("card", "plate", 1.4), ("plate", (2, -.4), (5, 0), 1.35),
@@ -42,16 +43,21 @@ for i, c in enumerate(CUTS):
     if c[0] == "card":
         d = c[2]
         ff("-loop", "1", "-t", str(d), "-i", f"{D}/cards/card-{c[1]}.png",
-           "-vf", f"fps=30,format=yuv420p,fade=in:st=0:d=0.25,fade=out:st={d - 0.25}:d=0.25", *X264, seg)
+           "-vf", "fps=30,format=yuv420p", *X264, seg)
     else:
         n, (i0, o0), (i1, o1), speed = c
         a, b = marks[n][i0] + o0, marks[n][i1] + o1; d = (b - a) / speed
         fit = f"scale=-2:800,pad=1280:800:(ow-iw)/2:0:color={BG}" if n == "phone" else "scale=1280:800"
         ff("-ss", f"{a:.2f}", "-t", f"{b - a:.2f}", "-i", f"{D}/export.mp4" if n == "export" else f"{D}/{n}.webm", "-vf",
-           f"setpts=PTS/{speed},{fit},fps=30,format=yuv420p,fade=in:st=0:d=0.2,fade=out:st={d - 0.2:.2f}:d=0.2", *X264, seg)
-    parts.append(seg)
-open(f"{D}/seg/list.txt", "w").write("".join(f"file '{os.path.abspath(p)}'\n" for p in parts))
-ff("-f", "concat", "-safe", "0", "-i", f"{D}/seg/list.txt", *X264, f"{OUT}/sizzle.mp4")
+           f"setpts=PTS/{speed},{fit},fps=30,format=yuv420p", *X264, seg)
+    parts.append((seg, float(subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", seg],
+                                            capture_output=True, text=True, check=True).stdout)))
+SWIPE = 0.45
+chain, last, t = [], "0:v", 0.0
+for k in range(1, len(parts)):
+    t += parts[k - 1][1] - SWIPE   # the next clip starts sliding in this long before the last one ends
+    chain.append(f"[{last}][{k}:v]xfade=transition=slideleft:duration={SWIPE}:offset={t:.3f}[x{k}]"); last = f"x{k}"
+ff(*[a for seg, _ in parts for a in ("-i", seg)], "-filter_complex", ";".join(chain), "-map", f"[{last}]", *X264, f"{OUT}/sizzle.mp4")
 
 # GIFs for the README: GitHub plays GIFs inline, MP4s only as links
 def gif(src, dst, width, fps, colors=128):

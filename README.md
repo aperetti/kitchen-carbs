@@ -19,8 +19,6 @@
 
 ![Kitchen Carbs in about a minute](https://github.com/aperetti/kitchen-carbs/releases/download/demo-media/sizzle.gif)
 
-*[Sizzle reel as MP4](https://github.com/aperetti/kitchen-carbs/releases/download/demo-media/sizzle.mp4). All demos use made-up data: no real meals, readings or doses.
-The videos live on the [demo-media release](https://github.com/aperetti/kitchen-carbs/releases/tag/demo-media), not in git; `tools/demo/record.sh --publish` re-records and replaces them.*
 
 A kitchen-tablet and phone app for a family managing a child's type 1 diabetes: look up carbs by portion, add up
 a plate by weight, log meals with BG and insulin, see the CGM curve after each meal from Nightscout, export a
