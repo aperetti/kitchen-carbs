@@ -1,9 +1,9 @@
 /* Tokens: okf/design/foundations/*.md. Light only, cool neutrals from white quartz; ink blue for carbs and selection only. */
-@font-face { font-family: "IBM Plex Sans"; src: url("fonts/plex-sans.woff2") format("woff2"); font-weight: 400 600; font-display: swap; }
+@font-face { font-family: "Kitchen Sans"; src: url("fonts/kitchen-sans.woff2") format("woff2"); font-weight: 400 600; font-display: swap; }
 :root {
   --surface: #F2F3F1; --paper: #FAFAF9; --sunk: #E7E9E7; --line: #D3D6D5;
   --vein: #6F7579; --ink: #2B2E30; --accent: #1F3A5F; --warn: #8A5A00;
-  --sans: "IBM Plex Sans", "Helvetica Neue", Arial, sans-serif;
+  --sans: "Kitchen Sans", "Helvetica Neue", Arial, sans-serif;
   --touch: 56px; --r: 4px;
   color-scheme: light;
 }

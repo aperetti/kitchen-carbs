@@ -15,7 +15,7 @@ from PIL import Image
 FDC = "https://api.nal.usda.gov/fdc/v1"
 OFF = "https://world.openfoodfacts.org"
 OFF_SEARCH = "https://search.openfoodfacts.org/search"   # their newer search service; the old cgi search is often down
-DEFAULT_CONTACT = "owner@example.com"   # owner's choice (27 Oct); editable in Manage → Settings
+DEFAULT_CONTACT = os.environ.get("KC_OFF_CONTACT", "").strip()   # from .env, never the code; editable in Manage → Settings
 CARBS_ID = 1005
 FIBER_ID = 1079                                                    # "Fiber, total dietary"
 # Open Food Facts country tags for the region setting (okf/features/food-lookup.md); "" = all countries
@@ -189,7 +189,8 @@ def fs_food(food_id: str):
 
 # ---------- Open Food Facts ----------
 def _off_headers(contact):
-    return {"User-Agent": f"KitchenCarbs/1.0 ({contact or DEFAULT_CONTACT})"}
+    contact = contact or DEFAULT_CONTACT
+    return {"User-Agent": f"KitchenCarbs/1.0 ({contact})" if contact else "KitchenCarbs/1.0"}
 
 
 def _num(v):

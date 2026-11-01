@@ -626,7 +626,7 @@ def test_lookup_endpoints(app, monkeypatch):
     assert r["mode"] == "serving" and r["source_ref"] == "Open Food Facts, barcode 0016000275287"
     chk = client.get("/api/lookup/off/0016000275287?check=true").json()   # comparing a new barcode: the numbers only
     assert chk["code"] == "0016000275287" and chk["reading"] == r["reading"] and "label_photo" not in chk
-    assert seen["contact"] == "owner@example.com"                       # default contact
+    assert seen["contact"] == ""                                              # none in .env or the allow list: none sent
     client.put("/api/settings", json={"off_contact": "kitchen@example.org"})
     client.get("/api/lookup/off/0016000275287")
     assert seen["contact"] == "kitchen@example.org"

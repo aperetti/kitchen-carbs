@@ -1151,8 +1151,12 @@ class SettingsIn(BaseModel):
     off_contact: str = Field(pattern=r"^[^\s()]+@[^\s()]+\.[^\s()]+$", max_length=120)
 
 
+def default_contact(c):   # KC_OFF_CONTACT, else the first allowed account (okf/architecture/nutrition-apis.md)
+    return lookup.DEFAULT_CONTACT or next(iter(auth.allowed(c)), "")
+
+
 def off_contact(c):
-    return db.get_setting(c, "off_contact") or lookup.DEFAULT_CONTACT
+    return db.get_setting(c, "off_contact") or default_contact(c)
 
 
 def off_country(c):   # "" = all countries
@@ -1166,7 +1170,7 @@ class CountryIn(BaseModel):
 
 @app.get("/api/settings", dependencies=[Depends(parent)])
 def get_settings(c=Depends(con)):
-    return {"off_contact": off_contact(c), "off_contact_default": lookup.DEFAULT_CONTACT,
+    return {"off_contact": off_contact(c), "off_contact_default": default_contact(c),
             "off_country": off_country(c), "countries": lookup.COUNTRIES,
             "fatsecret": "set up" if lookup.fatsecret_ready() else "not set up", "past_edits": past_edits(c)}
 

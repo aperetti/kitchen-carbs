@@ -58,14 +58,14 @@ cd app && ../.venv/bin/python -m pytest tests   # all tests
 - Sample foods and photos are placeholders: values are "Not verified" and photos are "Estimated".
 
 ## Production on the homelab
-Production runs on `user@server` in `~/t1d/kitchen-carbs`; the keys are in `~/t1d/.env` and the ports in
-`~/t1d/kitchen-carbs/.env` (`PROD_PORT=8092`, `QA_PORT=8093`).
-To ship a new version from the laptop:
+Production runs on a home server in `~/t1d/kitchen-carbs`; the keys are in `~/t1d/.env` and the ports in
+`~/t1d/kitchen-carbs/.env` (`PROD_PORT=8092`, `QA_PORT=8093`). `KC_OFF_CONTACT` in `~/t1d/.env` is the contact
+address sent to Open Food Facts. To ship a new version from the laptop (`SERVER` is your `user@host`):
 
-    rsync -a --exclude .venv --exclude data-dev --exclude data --exclude data-qa \
-      --exclude __pycache__ --exclude .pytest_cache --exclude .env ./ user@server:t1d/kitchen-carbs/
-    ssh user@server 't1d/kitchen-carbs/tools/qa.sh'       # check http://server:8093
-    ssh user@server 't1d/kitchen-carbs/tools/deploy.sh'
+    rsync -a --exclude .git --exclude .venv --exclude data-dev --exclude data --exclude data-qa \
+      --exclude __pycache__ --exclude .pytest_cache --exclude .env ./ $SERVER:t1d/kitchen-carbs/
+    ssh $SERVER 't1d/kitchen-carbs/tools/qa.sh'       # check http://<host>:8093
+    ssh $SERVER 't1d/kitchen-carbs/tools/deploy.sh'
 
 The schema is frozen at version 1 since the first deploy: new tables or columns are new migrations.
 
@@ -86,7 +86,8 @@ Off until a Firebase project is set (okf/architecture/auth.md). To turn it on:
 
 ## License
 Kitchen Carbs is free software under the GNU General Public License, version 3 (see [LICENSE](LICENSE)).
-Bundled third-party files keep their own licenses: IBM Plex Sans under the SIL Open Font License 1.1
+Bundled third-party files keep their own licenses: Kitchen Sans, a subset of IBM Plex Sans renamed as its
+license requires, under the SIL Open Font License 1.1
 (`app/web/fonts/OFL.txt`, `app/server/fonts/OFL.txt`), and the barcode reader under MIT and Apache-2.0
 (`app/web/vendor/licenses/`).
 

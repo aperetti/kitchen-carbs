@@ -18,6 +18,7 @@ links:
 - USDA FoodData Central: no longer searched; foods saved from it keep their 'USDA FDC' source.
 - Open Food Facts: /api/v2/product/{barcode}; name search via search.openfoodfacts.org (each word tried as word, word*, word's,
   so 'yoshida' finds "Mr. Yoshida's"; filtered by countries_tags, e.g. en:united-states, for the region setting), falling back to the older /cgi/search.pl when it's down. Read only; the app never writes. ODbL, so attribution is shown with the source.
-  User-Agent 'KitchenCarbs/1.0 (contact)'; the contact defaults to the owner's email and is editable in Manage → Settings.
+  User-Agent 'KitchenCarbs/1.0 (contact)'; the contact defaults to KC_OFF_CONTACT in .env (else the first
+  allowed account) and is editable in Manage → Settings. No address is written in the code.
 - Barcodes in photos are read on the server with zxing-cpp (no Gemini call).
 - Calls go from the server, so keys and the contact address never reach the tablet.

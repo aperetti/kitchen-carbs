@@ -14,7 +14,7 @@ CSV columns: date, time, food, portion, grams, qty, carbs, meal total, eaten, co
 
 ## PDF (decided 31 Oct)
 Same date range and the same values as the CSV, laid out to read and print. Built on the home server (fpdf2, with the
-app's own IBM Plex Sans), so it downloads as a file on the tablet and phones alike. US Letter, portrait.
+app's own Kitchen Sans), so it downloads as a file on the tablet and phones alike. US Letter, portrait.
 - First page: 'Kitchen Carbs · Meal log', the date range and when it was made; then the range at a glance: carbs per
   day (average), insulin given by kind (total and per day), and, with CGM data, time in range as a bar (below / in /
   above the family's target) with average, CV, GMI (14+ days) and sensor coverage, marked incomplete under 70 %.

@@ -9,7 +9,7 @@ from fpdf import FPDF
 from fpdf.fonts import FontFace
 
 FONT_DIR = os.path.join(os.path.dirname(__file__), "fonts")
-REGULAR, BOLD = (os.path.join(FONT_DIR, f"plex-sans-{w}.ttf") for w in ("Regular", "SemiBold"))
+REGULAR, BOLD = (os.path.join(FONT_DIR, f"kitchen-sans-{w}.ttf") for w in ("Regular", "SemiBold"))
 _CMAP = set(TTFont(REGULAR).getBestCmap())
 
 # The app's own colours (okf/design/foundations/color.md)
@@ -47,8 +47,8 @@ class Report(FPDF):
     def __init__(self, title_range: str):
         super().__init__(format="Letter", unit="pt")
         self.title_range = title_range
-        self.add_font("Plex", "", REGULAR)
-        self.add_font("Plex", "B", BOLD)
+        self.add_font("Sans", "", REGULAR)
+        self.add_font("Sans", "B", BOLD)
         self.set_margins(48, 54, 48)
         self.set_auto_page_break(True, 60)
         self.alias_nb_pages()
@@ -58,7 +58,7 @@ class Report(FPDF):
     def header(self):
         if self.page_no() == 1:
             return
-        self.set_font("Plex", "", 8.5)
+        self.set_font("Sans", "", 8.5)
         self.set_text_color(*VEIN)
         self.cell(0, 12, safe(f"Kitchen Carbs · Meal log · {self.title_range}"), new_x="LMARGIN", new_y="NEXT")
         self.ln(10)
@@ -67,7 +67,7 @@ class Report(FPDF):
         self.set_y(-40)
         self.set_draw_color(*LINE)
         self.line(self.l_margin, self.get_y(), self.w - self.r_margin, self.get_y())
-        self.set_font("Plex", "", 8)
+        self.set_font("Sans", "", 8)
         self.set_text_color(*VEIN)
         self.cell(0, 18, FOOT)
         self.set_x(self.l_margin)
@@ -75,7 +75,7 @@ class Report(FPDF):
 
     # ----- building blocks -----
     def label(self, text):
-        self.set_font("Plex", "B", 7.5)
+        self.set_font("Sans", "B", 7.5)
         self.set_text_color(*VEIN)
         self.set_char_spacing(0.8)
         self.cell(0, 12, safe(text.upper()), new_x="LMARGIN", new_y="NEXT")
@@ -83,10 +83,10 @@ class Report(FPDF):
 
     def fact(self, name, value, color=INK, width=None):
         """'Avg 156 mg/dL'-style pair, name in grey, value in ink."""
-        self.set_font("Plex", "", 9.5)
+        self.set_font("Sans", "", 9.5)
         self.set_text_color(*VEIN)
         self.cell(self.get_string_width(safe(name)) + 3, 14, safe(name))
-        self.set_font("Plex", "B", 9.5)
+        self.set_font("Sans", "B", 9.5)
         self.set_text_color(*color)
         self.cell(width or self.get_string_width(safe(value)) + 16, 14, safe(value))
 
@@ -115,7 +115,7 @@ class Report(FPDF):
             self.fact("GMI ", f"{g['gmi']:g}%")
         self.fact("Sensor ", f"{round(g['coverage'] * 100)}%" + ("" if g["complete"] else ", incomplete"), INK if g["complete"] else WARN)
         self.ln(16)
-        self.set_font("Plex", "", 8)
+        self.set_font("Sans", "", 8)
         self.set_text_color(*VEIN)
         self.cell(0, 10, f"Target {low}-{high} mg/dL", new_x="LMARGIN", new_y="NEXT")
 
@@ -127,7 +127,7 @@ class Report(FPDF):
         X = lambda ms: x0 + (ms - start_ms) / 86_400_000 * w
         self.set_fill_color(*BAND)
         self.rect(x0, Y(high), w, Y(low) - Y(high), "F")
-        self.set_font("Plex", "", 7)
+        self.set_font("Sans", "", 7)
         self.set_text_color(*VEIN)
         for v in (low, high, 250):
             self.set_xy(x0 - 26, Y(v) - 4)
@@ -162,7 +162,7 @@ class Report(FPDF):
                 self.circle(X(ms), Y(v), 1.6, "F")
         self.set_line_width(0.2)
         self.set_fill_color(255, 255, 255)
-        self.set_font("Plex", "", 7)
+        self.set_font("Sans", "", 7)
         self.set_text_color(*VEIN)
         self.set_xy(self.l_margin, y0 + h + 12)
         self.cell(0, 9, "Triangles mark meals. Dots below the band are readings under the target.", new_x="LMARGIN", new_y="NEXT")
@@ -174,13 +174,13 @@ def build(first: str, last: str, days: list[dict], overview: dict, low: int, hig
     rng = day_label(first, True) if first == last else f"{day_label(first)} – {day_label(last, True)}"
     pdf = Report(rng)
     pdf.add_page()
-    pdf.set_font("Plex", "B", 20)
+    pdf.set_font("Sans", "B", 20)
     pdf.set_text_color(*INK)
     pdf.cell(0, 26, "Meal log", new_x="LMARGIN", new_y="NEXT")
-    pdf.set_font("Plex", "", 11)
+    pdf.set_font("Sans", "", 11)
     pdf.set_text_color(*VEIN)
     pdf.cell(0, 16, safe(f"Kitchen Carbs · {rng}"), new_x="LMARGIN", new_y="NEXT")
-    pdf.set_font("Plex", "", 8.5)
+    pdf.set_font("Sans", "", 8.5)
     pdf.cell(0, 14, f"Made {made.strftime('%b %-d, %Y at %H:%M')}", new_x="LMARGIN", new_y="NEXT")
     pdf.ln(12)
 
@@ -197,7 +197,7 @@ def build(first: str, last: str, days: list[dict], overview: dict, low: int, hig
         pdf.glucose_stats(o["glucose"], low, high)
     pdf.ln(8)
     if not days:
-        pdf.set_font("Plex", "", 11)
+        pdf.set_font("Sans", "", 11)
         pdf.set_text_color(*VEIN)
         pdf.cell(0, 20, "Nothing was logged in these days.")
 
@@ -209,7 +209,7 @@ def build(first: str, last: str, days: list[dict], overview: dict, low: int, hig
         pdf.line(pdf.l_margin, pdf.get_y(), pdf.w - pdf.r_margin, pdf.get_y())
         pdf.set_line_width(0.2)
         pdf.ln(6)
-        pdf.set_font("Plex", "B", 13)
+        pdf.set_font("Sans", "B", 13)
         pdf.set_text_color(*INK)
         pdf.cell(0, 18, safe(day_label(d["day"], True)))
         pdf.set_x(pdf.l_margin)
@@ -236,8 +236,8 @@ def rows(pdf: Report, d: dict):
     items = sorted([("meal", m) for m in d["meals"]] + [("entry", e) for e in d["entries"]], key=lambda r: r[1]["time"])
     if not items:
         return
-    head = FontFace(family="Plex", emphasis="B", size_pt=7.5, color=VEIN, fill_color=SUNK)
-    pdf.set_font("Plex", "", 9)
+    head = FontFace(family="Sans", emphasis="B", size_pt=7.5, color=VEIN, fill_color=SUNK)
+    pdf.set_font("Sans", "", 9)
     pdf.set_text_color(*INK)
     pdf.set_draw_color(*LINE)
     pdf.set_fill_color(255, 255, 255)
