@@ -201,10 +201,6 @@ input[type="time"], input[type="date"], .field input, .field select, .field text
 .gcurve .vl { font: 500 14px var(--sans); fill: var(--ink); }
 .gvals { display: flex; flex-wrap: wrap; gap: 4px 22px; font-size: 15px; color: var(--vein); }
 .gvals b { color: var(--ink); font-weight: 500; font-variant-numeric: tabular-nums; }
-.ratebox { display: grid; gap: 8px; }
-.raterow { display: flex; align-items: center; gap: 12px; }
-.raterow > span { width: 3.2em; color: var(--vein); font-size: 15px; }
-.ratebox.dirty { outline: 2px solid var(--warn); outline-offset: 4px; border-radius: 10px; }
 .cmt { display: grid; gap: 6px; font-size: 16px; }
 .cmt .tm { color: var(--vein); margin-right: 8px; font-variant-numeric: tabular-nums; }
 .cmtform { display: flex; gap: 8px; }

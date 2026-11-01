@@ -207,4 +207,4 @@ def test_v17_nightscout_sent_and_meal_rating(tmp_path, monkeypatch):
     assert migrations.run(db, **QUIET) == 16
     con = sqlite3.connect(db)
     assert con.execute("SELECT COUNT(*) FROM nightscout_sent").fetchone() == (0,)
-    assert con.execute("SELECT day, gi, rise FROM meals").fetchall() == [("2026-10-26", None, None)]
+    assert con.execute("SELECT day, rise FROM meals").fetchall() == [("2026-10-26", None)]

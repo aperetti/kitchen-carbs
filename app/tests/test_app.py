@@ -579,7 +579,7 @@ def test_manual_entries(app):
     assert log["total"] == 43 + 15 and log["insulin"] == {"rapid": 2.5, "long": 8}
     assert [x["time"] for x in log["entries"]] == ["18:00", "21:00"]
     csv = client.get("/api/export.csv?start=2026-10-27&end=2026-10-27").text.splitlines()
-    assert csv[1] == "2026-10-27,18:00,entry,,,,,15,,,142,2.5,rapid,juice,,meter,,,,,," and csv[2].startswith("2026-10-27,18:05,meal")
+    assert csv[1] == "2026-10-27,18:00,entry,,,,,15,,,142,2.5,rapid,juice,,meter,,,,," and csv[2].startswith("2026-10-27,18:05,meal")
     assert client.delete(f"/api/entries/{e['id']}").status_code == 200
     assert client.get("/api/log").json()["insulin"] == {"long": 8}
 
@@ -1218,7 +1218,7 @@ def test_change_date_and_time_any_day_marked(app):
     eid = client.post("/api/entries", json={"client_id": "entry-move-1", "day": "2026-10-27", "time": "12:00", "bg": 110}).json()["id"]
     assert client.put(f"/api/entries/{eid}/when", json={"day": "2026-10-26", "time": "12:30"}).json()["moved_from"] == "2026-10-27 12:00"
     csv_text = client.get("/api/export.csv?start=2026-10-25&end=2026-10-27").text
-    assert csv_text.splitlines()[0].endswith(",moved_from,bg_source,insulin_min_before_eating,eating_min,changed_later,meal_total_from_foods_g,gi_rating,rise_rating") and "2026-10-27 12:00" in csv_text
+    assert csv_text.splitlines()[0].endswith(",moved_from,bg_source,insulin_min_before_eating,eating_min,changed_later,meal_total_from_foods_g,rise_rating") and "2026-10-27 12:00" in csv_text
 
 
 def test_portion_label_is_amount_then_unit(app):
@@ -1689,22 +1689,22 @@ def test_meal_rating(app):
     m3 = client.post("/api/meals", json=meal(time="19:00", cid="rate-0003")).json()["id"]
     client.put("/api/settings/past-edits", json={"allowed": False})
     marked = client.get("/api/log?day=2026-10-26").json()["meals"][0]["edited_at"]
-    assert client.put(f"/api/meals/{m1}/rating", json={"gi": "high", "rise": "fast"}).status_code == 200   # an earlier day
+    assert client.put(f"/api/meals/{m1}/rating", json={"rise": "fast"}).status_code == 200   # an earlier day
     assert client.put(f"/api/meals/{m2}/rating", json={"rise": "fast"}).status_code == 200
-    assert client.put(f"/api/meals/{m3}/rating", json={"gi": "loud"}).status_code == 422
-    client.put(f"/api/meals/{m3}/rating", json={"gi": "medium", "rise": "steady"})
+    assert client.put(f"/api/meals/{m3}/rating", json={"rise": "loud"}).status_code == 422
+    client.put(f"/api/meals/{m3}/rating", json={"rise": "steady"})
     day = client.get("/api/log?day=2026-10-26").json()["meals"][0]
-    assert (day["gi"], day["rise"], day["edited_at"]) == ("high", "fast", marked)              # not marked 'changed later' again
+    assert (day["rise"], day["edited_at"]) == ("fast", marked)              # not marked 'changed later' again
     pasta = next(f for f in client.get("/api/foods").json() if f["id"] == "pasta-cooked")
-    assert pasta["ratings"] == {"gi": {"high": 1, "medium": 1}, "rise": {"fast": 2, "steady": 1}, "meals": 3}
+    assert pasta["ratings"] == {"fast": 2, "steady": 1}
     client.put(f"/api/meals/{m2}/rating", json={})                                             # cleared
     client.delete(f"/api/meals/{m3}")
     pasta = next(f for f in client.get("/api/foods").json() if f["id"] == "pasta-cooked")
-    assert pasta["ratings"] == {"gi": {"high": 1}, "rise": {"fast": 1}, "meals": 1}
+    assert pasta["ratings"] == {"fast": 1}
     assert next(f for f in client.get("/api/foods").json() if f["id"] == "apple-sliced")["ratings"] is None
     rows = client.get("/api/export.csv?start=2026-10-26&end=2026-10-27").text.splitlines()
     head = rows[0].split(","); first = rows[1].split(",")
-    assert head[-2:] == ["gi_rating", "rise_rating"] and first[-2:] == ["high", "fast"]
+    assert head[-1] == "rise_rating" and first[-1] == "fast"
     assert client.get("/api/export.pdf?start=2026-10-26&end=2026-10-27").status_code == 200
 
 

@@ -265,7 +265,7 @@ def rows(pdf: Report, d: dict):
                     ins += "\nat the start" if off == 0 else f"\n{off} min before" if off > 0 else f"\n{-off} min after"
                 r.cell(ins)
                 notes = [f"Eaten: {x['eaten']}" if x["eaten"] else "", f"Ate in {x['eat_min']} min" if x["eat_min"] else ""]
-                notes += [" · ".join(n for n in (f"GI {x['gi']}" if x.get("gi") else "", f"{x['rise']} rise" if x.get("rise") else "") if n)]
+                notes += [f"{x['rise'].capitalize()} rise" if x.get("rise") else ""]
                 notes += [c["text"] for c in x["comments"]]
                 r.cell(safe("\n".join(n for n in notes if n)), style=FontFace(size_pt=8, color=VEIN))
             else:

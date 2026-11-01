@@ -212,8 +212,7 @@ def m017_nightscout_sent(con):
 
 
 def m018_meal_rating(con):
-    """A parent's rating of a meal's GI and speed of rise (okf/domain/meal-rating.md)."""
-    con.execute("ALTER TABLE meals ADD COLUMN gi TEXT")     # low, medium, high
+    """A parent's rating of how fast glucose rose after a meal (okf/domain/meal-rating.md)."""
     con.execute("ALTER TABLE meals ADD COLUMN rise TEXT")   # slow, steady, fast
 
 

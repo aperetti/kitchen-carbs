@@ -159,7 +159,7 @@ steps:
     screen: "Log → meal entry, glucose curve"
     thinking: "He went high, but he also had juice at 7."
     risk: "Reading one curve as proof a portion was wrong, or a sensor gap as a flat line."
-    helps: "Overlapping meals shown together; gaps shown as gaps; no good/bad grading. The rise in the first hour and the minutes to peak are shown as numbers; the parent rates the meal's GI and how fast it rose, and each food then shows how its meals were rated."
+    helps: "Overlapping meals shown together; gaps shown as gaps; no good/bad grading. The rise in the first hour and the minutes to peak are shown as numbers; the parent rates how fast it rose, and each food then shows how its meals were rated."
     features: [features/meal-glucose-view.md, features/rate-meal.md]
   - id: review
     phase: Later

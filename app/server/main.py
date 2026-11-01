@@ -734,15 +734,12 @@ def check_pin():
 
 # ----- foods -----
 def food_ratings(c) -> dict:
-    """How the meals each food was in were rated (okf/domain/meal-rating.md): {food_id: {"gi": {...}, "rise": {...}, "meals": n}}."""
+    """How fast glucose rose in the meals each food was in (okf/domain/meal-rating.md): {food_id: {"fast": 2, "steady": 1}}."""
     out = {}
-    for r in c.execute("SELECT DISTINCT i.food_id, m.id, m.gi, m.rise FROM meal_items i JOIN meals m ON m.id = i.meal_id "
-                       "WHERE i.food_id IS NOT NULL AND m.deleted_at IS NULL AND (m.gi IS NOT NULL OR m.rise IS NOT NULL)"):
-        f = out.setdefault(r["food_id"], {"gi": {}, "rise": {}, "meals": 0})
-        f["meals"] += 1
-        for k in ("gi", "rise"):
-            if r[k]:
-                f[k][r[k]] = f[k].get(r[k], 0) + 1
+    for r in c.execute("SELECT DISTINCT i.food_id, m.id, m.rise FROM meal_items i JOIN meals m ON m.id = i.meal_id "
+                       "WHERE i.food_id IS NOT NULL AND m.deleted_at IS NULL AND m.rise IS NOT NULL"):
+        f = out.setdefault(r["food_id"], {})
+        f[r["rise"]] = f.get(r["rise"], 0) + 1
     return out
 
 
@@ -1668,7 +1665,6 @@ def restore_meal(mid: int, c=Depends(con)):
 
 
 class RatingIn(BaseModel):
-    gi: Literal["low", "medium", "high"] | None = None
     rise: Literal["slow", "steady", "fast"] | None = None
 
 
@@ -1677,8 +1673,8 @@ def rate_meal(mid: int, body: RatingIn, c=Depends(con)):
     """The parent's own rating (okf/features/rate-meal.md): on any day, and it changes nothing else about the meal."""
     get_meal(c, mid)
     with c:
-        c.execute("UPDATE meals SET gi = ?, rise = ? WHERE id = ?", (body.gi, body.rise, mid))
-    return {"gi": body.gi, "rise": body.rise}
+        c.execute("UPDATE meals SET rise = ? WHERE id = ?", (body.rise, mid))
+    return {"rise": body.rise}
 
 
 @app.post("/api/meals/{mid}/comments")
@@ -1958,7 +1954,7 @@ def export_csv(start: str, end: str, c=Depends(con)):
     buf = io.StringIO()
     w = csv.writer(buf)
     w.writerow(["date", "time", "type", "food", "portion", "grams", "qty", "carbs_g", "meal_total_g", "eaten",
-                "bg_mg_dl", "insulin_u", "insulin_kind", "comments", "moved_from", "bg_source", "insulin_min_before_eating", "eating_min", "changed_later", "meal_total_from_foods_g", "gi_rating", "rise_rating"])
+                "bg_mg_dl", "insulin_u", "insulin_kind", "comments", "moved_from", "bg_source", "insulin_min_before_eating", "eating_min", "changed_later", "meal_total_from_foods_g", "rise_rating"])
     rows = []
     for m in meals_for_days(c, first.isoformat(), last.isoformat()):
         comments = " | ".join(f"{x['time']} {x['text']}" for x in m["comments"])
@@ -1967,11 +1963,11 @@ def export_csv(start: str, end: str, c=Depends(con)):
             rows.append([m["day"], m["time"], "meal", i["food_name"], i["portion_label"], "" if hand else f"{i['grams']:g}", "" if hand else f"{i['qty']:g}",
                          i["carbs"], m["total"], m["eaten"] or "", blank(m["bg"]), blank(m["insulin"]), m["insulin_kind"] or "",
                          comments, m["moved_from"] or "", m["bg_source"] or "", blank(m["insulin_offset_min"]), blank(m["eat_min"]), m["edited_at"] or "", m["items_total"],
-                         m["gi"] or "", m["rise"] or ""])
+                         m["rise"] or ""])
     for e in entries_for_days(c, first.isoformat(), last.isoformat()):
         rows.append([e["day"], e["time"], "entry", "", "", "", "", "" if e["carbs"] is None else f"{e['carbs']:g}", "", "",
                      e["bg"] if e["bg"] is not None else "", "" if e["insulin"] is None else f"{e['insulin']:g}",
-                     e["insulin_kind"] or "", e["note"], e["moved_from"] or "", "meter" if e["bg"] is not None else "", "", "", e["edited_at"] or "", "", "", ""])
+                     e["insulin_kind"] or "", e["note"], e["moved_from"] or "", "meter" if e["bg"] is not None else "", "", "", e["edited_at"] or "", "", ""])
     for r in sorted(rows, key=lambda r: (r[0], r[1])):   # stable: meal items keep their order
         w.writerow([cell_text(x) for x in r])
     days = (last - first).days + 1

@@ -153,14 +153,11 @@ function otherMatches(shown) {
 const fiberIn = (f, g) => Math.round(g * f.fiber_per_100g / 10) / 10;
 const fiberText = (f, g) => f.fiber_per_100g == null ? "" : ` (including ${fiberIn(f, g)} g fiber)`;
 /* How the meals a food was in were rated (okf/features/rate-meal.md): counts, and a corner tag when 2+ meals mostly agree */
-const ratingText = r => RATE.map(([k, label, opts]) => {
-  const n = opts.filter(o => r[k][o]).sort((a, b) => r[k][b] - r[k][a]).map(o => `${o} ${r[k][o]}`);
-  return n.length ? `${label} ${n.join(", ")}` : "";
-}).filter(Boolean).join(" · ");
+const ratingText = r => "Rise " + RISE.filter(o => r[o]).sort((a, b) => r[b] - r[a]).map(o => `${o} ${r[o]}`).join(", ");
 function riseLean(r) {
   if (!r) return "";
-  const n = Object.values(r.rise).reduce((a, b) => a + b, 0);
-  return ["fast", "slow"].find(k => n >= 2 && (r.rise[k] || 0) * 2 > n) || "";
+  const n = Object.values(r).reduce((a, b) => a + b, 0);
+  return ["fast", "slow"].find(k => n >= 2 && (r[k] || 0) * 2 > n) || "";
 }
 function foodCard(f) {
   const p0 = f.portions[0], img = p0 && shownPhoto(p0), open = S.openCard === f.id;
@@ -944,7 +941,7 @@ function renderLog() {
 }
 const cap = s => s[0].toUpperCase() + s.slice(1);
 const KIND = { rapid: "rapid-acting", long: "long-acting", bolus: "bolus", basal: "basal" };
-const RATE = [["gi", "GI", ["low", "medium", "high"]], ["rise", "Rise", ["slow", "steady", "fast"]]];   // okf/domain/meal-rating.md
+const RISE = ["slow", "steady", "fast"];   // okf/domain/meal-rating.md
 const fmtU = u => `${(+u).toFixed(2).replace(/0$/, "")} u`;           // 2.5 -> "2.50" -> "2.5 u"; 0.05 stays
 const entrySummary = e => [e.bg != null && `BG ${e.bg}`, e.insulin != null && `${fmtU(e.insulin)} ${KIND[e.insulin_kind]}`,
   e.carbs != null && `${+e.carbs} g carbs`].filter(Boolean).join(" · ") || "Note";
@@ -1040,7 +1037,7 @@ const saveBar = `<div class="savebar" id="logSave" hidden role="region" aria-lab
 function logSnap() {
   const v = id => $(id)?.value ?? null, f = $("#mdetForm");
   const ev = $("#entValForm");
-  return { day: v("#whDay"), time: v("#whTime"), ent: ev ? JSON.stringify([v("#evBg"), v("#evCarbs"), v("#evIns"), ev.querySelector("[data-ekind].on")?.dataset.ekind ?? "", v("#evNote").trim()]) : null, eaten: $(".eatseg .on")?.dataset.eaten ?? "", rate: [...document.querySelectorAll(".rateseg")].map(g => g.querySelector(".on")?.dataset.rate ?? "").join("|"), total: v("#cfTotal"), cmt: (v("#cmtText") || "").trim(),
+  return { day: v("#whDay"), time: v("#whTime"), ent: ev ? JSON.stringify([v("#evBg"), v("#evCarbs"), v("#evIns"), ev.querySelector("[data-ekind].on")?.dataset.ekind ?? "", v("#evNote").trim()]) : null, eaten: $(".eatseg .on")?.dataset.eaten ?? "", rate: $(".rateseg .on")?.dataset.rate ?? "", total: v("#cfTotal"), cmt: (v("#cmtText") || "").trim(),
     det: f ? JSON.stringify([...f.querySelectorAll("input")].map(i => i.value).concat([...f.querySelectorAll("button.on")].map(b => b.dataset.dkind || b.dataset.dwhen))) : null };
 }
 function logBaseline() { S.log.base = logSnap(); S.log.done = new Set(); document.body.classList.remove("unsaved"); logDirty(); }
@@ -1080,8 +1077,7 @@ async function saveLogEdits(btn) {
       steps.push(["entry", () => api(`/api/entries/${id}`, { method: "PUT", body })]);
     }
     if (!entry && n.rate !== b.rate) {   // allowed on any day (okf/features/rate-meal.md)
-      const [gi, rise] = n.rate.split("|");
-      steps.push(["rate", () => api(`/api/meals/${id}/rating`, { method: "PUT", body: { gi: gi || null, rise: rise || null } })]);
+      steps.push(["rate", () => api(`/api/meals/${id}/rating`, { method: "PUT", body: { rise: n.rate || null } })]);
     }
     if (!entry && n.eaten !== b.eaten) steps.push(["eaten", () => api(`/api/meals/${id}`, { method: "PATCH", body: { eaten: n.eaten } })]);
     if (!entry && n.total !== b.total) {   // a corrected total, with its reason (okf/domain/meal.md)
@@ -1126,9 +1122,9 @@ async function renderMeal() {
         ${detailFields(m)}</form>`
       : `<p class="${detailSummary(m) ? "" : "meta"}">${esc(detailSummary(m)) || "None added"}</p>`}
     ${S.session?.glucose ? `<div class="glab"><span class="label">Glucose · mg/dL</span><span class="meta" id="gUpdated"></span></div><div id="gBox"><p class="meta">Loading glucose…</p></div>` : ""}
-    <div class="glab"><span class="label">Rating</span><span class="meta">Your own judgement, to spot patterns</span></div>
-    <div id="rateBox" class="ratebox">${RATE.map(([k, label, opts]) => `<div class="raterow"><span>${label}</span><div class="seg neutral rateseg" role="group" aria-label="${label}">
-      ${opts.map(o => `<button type="button" data-rate="${o}" class="${m[k] === o ? "on" : ""}" aria-pressed="${m[k] === o}">${cap(o)}</button>`).join("")}</div></div>`).join("")}</div>
+    <div class="glab"><span class="label">How fast it rose</span><span class="meta">Your own judgement, to spot patterns</span></div>
+    <div class="seg neutral rateseg" id="rateBox" role="group" aria-label="How fast glucose rose">
+      ${RISE.map(o => `<button type="button" data-rate="${o}" class="${m.rise === o ? "on" : ""}" aria-pressed="${m.rise === o}">${cap(o)}</button>`).join("")}</div>
     <div class="glab"><span class="label">How much was eaten</span>${ed ? "" : `<span class="meta">Read-only</span>`}</div>
     ${ed ? `<div class="seg neutral eatseg" role="group" aria-label="How much was eaten">${EATEN.map(x => `<button type="button" data-eaten="${x}" class="${m.eaten === x ? "on" : ""}" aria-pressed="${m.eaten === x}">${cap(x)}</button>`).join("")}</div>
       <p class="note">This is a note. Carbs stay as served.</p>` : `<p>${m.eaten ? cap(m.eaten) : "Not set"}</p>`}
