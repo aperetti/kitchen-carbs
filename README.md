@@ -83,3 +83,12 @@ Off until a Firebase project is set (okf/architecture/auth.md). To turn it on:
 
 4. Deploy. Every device then signs in once with Google and stays signed in for 30 days (renewed while used).
    The allow list can be edited later in Manage → Settings → Family accounts; the PIN still guards Manage.
+
+## License
+Kitchen Carbs is free software under the GNU General Public License, version 3 (see [LICENSE](LICENSE)).
+Bundled third-party files keep their own licenses: IBM Plex Sans under the SIL Open Font License 1.1
+(`app/web/fonts/OFL.txt`, `app/server/fonts/OFL.txt`), and the barcode reader under MIT and Apache-2.0
+(`app/web/vendor/licenses/`).
+
+It is a carb-counting and logging aid, not a medical device, and comes with no warranty (sections 15–16 of the
+license). Doses it shows are arithmetic on the settings a parent enters; check them against the care team's plan.
