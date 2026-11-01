@@ -2,6 +2,8 @@
 Each version is what went to the family's kitchen on that date (okf/architecture/releases.md).
 
 ## Unreleased
+- Manage → Foods and photos: **Check new photos** goes through every new photo one after another, with Use, Try
+  again, Discard and Skip, without opening each food.
 
 ## v2026.11.01.2 · 1 Nov 2026
 - Only the app itself and the family's own dashboard (set on the server) can show Kitchen Carbs inside a frame.

@@ -33,3 +33,8 @@ links:
    food has another portion with a photo is estimated from it (as in 5); the rest are generated from the name (as in 6).
    They run one at a time on the server, so Gemini isn't flooded; queued portions show 'Waiting its turn'. Each one
    still lands as a photo to check, flagged estimated; nothing is accepted on its own.
+9. Check them in a row (decided 1 Nov): 'Check new photos' in the Manage food list (with the count) opens a queue of
+   every portion with a photo to check, one at a time, oldest food name first: the food and portion, the same
+   comparison and buttons as in the portion's row (Use this photo, Try again, Discard, Use my photo instead), plus
+   Skip and 'Open this food'. After each choice the next one shows; Try again sends that portion back to Gemini and
+   it rejoins the queue when its new photo is ready. Skipped ones wait until the queue is opened again.

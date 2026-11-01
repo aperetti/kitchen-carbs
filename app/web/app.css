@@ -307,6 +307,10 @@ table.portions { border-collapse: collapse; width: 100%; font-size: 16px; }
 td.generating img { opacity: .45; }
 .row .t em.gen { color: var(--accent); font-style: normal; font-size: 14px; }
 .review { display: grid; gap: 12px; padding: 16px 0; border-top: 1px solid var(--ink); }
+.rq { gap: 4px; }
+.rq .rqhead h3 { margin: 2px 0 0; font-size: 22px; font-weight: 500; }
+.rq .review { border-top: 0; padding-top: 8px; }
+.rq .rqnav { border-top: 1px solid var(--line); padding-top: 12px; }
 .cmp { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 20px; }
 .cmp figure { margin: 0; display: grid; gap: 8px; }
 .cmp figure:only-child { max-width: 560px; }

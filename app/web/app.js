@@ -1320,10 +1320,11 @@ function renderManage() {
 const $m = () => $("#mbody");
 function renderManageFoods() {
   foodDirty = false;   // the form is drawn from the saved food
-  const fibView = S.m.food === FIBER, f = S.m.food === "add" || fibView ? null : foodById(S.m.food), focus = S.m.food === "add" || fibView || f;
+  const fibView = S.m.food === FIBER, rqView = S.m.food === REVIEWQ, f = S.m.food === "add" || fibView || rqView ? null : foodById(S.m.food),
+    focus = S.m.food === "add" || fibView || rqView || f;
   $m().innerHTML = `<div class="split ${focus ? "focus" : ""}" style="flex:1;display:flex;min-width:0">
     <div class="list"><div class="rows" id="mRows">${manageRows()}</div></div>
-    <div class="detail">${focus ? `<div class="mhead"><button type="button" class="btn quiet small" data-act="m-list">‹ Foods</button><b>${f ? esc(f.name) : fibView ? "Fill in fiber" : "Add a food"}</b></div>` : ""}${S.m.food === "add" ? addPanel() : fibView ? `<div id="fiberBox">${fiberPanel()}</div>` : f ? foodForm(f) + `<div id="portionsBox">${portionsEditor(f)}</div>` : addPrompt()}</div></div>`;
+    <div class="detail">${focus ? `<div class="mhead"><button type="button" class="btn quiet small" data-act="m-list">‹ Foods</button><b>${f ? esc(f.name) : fibView ? "Fill in fiber" : rqView ? "Check new photos" : "Add a food"}</b></div>` : ""}${S.m.food === "add" ? addPanel() : fibView ? `<div id="fiberBox">${fiberPanel()}</div>` : rqView ? `<div id="reviewBox">${reviewQueue()}</div>` : f ? foodForm(f) + `<div id="portionsBox">${portionsEditor(f)}</div>` : addPrompt()}</div></div>`;
   foodMath();
   if (S.m.shown !== S.m.food) { S.m.shown = S.m.food; $("#v-manage").scrollTop = 0; }   // a new screen starts at the top on a phone
 }
@@ -1331,6 +1332,7 @@ function manageRows() {
   return `<button class="row addrow ${S.m.food === "add" ? "on" : ""}" data-mfood="add"><span class="t"><b>+ Add a food</b><span>Look it up, scan a label, or type it in</span></span></button>
     ${S.foods.some(x => x.fiber_lookup) || S.m.food === FIBER ? `<button class="row addrow ${S.m.food === FIBER ? "on" : ""}" data-mfood="${FIBER}"><span class="t"><b>Fill in fiber</b>
       <span>${S.foods.filter(x => x.fiber_lookup).length} saved food${S.foods.filter(x => x.fiber_lookup).length === 1 ? "" : "s"} can get fiber from their source</span></span></button>` : ""}
+    ${reviewRow()}
     ${missingPhotosRow()}
     <button class="row addrow" data-act="quick-scan"><span class="t"><b>Scan a barcode</b><span>Check the label numbers, save, and a photo is made for you</span></span></button>
     ${S.foods.map(x => `<button class="row ${x.id === S.m.food ? "on" : ""}" data-mfood="${esc(x.id)}">
@@ -1394,6 +1396,32 @@ async function fiberSave() {
 }
 
 /* ---------- live photo jobs (okf/features/photo-pipeline.md) ---------- */
+/* every new photo to check, one after another (okf/features/photo-pipeline.md, step 9) */
+const REVIEWQ = "check-photos";
+const toCheck = () => S.foods.flatMap(f => f.portions.filter(p => p.photo.candidate && !p.job).map(p => ({ f, p })))
+  .sort((a, b) => a.f.name.localeCompare(b.f.name) || a.p.sort - b.p.sort);
+function reviewRow() {
+  const n = toCheck().length;
+  if (!n && S.m.food !== REVIEWQ) return "";
+  return `<button class="row addrow ${S.m.food === REVIEWQ ? "on" : ""}" data-mfood="${REVIEWQ}"><span class="t"><b>Check new photos${n ? ` (${n})` : ""}</b>
+    <span>${n ? "One after another, without opening each food" : "Nothing left to check"}</span></span></button>`;
+}
+function reviewQueue() {
+  const all = toCheck(), skipped = (S.m.rqSkip ??= []), left = all.filter(x => !skipped.includes(x.p.id));
+  const making = S.foods.reduce((k, f) => k + f.portions.filter(p => p.job).length, 0);
+  const more = making ? `<p class="meta">${making} more being made. They join the queue when they're ready.</p>` : "";
+  if (!all.length) return `<div class="form rq"><p>No new photos to check.</p>${more}</div>`;
+  if (!left.length) return `<div class="form rq"><p>You skipped ${all.length === 1 ? "the last photo" : `all ${all.length} photos`} left to check.</p>${more}
+    <div class="actions"><button class="btn primary" data-act="rq-again">Go through them again</button></div></div>`;
+  const { f, p } = left[0], skips = all.length - left.length;
+  return `<div class="form rq" data-pid="${p.id}">
+    <div class="rqhead"><span class="meta">${left.length} to check${skips ? ` · ${skips} skipped` : ""}</span>
+      <h3>${esc(f.name)} · ${esc(p.label)}, ${p.grams} g</h3></div>
+    ${reviewPanel(f, p)}
+    <div class="actions rqnav"><button class="btn small quiet" data-act="rq-skip">Skip for now</button>
+      <button class="btn small quiet" data-mfood="${esc(f.id)}">Open this food</button></div>${more}</div>`;
+}
+
 /* every portion with no photo at all, made one at a time on the server (okf/features/photo-pipeline.md, step 8) */
 const missingPhotos = () => S.foods.flatMap(f => f.portions.filter(p => !p.photo.original && !p.photo.styled && !p.photo.candidate && !p.job));
 let confirmMissing = 0;
@@ -1426,6 +1454,7 @@ function liveManage() {   // redraw only the list and the portions, so a half-ty
   if ($("#mRows")) $("#mRows").innerHTML = manageRows();
   const f = foodById(S.m.food), box = $("#portionsBox");
   if (f && box && !box.contains(document.activeElement)) box.innerHTML = portionsEditor(f);
+  if ($("#reviewBox")) $("#reviewBox").innerHTML = reviewQueue();
 }
 setInterval(() => document.querySelectorAll("[data-since]").forEach(el => (el.textContent = sinceText(el.dataset.since))), 1000);
 
@@ -1809,7 +1838,10 @@ const mClick = async e => {
     if (S.m.scan && t.dataset.addtab !== "lookup") S.m.scan = null;
     if (S.m.addTab !== t.dataset.addtab || S.m.scan) { S.m.addTab = t.dataset.addtab; mNav(); } return;
   }
-  if (t.dataset.mfood) { if (S.m.food !== t.dataset.mfood) { S.m.food = t.dataset.mfood; S.m.err = ""; S.m.scan = null; S.m.review = null; mNav(); } return; }
+  if (t.dataset.mfood) {
+    if (t.dataset.mfood === REVIEWQ) S.m.rqSkip = [];   // skipped photos come back when the queue is opened again
+    if (S.m.food !== t.dataset.mfood) { S.m.food = t.dataset.mfood; S.m.err = ""; S.m.scan = null; S.m.review = null; mNav(); } return;
+  }
   if (t.dataset.mult) { addMultiple(+t.dataset.mult); return; }
   if (t.dataset.bact) { await batchAct(t); return; }
   if (t.dataset.act === "fib-look") { fiberLook(S.foods.filter(f => f.fiber_lookup && !fib()[f.id]).map(f => f.id)); return; }
@@ -1873,6 +1905,8 @@ const mClick = async e => {
     catch (err) { toast(err.message); }
     return;
   }
+  if (t.dataset.act === "rq-skip") { S.m.rqSkip.push(+t.closest("[data-pid]").dataset.pid); $("#reviewBox").innerHTML = reviewQueue(); return; }
+  if (t.dataset.act === "rq-again") { S.m.rqSkip = []; $("#reviewBox").innerHTML = reviewQueue(); return; }
   if (t.dataset.act === "photos-missing") {
     if (Date.now() - confirmMissing > 4000) { confirmMissing = Date.now(); $("#mRows").innerHTML = manageRows(); setTimeout(() => $("#mRows") && ($("#mRows").innerHTML = manageRows()), 4100); return; }
     confirmMissing = 0; t.disabled = true;
