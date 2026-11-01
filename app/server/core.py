@@ -130,6 +130,7 @@ def meal_window(readings, meal_ms: int, now_ms: int, other_meals_ms=()) -> dict:
     after = [p for p in pts if p[0] > meal_ms]
     at_meal, two_h = _nearest(pts, meal_ms), _nearest(pts, meal_ms + 120 * 60 * 1000)
     peak = max(after, key=lambda p: p[1], default=None)
+    first_hour = [v for t, v in after if t <= meal_ms + 60 * 60 * 1000]
     lowest = min(after, key=lambda p: p[1], default=None)
     span_end = min(end, now_ms)
     expected = max(1, (span_end - start) // READING_MS)
@@ -140,6 +141,9 @@ def meal_window(readings, meal_ms: int, now_ms: int, other_meals_ms=()) -> dict:
         "peak": peak and {"ms": peak[0], "sgv": peak[1]},
         "lowest": lowest and {"ms": lowest[0], "sgv": lowest[1]},
         "two_h": two_h and two_h[1],
+        # for the meal rating (okf/domain/meal-rating.md): measured, never judged
+        "rise_1h": max(first_hour) - at_meal[1] if at_meal and first_hour else None,
+        "to_peak_min": peak and round((peak[0] - meal_ms) / 60000),
         "coverage": round(min(1.0, len(pts) / expected), 3),
         "in_progress": now_ms < end,
         "overlapping_meals": [m for m in other_meals_ms if start < m <= end and m != meal_ms],

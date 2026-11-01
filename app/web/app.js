@@ -152,16 +152,26 @@ function otherMatches(shown) {
 /* Fiber, for reference only: never taken off the carbs (okf/domain/food.md) */
 const fiberIn = (f, g) => Math.round(g * f.fiber_per_100g / 10) / 10;
 const fiberText = (f, g) => f.fiber_per_100g == null ? "" : ` (including ${fiberIn(f, g)} g fiber)`;
+/* How the meals a food was in were rated (okf/features/rate-meal.md): counts, and a corner tag when 2+ meals mostly agree */
+const ratingText = r => RATE.map(([k, label, opts]) => {
+  const n = opts.filter(o => r[k][o]).sort((a, b) => r[k][b] - r[k][a]).map(o => `${o} ${r[k][o]}`);
+  return n.length ? `${label} ${n.join(", ")}` : "";
+}).filter(Boolean).join(" · ");
+function riseLean(r) {
+  if (!r) return "";
+  const n = Object.values(r.rise).reduce((a, b) => a + b, 0);
+  return ["fast", "slow"].find(k => n >= 2 && (r.rise[k] || 0) * 2 > n) || "";
+}
 function foodCard(f) {
   const p0 = f.portions[0], img = p0 && shownPhoto(p0), open = S.openCard === f.id;
   const verified = f.trust === "parent-verified" ? `verified ${dayLabel(f.verified_at)}` : `<span class="warn">not verified</span>`;
-  const tags = [f.trust !== "parent-verified" && "Not verified"].filter(Boolean);
+  const tags = [f.trust !== "parent-verified" && "Not verified"].filter(Boolean), lean = riseLean(f.ratings);
   const onPlate = S.plate.filter(x => x.food_id === f.id).reduce((g, x) => g + itemG(x), 0);   // shows it was added (okf/features/view-food.md)
   const estimated = f.portions.filter(p => p.photo.estimated && !p.photo.original).map(p => esc(p.label));
   const serving = f.portions[0];
   return `<article class="card ${open ? "open" : ""} ${serving ? "addable" : ""}" ${serving ? `data-addcard="${esc(f.id)}" tabindex="0" role="button" aria-pressed="${onPlate > 0}" aria-label="${esc(f.name)}, ${esc(serving.label)}, ${serving.carbs} grams of carbs. Tap to ${onPlate ? "take off" : "add to"} the plate"` : ""}>
     <div class="cimg">${img ? `<img ${sized(img, "(min-width: 1100px) 300px, (min-width: 681px) 33vw, 50vw")} alt="" loading="lazy">` : `<span class="noimg">No photo yet</span>`}
-      ${tags.length ? `<div class="ctags">${tags.map(t => `<span>${t}</span>`).join("")}</div>` : ""}
+      ${tags.length || lean ? `<div class="ctags">${tags.map(t => `<span>${t}</span>`).join("")}${lean ? `<span class="rate">${cap(lean)} rise</span>` : ""}</div>` : ""}
       ${onPlate ? `<span class="onplate" title="On the plate · ${fmtG(onPlate)}" aria-label="On the plate, ${fmtG(onPlate)}">✓</span>` : ""}
       <b class="cname" title="${esc(f.name)}"><span>${esc(f.name)}</span></b>
       <button class="info" data-info="${esc(f.id)}" aria-expanded="${open}" aria-label="Details for ${esc(f.name)}">${open ? "×" : "i"}</button>
@@ -172,6 +182,7 @@ function foodCard(f) {
         ${estimated.length ? `<span class="warn">Estimated photo: ${estimated.join(", ")}. Gemini drew ${estimated.length > 1 ? "them" : "it"}; the amount may not match.</span>` : ""}
         <span>${esc(SOURCE[f.source_kind] || f.source_kind)} · ${esc(f.source_ref)} · ${verified}${f.barcode && !f.source_ref.includes(f.barcode) ? ` · barcode ${esc(f.barcode)}` : ""}</span>
         ${f.notes ? `<span>${esc(f.notes)}</span>` : ""}
+        ${f.ratings ? `<span>In rated meals with this food: ${esc(ratingText(f.ratings))}</span>` : ""}
         ${f.label_photo ? `<a href="${photoUrl(f.label_photo)}" target="_blank" rel="noopener">View the nutrition label</a>` : ""}</div>` : ""}</div>
   </article>`;
 }
@@ -933,6 +944,7 @@ function renderLog() {
 }
 const cap = s => s[0].toUpperCase() + s.slice(1);
 const KIND = { rapid: "rapid-acting", long: "long-acting", bolus: "bolus", basal: "basal" };
+const RATE = [["gi", "GI", ["low", "medium", "high"]], ["rise", "Rise", ["slow", "steady", "fast"]]];   // okf/domain/meal-rating.md
 const fmtU = u => `${(+u).toFixed(2).replace(/0$/, "")} u`;           // 2.5 -> "2.50" -> "2.5 u"; 0.05 stays
 const entrySummary = e => [e.bg != null && `BG ${e.bg}`, e.insulin != null && `${fmtU(e.insulin)} ${KIND[e.insulin_kind]}`,
   e.carbs != null && `${+e.carbs} g carbs`].filter(Boolean).join(" · ") || "Note";
@@ -1028,13 +1040,13 @@ const saveBar = `<div class="savebar" id="logSave" hidden role="region" aria-lab
 function logSnap() {
   const v = id => $(id)?.value ?? null, f = $("#mdetForm");
   const ev = $("#entValForm");
-  return { day: v("#whDay"), time: v("#whTime"), ent: ev ? JSON.stringify([v("#evBg"), v("#evCarbs"), v("#evIns"), ev.querySelector("[data-ekind].on")?.dataset.ekind ?? "", v("#evNote").trim()]) : null, eaten: $(".eatseg .on")?.dataset.eaten ?? "", total: v("#cfTotal"), cmt: (v("#cmtText") || "").trim(),
+  return { day: v("#whDay"), time: v("#whTime"), ent: ev ? JSON.stringify([v("#evBg"), v("#evCarbs"), v("#evIns"), ev.querySelector("[data-ekind].on")?.dataset.ekind ?? "", v("#evNote").trim()]) : null, eaten: $(".eatseg .on")?.dataset.eaten ?? "", rate: [...document.querySelectorAll(".rateseg")].map(g => g.querySelector(".on")?.dataset.rate ?? "").join("|"), total: v("#cfTotal"), cmt: (v("#cmtText") || "").trim(),
     det: f ? JSON.stringify([...f.querySelectorAll("input")].map(i => i.value).concat([...f.querySelectorAll("button.on")].map(b => b.dataset.dkind || b.dataset.dwhen))) : null };
 }
 function logBaseline() { S.log.base = logSnap(); S.log.done = new Set(); document.body.classList.remove("unsaved"); logDirty(); }
 function logDirty() {
   const b = S.log.base, n = logSnap(), bar = $("#logSave"); if (!b || !bar) return false;
-  const parts = { "#whenForm": n.day !== b.day || n.time !== b.time, "#entValForm": n.ent !== b.ent, "#mdetForm": n.det !== b.det, ".eatseg": n.eaten !== b.eaten,
+  const parts = { "#whenForm": n.day !== b.day || n.time !== b.time, "#entValForm": n.ent !== b.ent, "#mdetForm": n.det !== b.det, ".eatseg": n.eaten !== b.eaten, "#rateBox": n.rate !== b.rate,
     "#carbsFix": n.total !== b.total, "#cmtForm": !!n.cmt };
   for (const [sel, on] of Object.entries(parts)) $(sel)?.classList.toggle("dirty", on);
   const any = Object.values(parts).some(Boolean);
@@ -1066,6 +1078,10 @@ async function saveLogEdits(btn) {
       }
       if (body.bg == null && body.carbs == null && body.insulin == null && !note) throw new Error("An entry needs carbs, a BG reading, insulin or a note. To remove it, delete the entry.");
       steps.push(["entry", () => api(`/api/entries/${id}`, { method: "PUT", body })]);
+    }
+    if (!entry && n.rate !== b.rate) {   // allowed on any day (okf/features/rate-meal.md)
+      const [gi, rise] = n.rate.split("|");
+      steps.push(["rate", () => api(`/api/meals/${id}/rating`, { method: "PUT", body: { gi: gi || null, rise: rise || null } })]);
     }
     if (!entry && n.eaten !== b.eaten) steps.push(["eaten", () => api(`/api/meals/${id}`, { method: "PATCH", body: { eaten: n.eaten } })]);
     if (!entry && n.total !== b.total) {   // a corrected total, with its reason (okf/domain/meal.md)
@@ -1110,6 +1126,9 @@ async function renderMeal() {
         ${detailFields(m)}</form>`
       : `<p class="${detailSummary(m) ? "" : "meta"}">${esc(detailSummary(m)) || "None added"}</p>`}
     ${S.session?.glucose ? `<div class="glab"><span class="label">Glucose · mg/dL</span><span class="meta" id="gUpdated"></span></div><div id="gBox"><p class="meta">Loading glucose…</p></div>` : ""}
+    <div class="glab"><span class="label">Rating</span><span class="meta">Your own judgement, to spot patterns</span></div>
+    <div id="rateBox" class="ratebox">${RATE.map(([k, label, opts]) => `<div class="raterow"><span>${label}</span><div class="seg neutral rateseg" role="group" aria-label="${label}">
+      ${opts.map(o => `<button type="button" data-rate="${o}" class="${m[k] === o ? "on" : ""}" aria-pressed="${m[k] === o}">${cap(o)}</button>`).join("")}</div></div>`).join("")}</div>
     <div class="glab"><span class="label">How much was eaten</span>${ed ? "" : `<span class="meta">Read-only</span>`}</div>
     ${ed ? `<div class="seg neutral eatseg" role="group" aria-label="How much was eaten">${EATEN.map(x => `<button type="button" data-eaten="${x}" class="${m.eaten === x ? "on" : ""}" aria-pressed="${m.eaten === x}">${cap(x)}</button>`).join("")}</div>
       <p class="note">This is a note. Carbs stay as served.</p>` : `<p>${m.eaten ? cap(m.eaten) : "Not set"}</p>`}
@@ -1132,6 +1151,8 @@ async function loadCurve(m) {
     <span>At meal <b>${w.at_meal ?? "–"}</b></span>
     <span>Peak <b>${w.peak ? w.peak.sgv : "–"}</b>${w.peak ? ` at ${hhmm(new Date(w.peak.ms))}` : ""}</span>
     <span>2 h <b>${w.two_h ?? "–"}</b></span>
+    ${w.rise_1h != null ? `<span>Rose <b>${w.rise_1h > 0 ? "+" : ""}${w.rise_1h}</b> in 1 h</span>` : ""}
+    ${w.to_peak_min != null ? `<span>Peak at <b>${w.to_peak_min}</b> min</span>` : ""}
     ${w.lowest && w.lowest.sgv < w.low ? `<span class="warn">Lowest <b class="warn">${w.lowest.sgv}</b> at ${hhmm(new Date(w.lowest.ms))}</span>` : ""}
     <span class="${w.coverage < 0.7 ? "warn" : ""}">Sensor ${Math.round(w.coverage * 100)}%</span>
     ${w.in_progress ? `<span>In progress</span>` : ""}</div>
@@ -1176,7 +1197,7 @@ function curveSvg(w) {
 let confirmDelete = 0;
 $("#v-log").addEventListener("click", async e => {
   if (e.target.closest("#mealDetail")) setTimeout(logDirty);   // after the switches below have moved
-  const t = e.target.closest("[data-day],[data-meal],[data-entry],[data-kind],[data-ekind],[data-eaten],[data-act],[data-period],[data-restore]"); if (!t) return;
+  const t = e.target.closest("[data-day],[data-meal],[data-entry],[data-kind],[data-ekind],[data-eaten],[data-rate],[data-act],[data-period],[data-restore]"); if (!t) return;
   const d = S.log.data;
   if (t.matches("[data-day],[data-meal],[data-entry],[data-period],[data-restore],[data-act=add-entry]") && logDirty()) {
     toast("Save or discard the changes first");   // nothing typed is lost without a choice
@@ -1216,7 +1237,7 @@ $("#v-log").addEventListener("click", async e => {
     t.parentElement.querySelectorAll("button").forEach(b => { b.classList.toggle("on", on && b === t); b.setAttribute("aria-pressed", on && b === t); });
     logDirty();
   }
-  else if (t.dataset.eaten) {   // chosen here, saved with the rest; tapping the chosen one clears it
+  else if (t.dataset.eaten || t.dataset.rate) {   // chosen here, saved with the rest; tapping the chosen one clears it
     const on = !t.classList.contains("on");
     t.parentElement.querySelectorAll("button").forEach(b => { b.classList.toggle("on", on && b === t); b.setAttribute("aria-pressed", on && b === t); });
     logDirty();
@@ -1819,6 +1840,13 @@ const mSubmit = async e => {
     try { const r = await api("/api/nightscout", { method: "POST", parent: true, body: { url: $("#nsUrl").value.trim(), token: $("#nsToken").value.trim() } });
       toast(`Connected. Latest reading ${r.latest.sgv} mg/dL.`); S.session.glucose = true; renderNightscout(); }
     catch (err) { $("#nsErr").textContent = err.message; btn.disabled = false; }
+  } else if (id === "nsSendForm") {   // the token's permissions are checked with Nightscout before it's saved
+    const btn = e.target.querySelector(".btn.primary"); btn.disabled = true;
+    try {
+      await api("/api/nightscout/send", { method: "PUT", parent: true, body: { send_from: $("#nsFrom").value,
+        carbs: $("#nsCarbs").checked, insulin: $("#nsIns").checked, bg: $("#nsBg").checked } });
+      toast("Sending to Nightscout within a minute"); renderNsSend();
+    } catch (err) { renderNsSend(err.message); }
   } else if (id === "tgForm") {
     try { await api("/api/targets", { method: "PUT", parent: true, body: { low: +$("#tgLow").value, high: +$("#tgHigh").value } }); toast("Target range saved"); S.session.targets = [+$("#tgLow").value, +$("#tgHigh").value]; }
     catch (err) { toast(err.message); }
@@ -1877,6 +1905,18 @@ const mClick = async e => {
       else { confirmTpRemove = 0; await api("/api/tidepool/data", { method: "DELETE", parent: true }); toast("Removed what Kitchen Carbs sent to Tidepool"); }
       renderTidepool();
     } catch (err) { renderTidepool(err.message); }
+    return;
+  }
+  if (["nss-sync", "nss-resend", "nss-off", "nss-remove"].includes(t.dataset.act)) {
+    if (t.dataset.act === "nss-remove" && Date.now() - confirmNsRemove > 4000) { confirmNsRemove = Date.now(); t.textContent = "Tap again to remove"; return; }
+    t.disabled = true;
+    try {
+      if (t.dataset.act === "nss-sync") { const r = await api("/api/nightscout/send/sync", { method: "POST", parent: true }); toast(`Sent ${r.sent}, removed ${r.removed}`); }
+      else if (t.dataset.act === "nss-resend") { const r = await api("/api/nightscout/send/sync?resend=1", { method: "POST", parent: true }); toast(`Resent ${r.sent}, removed ${r.removed}`); }
+      else if (t.dataset.act === "nss-off") { await api("/api/nightscout/send/off", { method: "POST", parent: true }); toast("Nightscout sending off"); }
+      else { confirmNsRemove = 0; const r = await api("/api/nightscout/send/data", { method: "DELETE", parent: true }); toast(`Removed ${r.removed} from Nightscout`); }
+      renderNsSend();
+    } catch (err) { renderNsSend(err.message); }
     return;
   }
   if (["push-on", "push-off", "push-test"].includes(t.dataset.act) || t.dataset.pushdel) {
@@ -2649,7 +2689,7 @@ async function renderNightscout() {
   const ago = ms => ms ? `${Math.max(0, Math.round((Date.now() - ms) / 60000))} min ago` : "never";
   $m().innerHTML = `<div class="pad"><div class="form">
     <h2>Nightscout</h2>
-    <p class="meta">Read-only. The app pulls glucose readings every 5 minutes and never writes anything to Nightscout. The token stays on the kitchen server.</p>
+    <p class="meta">The app pulls glucose readings every 5 minutes. It writes to Nightscout only if 'Send to Nightscout' below is turned on. The token stays on the kitchen server.</p>
     ${s.configured ? `<div class="strip"><div class="tirl"><span>Connected to <b>${esc(s.url)}</b></span></div>
       <div class="tirl">${s.latest ? `<span>Latest <b>${s.latest.sgv}</b> mg/dL ${esc(s.latest.direction || "")} · ${ago(s.latest.date_ms)}</span>` : "<span>No readings yet</span>"}
       <span>${s.readings} readings stored</span><span>Last sync ${ago(s.last_sync_ms)}</span></div>
@@ -2657,13 +2697,43 @@ async function renderNightscout() {
       <div class="actions"><button class="btn quiet" data-act="ns-off">Disconnect</button></div>` : ""}
     <form class="form" id="nsForm"><h3>${s.configured ? "Change connection" : "Connect"}</h3>
       <label class="field"><span>Nightscout address</span><input id="nsUrl" type="url" required placeholder="https://yoursite.example.com" value="${esc(s.url || "")}"></label>
-      <label class="field"><span>Access token with the "readable" role (Admin tools → Subjects). Not the API secret.</span><input id="nsToken" type="password" required autocomplete="off"></label>
+      <label class="field"><span>Access token with the "readable" role (Admin tools → Subjects). Not the API secret. To send the log too, the token also needs a role with api:treatments:*.</span><input id="nsToken" type="password" required autocomplete="off"></label>
       <p class="err" id="nsErr"></p><div class="actions"><button class="btn primary">Test and save</button><button type="button" class="btn quiet" data-act="form-reset">Cancel</button></div></form>
+    ${s.configured ? `<div id="nsSendBox"></div>` : ""}
     <form class="form" id="tgForm"><h3>Target range (mg/dL)</h3><p class="meta">Used for time in range. Default 70–180; set it from your care team's advice.</p>
       <div class="fieldrow"><label class="field"><span>Low</span><input id="tgLow" type="number" min="54" max="120" value="${s.low}"></label>
       <label class="field"><span>High</span><input id="tgHigh" type="number" min="120" max="300" value="${s.high}"></label></div>
       <div class="actions"><button class="btn">Save range</button><button type="button" class="btn quiet" data-act="form-reset">Cancel</button></div></form>
   </div></div>`;
+  renderNsSend();
+}
+
+/* ---------- Send to Nightscout (okf/features/nightscout-send.md) ---------- */
+let confirmNsRemove = 0;
+async function renderNsSend(msg = "") {
+  const box = $("#nsSendBox"); if (!box) return;
+  let t; try { t = await api("/api/nightscout/send", { parent: true }); } catch { return; }
+  if (!t.available) { box.innerHTML = `<section class="form"><h3>Send to Nightscout</h3><p class="meta">Only production sends, so test meals never reach the real record.</p></section>`; return; }
+  const k = t.kinds;
+  box.innerHTML = `<form class="form" id="nsSendForm"><h3>Send to Nightscout</h3>
+    <p class="meta">Sends the log's carbs, insulin and meter BG to Nightscout as treatments, so OpenAPS or another app can forecast with them.
+      New, changed and deleted meals and entries follow within a minute. Only what Kitchen Carbs sent is ever changed.</p>
+    ${t.on ? `<p>Sending. ${t.last_sync ? `Last sent ${esc(movedLabel(t.last_sync))}` : "Not sent yet"} · ${t.sent} treatment${t.sent === 1 ? "" : "s"} in Nightscout.</p>`
+      : t.sent ? `<p class="meta">Not sending. ${t.sent} treatment${t.sent === 1 ? "" : "s"} still in Nightscout. Save to start again.</p>` : ""}
+    ${t.last_error ? `<p class="warn">Last try failed: ${esc(t.last_error)}</p>` : ""}
+    <label class="field"><span>Send from</span><input id="nsFrom" type="date" max="${localDay()}" value="${esc(t.from)}" required></label>
+    <fieldset class="field"><legend>What to send</legend>
+      <label class="check"><input type="checkbox" id="nsCarbs" ${k.carbs ? "checked" : ""}><span>Carbs: each meal's total with its foods, and carbs typed in entries</span></label>
+      <label class="check"><input type="checkbox" id="nsIns" ${k.insulin ? "checked" : ""}><span>Rapid-acting insulin typed on meals and entries, at the time it was given</span></label>
+      <label class="check"><input type="checkbox" id="nsBg" ${k.bg ? "checked" : ""}><span>Meter BG typed on meals and entries (never CGM)</span></label>
+      <p class="meta">Long-acting insulin goes only as a note: OpenAPS would count it as rapid-acting. Set its effect as the basal rate in the Nightscout profile.</p>
+      <p class="meta warn">Switch a kind off if a pump or another app also puts it in Nightscout, or the forecast counts it twice.</p>
+      <p class="meta">Switching a kind off removes what was sent of it.</p></fieldset>
+    <p class="meta">The token needs a role with api:treatments:* (Admin tools → Roles), as well as 'readable'. Saving checks this first.</p>
+    <p class="err" role="alert">${esc(msg)}</p>
+    <div class="actions"><button class="btn primary">${t.on ? "Save" : "Check and send"}</button>
+      ${t.on ? `<button type="button" class="btn" data-act="nss-sync">Send now</button><button type="button" class="btn" data-act="nss-resend">Resend everything</button><button type="button" class="btn quiet" data-act="nss-off">Turn off</button>` : ""}
+      ${t.sent ? `<button type="button" class="btn quiet" data-act="nss-remove">${Date.now() - confirmNsRemove < 4000 ? "Tap again to remove" : "Remove from Nightscout"}</button>` : ""}</div></form>`;
 }
 
 /* Insulin settings by time of day (okf/domain/insulin-settings.md); used only by the meal summary */

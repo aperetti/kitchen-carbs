@@ -7,7 +7,7 @@ timestamp: 2026-10-27
 status: draft
 links:
   sourced_from: [architecture/nightscout-client.md]
-  governed_by: [rules/nightscout-read-only.md, rules/glucose-units.md]
+  governed_by: [rules/nightscout-sends-what-was-logged.md, rules/glucose-units.md]
 ---
 # Glucose reading
 - From Nightscout `entries` (type `sgv`): `date` (ms), `sgv` (always mg/dL in the API), `direction`.

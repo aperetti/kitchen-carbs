@@ -7,7 +7,7 @@ timestamp: 2026-10-26
 status: draft
 links:
   part_of: [domain/meal-log.md]
-  has: [domain/meal-note.md, domain/meal-glucose.md]
+  has: [domain/meal-note.md, domain/meal-glucose.md, domain/meal-rating.md]
   governed_by: [rules/snapshot-log-values.md, rules/same-day-edits.md]
 ---
 # Meal
@@ -30,3 +30,5 @@ Optional details that go with the meal (decided 29 Oct), each left empty unless 
 They are entered in the meal summary when saving, and can be added or changed from the log, on earlier days too
 while the setting allows it (okf/rules/same-day-edits.md). The day's insulin totals include meal insulin; insulin and a meter BG show on the meal's
 glucose graph at their own times; the export has them on each of the meal's rows.
+
+A meal can also carry the parent's rating of its GI and speed of rise (okf/domain/meal-rating.md, decided 1 Nov).

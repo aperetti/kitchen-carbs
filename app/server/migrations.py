@@ -206,11 +206,22 @@ def m016_tidepool_sent(con):
     con.execute("CREATE TABLE tidepool_sent (origin_id TEXT PRIMARY KEY, hash TEXT NOT NULL, sent_at TEXT NOT NULL)")
 
 
+def m017_nightscout_sent(con):
+    """What has been sent to Nightscout, by origin ID, with its v3 identifier (okf/architecture/nightscout-client.md)."""
+    con.execute("CREATE TABLE nightscout_sent (origin_id TEXT PRIMARY KEY, identifier TEXT NOT NULL, hash TEXT NOT NULL, sent_at TEXT NOT NULL)")
+
+
+def m018_meal_rating(con):
+    """A parent's rating of a meal's GI and speed of rise (okf/domain/meal-rating.md)."""
+    con.execute("ALTER TABLE meals ADD COLUMN gi TEXT")     # low, medium, high
+    con.execute("ALTER TABLE meals ADD COLUMN rise TEXT")   # slow, steady, fast
+
+
 MIGRATIONS = [m001_schema, m002_sessions, m003_cooked_state, m004_moved_from, m005_portion_labels, m006_fiber,
               m007_food_confirmations, m008_meal_details, m009_barcode,
               m010_entered_carbs, m011_edited_later,
               m012_soft_delete, m013_carbs_corrected, m014_favorite_photo,
-              m015_push_subscriptions, m016_tidepool_sent]
+              m015_push_subscriptions, m016_tidepool_sent, m017_nightscout_sent, m018_meal_rating]
 LATEST = len(MIGRATIONS)
 
 

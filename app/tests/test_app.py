@@ -579,7 +579,7 @@ def test_manual_entries(app):
     assert log["total"] == 43 + 15 and log["insulin"] == {"rapid": 2.5, "long": 8}
     assert [x["time"] for x in log["entries"]] == ["18:00", "21:00"]
     csv = client.get("/api/export.csv?start=2026-10-27&end=2026-10-27").text.splitlines()
-    assert csv[1] == "2026-10-27,18:00,entry,,,,,15,,,142,2.5,rapid,juice,,meter,,,," and csv[2].startswith("2026-10-27,18:05,meal")
+    assert csv[1] == "2026-10-27,18:00,entry,,,,,15,,,142,2.5,rapid,juice,,meter,,,,,," and csv[2].startswith("2026-10-27,18:05,meal")
     assert client.delete(f"/api/entries/{e['id']}").status_code == 200
     assert client.get("/api/log").json()["insulin"] == {"long": 8}
 
@@ -1218,7 +1218,7 @@ def test_change_date_and_time_any_day_marked(app):
     eid = client.post("/api/entries", json={"client_id": "entry-move-1", "day": "2026-10-27", "time": "12:00", "bg": 110}).json()["id"]
     assert client.put(f"/api/entries/{eid}/when", json={"day": "2026-10-26", "time": "12:30"}).json()["moved_from"] == "2026-10-27 12:00"
     csv_text = client.get("/api/export.csv?start=2026-10-25&end=2026-10-27").text
-    assert csv_text.splitlines()[0].endswith(",moved_from,bg_source,insulin_min_before_eating,eating_min,changed_later,meal_total_from_foods_g") and "2026-10-27 12:00" in csv_text
+    assert csv_text.splitlines()[0].endswith(",moved_from,bg_source,insulin_min_before_eating,eating_min,changed_later,meal_total_from_foods_g,gi_rating,rise_rating") and "2026-10-27 12:00" in csv_text
 
 
 def test_portion_label_is_amount_then_unit(app):
@@ -1549,3 +1549,169 @@ def test_tidepool_off_in_qa(app, monkeypatch):
     monkeypatch.setenv("KC_ENV", "qa")
     assert client.put("/api/tidepool", json=TP).status_code == 400
     assert main.tidepool.sync_once() == {}
+
+
+class FakeNightscout:
+    """Nightscout's v3 treatments as the sender uses them: a JWT with the token's permissions, POST deduplicated by
+    identifier (or by created_at + eventType), DELETE soft unless permanent=true (lib/api3 in cgm-remote-monitor)."""
+    def __init__(self, perms=("*:*:read", "api:treatments:*")):
+        self.docs, self.perms, self.calls, self.fail_next = {}, list(perms), [], None
+
+    def resp(self, status, body=None):
+        import requests
+        r = requests.Response(); r.status_code = status
+        r._content = json.dumps(body).encode() if body is not None else b""
+        r.headers["content-type"] = "application/json"
+        return r
+
+    def get(self, url, params=None, timeout=None, headers=None):
+        if "/api/v2/authorization/request/" in url:
+            if not url.endswith("/tok-good"):
+                return self.resp(401)
+            return self.resp(200, {"token": "jwt-1", "sub": "kitchen", "permissionGroups": [self.perms], "exp": 9e9})
+        return self.resp(200, [])   # the reader's glucose and status calls: nothing new
+
+    def request(self, method, url, json=None, timeout=None, headers=None):
+        assert headers["Authorization"] == "Bearer jwt-1"
+        self.calls.append((method, url.split("/api/v3/treatments")[1]))
+        if self.fail_next:
+            status, self.fail_next = self.fail_next, None
+            return self.resp(status, {"message": "boom"})
+        if method == "POST":
+            from datetime import timezone
+            doc = dict(json, created_at=datetime.fromtimestamp(json["date"] / 1000, timezone.utc).isoformat())
+            same = [k for k, d in self.docs.items() if k == doc["identifier"]
+                    or (d["created_at"], d["eventType"]) == (doc["created_at"], doc["eventType"])]
+            for k in same:
+                del self.docs[k]
+            self.docs[doc["identifier"]] = doc
+            return self.resp(200 if same else 201, {"identifier": doc["identifier"]})
+        ident = url.split("/api/v3/treatments/")[1].split("?")[0]
+        if method == "DELETE":
+            assert url.endswith("?permanent=true")   # a soft delete would still be counted by OpenAPS
+            return self.resp(200) if self.docs.pop(ident, None) else self.resp(404)
+        raise AssertionError(method)
+
+
+def test_nightscout_send(app, monkeypatch):
+    """okf/features/nightscout-send.md, okf/rules/nightscout-sends-what-was-logged.md."""
+    import uuid
+    client, main = app
+    ns = FakeNightscout(perms=("*:*:read", "api:treatments:create"))   # the built-in careportal role: create only
+    monkeypatch.setattr(main.nightscout_send.requests, "get", ns.get)
+    monkeypatch.setattr(main.nightscout_send.requests, "request", ns.request)
+    monkeypatch.setattr(main.nightscout_send, "_jwt", {})
+    monkeypatch.setattr(main.nightscout, "latest", lambda url, token: {"date_ms": 1, "sgv": 120, "direction": "Flat"})
+    monkeypatch.setattr(main.nightscout, "targets", lambda url, token: (None, None))
+    send = {"send_from": "2026-10-20"}
+    assert client.put("/api/nightscout/send", json=send).json()["detail"] == "Connect Nightscout first."
+    client.post("/api/nightscout", json={"url": "https://ns.example.com/", "token": "tok-good"})
+    r = client.put("/api/nightscout/send", json=send)
+    assert r.status_code == 400 and "can't update, delete treatments" in r.json()["detail"] and "api:treatments:*" in r.json()["detail"]
+    assert client.get("/api/nightscout/send").json()["on"] is False
+    ns.perms = ["*:*:read", "api:treatments:*"]
+    body = meal(); body.update(bg=182, bg_source="cgm", insulin=2.5, insulin_kind="bolus", insulin_offset_min=15)
+    mid = client.post("/api/meals", json=body).json()["id"]
+    e1 = client.post("/api/entries", json=entry(bg=65, carbs=15, note="juice")).json()["id"]
+    e2 = client.post("/api/entries", json=entry(insulin=12, insulin_kind="long", cid="entry-0002", time="21:00")).json()["id"]
+    old = client.post("/api/entries", json={**entry(carbs=20, cid="entry-0003"), "day": "2026-10-19"}).json()["id"]
+    s = client.put("/api/nightscout/send", json=send).json()
+    assert s["on"] and s["kinds"] == {"carbs": True, "insulin": True, "bg": True}
+    r = client.post("/api/nightscout/send/sync").json()
+    assert (r["sent"], r["removed"]) == (5, 0)
+    by_dev = {d["device"].split("://")[1]: d for d in ns.docs.values()}
+    assert sorted(by_dev) == sorted([f"kc-meal-{mid}", f"kc-meal-{mid}-insulin", f"kc-entry-{e1}-carbs", f"kc-entry-{e1}-bg", f"kc-entry-{e2}-insulin"])
+    carbs = by_dev[f"kc-meal-{mid}"]
+    assert (carbs["eventType"], carbs["carbs"], carbs["app"], carbs["notes"]) == ("Meal Bolus", 43, "kitchen-carbs", "Pasta, cooked")
+    assert "insulin" not in carbs and f"kc-meal-{mid}-bg" not in by_dev                       # CGM BG is never sent
+    ins = by_dev[f"kc-meal-{mid}-insulin"]
+    local = datetime.fromtimestamp(ins["date"] / 1000)
+    assert (ins["eventType"], ins["insulin"], local.strftime("%H:%M")) == ("Meal Bolus", 2.5, "17:50")   # when it was given
+    assert 0 < ins["date"] % 60000 < 1000                                                     # ms apart from other apps' treatments
+    assert ins["identifier"] == str(uuid.uuid5(uuid.UUID(bytes=b"NightscoutRocks!"), f"{ins['device']}_{ins['date']}_Meal Bolus"))
+    long = by_dev[f"kc-entry-{e2}-insulin"]
+    assert long["eventType"] == "Note" and "insulin" not in long and long["notes"] == "Long-acting insulin 12 u"
+    assert by_dev[f"kc-entry-{e1}-bg"].items() >= {"eventType": "BG Check", "glucose": 65, "glucoseType": "Finger", "units": "mg/dl"}.items()
+    assert by_dev[f"kc-entry-{e1}-carbs"]["eventType"] == "Carb Correction" and by_dev[f"kc-entry-{e1}-carbs"]["notes"] == "juice"
+    assert not any(k in d for d in ns.docs.values() for k in ("dose", "calc"))
+    # nothing changed: nothing sent; resend replaces each by its identifier, so nothing doubles
+    assert client.post("/api/nightscout/send/sync").json()["sent"] == 0
+    assert client.post("/api/nightscout/send/sync?resend=1").json()["sent"] == 5 and len(ns.docs) == 5
+    # an edit keeps the identifier; a move deletes the old one first; a delete deletes for good
+    client.put(f"/api/meals/{mid}/carbs", json={"total": 30, "reason": "left some"})
+    ns.calls.clear(); client.post("/api/nightscout/send/sync")
+    assert [c[0] for c in ns.calls] == ["POST"] and by_dev[f"kc-meal-{mid}"]["identifier"] in ns.docs
+    assert ns.docs[by_dev[f"kc-meal-{mid}"]["identifier"]]["carbs"] == 30
+    client.put(f"/api/entries/{e1}/when", json={"day": "2026-10-27", "time": "18:20"})
+    ns.calls.clear(); client.post("/api/nightscout/send/sync")
+    assert [c[0] for c in ns.calls] == ["DELETE", "POST", "DELETE", "POST"] and len(ns.docs) == 5
+    client.delete(f"/api/entries/{e2}")
+    client.post("/api/nightscout/send/sync")
+    assert len(ns.docs) == 4 and not any("Long-acting" in d.get("notes", "") for d in ns.docs.values())
+    # a kind switched off is removed
+    client.put("/api/nightscout/send", json={**send, "insulin": False, "bg": False})
+    client.post("/api/nightscout/send/sync")
+    assert sorted(d["eventType"] for d in ns.docs.values()) == ["Carb Correction", "Meal Bolus"]
+    # an error is kept for the screen
+    ns.fail_next = 500
+    client.put(f"/api/meals/{mid}/carbs", json={"total": 31, "reason": "again"})
+    assert client.post("/api/nightscout/send/sync").status_code == 502
+    assert "500" in client.get("/api/nightscout/send").json()["last_error"]
+    assert client.post("/api/nightscout/send/sync").json()["sent"] == 1
+    assert client.get("/api/nightscout/send").json()["last_error"] == ""
+    # remove deletes only what was sent, and turns sending off
+    ns.docs["someone-else"] = {"eventType": "Meal Bolus", "created_at": "x"}
+    r = client.delete("/api/nightscout/send/data").json()
+    assert r["removed"] == 2 and r["on"] is False and r["sent"] == 0 and list(ns.docs) == ["someone-else"]
+    # a different site forgets what was sent and stops; QA never sends
+    client.put("/api/nightscout/send", json=send); client.post("/api/nightscout/send/sync")
+    client.post("/api/nightscout", json={"url": "https://other.example.com", "token": "tok-good"})
+    s = client.get("/api/nightscout/send").json()
+    assert s["on"] is False and s["sent"] == 0
+    monkeypatch.setenv("KC_ENV", "qa")
+    assert client.put("/api/nightscout/send", json=send).status_code == 400
+    assert main.nightscout_send.sync_once() == {} and client.get("/api/nightscout/send").json()["available"] is False
+
+
+def test_nightscout_permissions():
+    from server.nightscout_send import missing_permissions as miss
+    assert miss([["*"]]) == [] and miss([["api:treatments:*"]]) == [] and miss([["api:treatments"]]) == []
+    assert miss([["api:treatments:create,update,delete"]]) == []
+    assert miss([["*:*:read"], ["api:treatments:create"]]) == ["api:treatments:update", "api:treatments:delete"]
+    assert miss([["api:entries:*"]]) == ["api:treatments:create", "api:treatments:update", "api:treatments:delete"]
+
+
+def test_meal_rating(app):
+    """okf/features/rate-meal.md: on any day, nothing else changes; foods count how their meals were rated."""
+    client, main = app
+    m1 = client.post("/api/meals", json=meal(day="2026-10-26", cid="rate-0001")).json()["id"]
+    m2 = client.post("/api/meals", json=meal(cid="rate-0002")).json()["id"]
+    m3 = client.post("/api/meals", json=meal(time="19:00", cid="rate-0003")).json()["id"]
+    client.put("/api/settings/past-edits", json={"allowed": False})
+    marked = client.get("/api/log?day=2026-10-26").json()["meals"][0]["edited_at"]
+    assert client.put(f"/api/meals/{m1}/rating", json={"gi": "high", "rise": "fast"}).status_code == 200   # an earlier day
+    assert client.put(f"/api/meals/{m2}/rating", json={"rise": "fast"}).status_code == 200
+    assert client.put(f"/api/meals/{m3}/rating", json={"gi": "loud"}).status_code == 422
+    client.put(f"/api/meals/{m3}/rating", json={"gi": "medium", "rise": "steady"})
+    day = client.get("/api/log?day=2026-10-26").json()["meals"][0]
+    assert (day["gi"], day["rise"], day["edited_at"]) == ("high", "fast", marked)              # not marked 'changed later' again
+    pasta = next(f for f in client.get("/api/foods").json() if f["id"] == "pasta-cooked")
+    assert pasta["ratings"] == {"gi": {"high": 1, "medium": 1}, "rise": {"fast": 2, "steady": 1}, "meals": 3}
+    client.put(f"/api/meals/{m2}/rating", json={})                                             # cleared
+    client.delete(f"/api/meals/{m3}")
+    pasta = next(f for f in client.get("/api/foods").json() if f["id"] == "pasta-cooked")
+    assert pasta["ratings"] == {"gi": {"high": 1}, "rise": {"fast": 1}, "meals": 1}
+    assert next(f for f in client.get("/api/foods").json() if f["id"] == "apple-sliced")["ratings"] is None
+    rows = client.get("/api/export.csv?start=2026-10-26&end=2026-10-27").text.splitlines()
+    head = rows[0].split(","); first = rows[1].split(",")
+    assert head[-2:] == ["gi_rating", "rise_rating"] and first[-2:] == ["high", "fast"]
+    assert client.get("/api/export.pdf?start=2026-10-26&end=2026-10-27").status_code == 200
+
+
+def test_meal_window_rise_and_peak():
+    from server.core import meal_window
+    m = 10_000_000
+    rs = [(m, 110), (m + 1_800_000, 170), (m + 3_300_000, 195), (m + 4_200_000, 230), (m + 7_200_000, 150)]
+    w = meal_window(rs, m, m + 4 * 3_600_000)
+    assert w["rise_1h"] == 85 and w["to_peak_min"] == 70
+    assert meal_window(rs[1:], m, m + 4 * 3_600_000)["rise_1h"] is None                        # no reading at the meal

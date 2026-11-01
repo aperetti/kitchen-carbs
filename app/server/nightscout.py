@@ -1,7 +1,6 @@
-"""Read-only Nightscout client (okf/architecture/nightscout-client.md).
-
-Only GET requests are made: the app never writes to Nightscout
-(okf/rules/nightscout-read-only.md). The token stays here on the server.
+"""Nightscout reader (okf/architecture/nightscout-client.md): glucose, IOB and targets, with GET requests only.
+Sending treatments, when a parent switches it on, is nightscout_send.py (okf/rules/nightscout-sends-what-was-logged.md).
+The token stays here on the server.
 """
 import logging
 import threading

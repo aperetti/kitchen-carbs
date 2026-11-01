@@ -7,7 +7,7 @@ timestamp: 2026-10-29
 status: draft
 links:
   uses: [domain/plate.md, domain/insulin-settings.md, domain/glucose-reading.md]
-  constrained_by: [rules/no-dosing.md, rules/glucose-units.md, rules/nightscout-read-only.md, rules/whole-gram-rounding.md]
+  constrained_by: [rules/no-dosing.md, rules/glucose-units.md, rules/nightscout-sends-what-was-logged.md, rules/whole-gram-rounding.md]
   depends_on: [architecture/nightscout-client.md]
 ---
 # Meal summary and dose

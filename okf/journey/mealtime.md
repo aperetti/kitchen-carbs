@@ -6,7 +6,7 @@ tags: [journey]
 timestamp: 2026-10-27
 status: draft
 links:
-  involves: [features/sign-in.md, features/install-app.md, features/food-lookup.md, features/manual-log.md, features/photo-style-setup.md, features/scan-label.md, features/favorite-plates.md, features/connect-nightscout.md, features/meal-glucose-view.md, features/glucose-stats-view.md, features/photo-pipeline.md, features/manage-foods.md, features/browse-foods.md, features/view-food.md, features/build-plate.md, features/kitchen-scale.md, features/log-meal.md, features/annotate-meal.md, features/review-log.md, features/export-log.md, features/fill-in-fiber.md, features/meal-dose-summary.md, features/confirm-food.md, features/notify-family.md, features/tidepool-sync.md]
+  involves: [features/sign-in.md, features/install-app.md, features/food-lookup.md, features/manual-log.md, features/photo-style-setup.md, features/scan-label.md, features/favorite-plates.md, features/connect-nightscout.md, features/meal-glucose-view.md, features/glucose-stats-view.md, features/photo-pipeline.md, features/manage-foods.md, features/browse-foods.md, features/view-food.md, features/build-plate.md, features/kitchen-scale.md, features/log-meal.md, features/annotate-meal.md, features/review-log.md, features/export-log.md, features/fill-in-fiber.md, features/meal-dose-summary.md, features/confirm-food.md, features/notify-family.md, features/tidepool-sync.md, features/nightscout-send.md, features/rate-meal.md]
 steps:
   - id: sign-in
     phase: Set up (once)
@@ -20,12 +20,12 @@ steps:
   - id: connect
     phase: Set up (once)
     name: Connect Nightscout
-    doing: "Creates a read-only token in Nightscout and pastes the site address and token into the app."
+    doing: "Creates a token in Nightscout and pastes the site address and token into the app; optionally turns on sending the log's carbs and insulin to Nightscout for OpenAPS forecasts."
     screen: "Manage → Nightscout (parent PIN)"
-    thinking: "I don't want this app changing anything in Nightscout."
-    risk: "Using the API secret, which gives full write access."
-    helps: "Asks for a readable token only; test shows the latest reading; token stays on the home server. Tidepool can be connected in Settings to receive the log's carbs, meter BG and insulin, each switched on separately."
-    features: [features/connect-nightscout.md, features/tidepool-sync.md]
+    thinking: "I want the forecast to know what he ate and what I gave, without anything counted twice."
+    risk: "Using the API secret, which gives full write access; long-acting insulin counted as rapid-acting; the same insulin sent from two places."
+    helps: "Reading needs only a readable token; sending is off until switched on and needs a role limited to treatments; long-acting goes as a note; a warning about double counting sits beside each switch; token stays on the home server. Tidepool can be connected in Settings to receive the log's carbs, meter BG and insulin, each switched on separately."
+    features: [features/connect-nightscout.md, features/nightscout-send.md, features/tidepool-sync.md]
   - id: style-setup
     phase: Set up (once)
     name: Set the photo style
@@ -159,8 +159,8 @@ steps:
     screen: "Log → meal entry, glucose curve"
     thinking: "He went high, but he also had juice at 7."
     risk: "Reading one curve as proof a portion was wrong, or a sensor gap as a flat line."
-    helps: "Overlapping meals shown together; gaps shown as gaps; no good/bad grading."
-    features: [features/meal-glucose-view.md]
+    helps: "Overlapping meals shown together; gaps shown as gaps; no good/bad grading. The rise in the first hour and the minutes to peak are shown as numbers; the parent rates the meal's GI and how fast it rose, and each food then shows how its meals were rated."
+    features: [features/meal-glucose-view.md, features/rate-meal.md]
   - id: review
     phase: Later
     name: Review and share

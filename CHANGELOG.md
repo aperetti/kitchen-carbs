@@ -4,6 +4,14 @@ Each version is what went to the family's kitchen on that date (okf/architecture
 ## Unreleased
 - Manage → Foods and photos: **Check new photos** goes through every new photo one after another, with Use, Try
   again, Discard and Skip, without opening each food.
+- **Send to Nightscout** (Manage → Nightscout, off until switched on): the log's carbs, rapid-acting insulin and meter
+  BG go to Nightscout as treatments, so OpenAPS can forecast with them, starting 30 days back. Edits and deletes
+  follow within a minute. Long-acting insulin goes only as a note, so it is never counted as insulin on board; set
+  it as the basal rate in the Nightscout profile. The token needs a role with `api:treatments:*`.
+- **Rate a meal**: in the log, rate each meal's GI (low, medium, high) and how fast glucose rose (slow, steady,
+  fast). The curve now also shows how much glucose rose in the first hour and when it peaked. Each food's details
+  show how the meals it was in were rated, and its card says "Fast rise" or "Slow rise" when most of them agree.
+  The ratings are in the CSV and PDF too.
 
 ## v2026.11.01.2 · 1 Nov 2026
 - Only the app itself and the family's own dashboard (set on the server) can show Kitchen Carbs inside a frame.

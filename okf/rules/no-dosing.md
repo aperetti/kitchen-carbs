@@ -20,5 +20,5 @@ Until 29 Oct the app never calculated insulin. On 29 Oct the parent decided the 
 - BG from the CGM only if the reading is under 15 minutes old; otherwise it must be typed. It can always be overwritten.
 - Insulin on board comes from Nightscout and is taken off the correction only. If Nightscout has none, the summary says
   plainly that nothing was taken off.
-- The app never gives the dose to the pump, never writes it to Nightscout (okf/rules/nightscout-read-only.md) and never
+- The app never gives the dose to the pump, never writes it to Nightscout (okf/rules/nightscout-sends-what-was-logged.md) and never
   logs it as given. It says to check it against the pump before giving.

@@ -195,4 +195,16 @@ def test_v15_adds_tidepool_sent(tmp_path, monkeypatch):
     monkeypatch.setattr(migrations, "MIGRATIONS", real); monkeypatch.setattr(migrations, "LATEST", len(real))
     assert migrations.run(db, **QUIET) == 15
     con = sqlite3.connect(db)
-    assert con.execute("SELECT COUNT(*) FROM tidepool_sent").fetchone() == (0,) and migrations.version(con) == 16
+    assert con.execute("SELECT COUNT(*) FROM tidepool_sent").fetchone() == (0,) and migrations.version(con) == migrations.LATEST
+
+
+def test_v17_nightscout_sent_and_meal_rating(tmp_path, monkeypatch):
+    """Versions 17 and 18: an empty record of what was sent to Nightscout; meals keep their rows and gain an empty rating."""
+    real = migrations.MIGRATIONS
+    monkeypatch.setattr(migrations, "MIGRATIONS", real[:16]); monkeypatch.setattr(migrations, "LATEST", 16)
+    db = deployed_db(tmp_path)
+    monkeypatch.setattr(migrations, "MIGRATIONS", real); monkeypatch.setattr(migrations, "LATEST", len(real))
+    assert migrations.run(db, **QUIET) == 16
+    con = sqlite3.connect(db)
+    assert con.execute("SELECT COUNT(*) FROM nightscout_sent").fetchone() == (0,)
+    assert con.execute("SELECT day, gi, rise FROM meals").fetchall() == [("2026-10-26", None, None)]

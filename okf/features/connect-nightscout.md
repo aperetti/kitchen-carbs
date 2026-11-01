@@ -7,7 +7,7 @@ timestamp: 2026-10-27
 status: draft
 links:
   uses: [domain/glucose-reading.md, domain/target-range.md]
-  constrained_by: [rules/nightscout-read-only.md, rules/nightscout-token-server-only.md, rules/glucose-units.md]
+  constrained_by: [rules/nightscout-sends-what-was-logged.md, rules/nightscout-token-server-only.md, rules/glucose-units.md]
 ---
 # Connect Nightscout
 - Behind the parent PIN, in Manage.

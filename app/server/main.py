@@ -19,7 +19,7 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 
 from concurrent.futures import ThreadPoolExecutor
 
-from . import auth, core, db, dose, labels, lookup, migrations, nightscout, photos, push, report, tidepool
+from . import auth, core, db, dose, labels, lookup, migrations, nightscout, nightscout_send, photos, push, report, tidepool
 
 WEB_DIR = os.path.join(os.path.dirname(__file__), "..", "web")
 SEED_DIR = os.path.join(os.path.dirname(__file__), "..", "seed")
@@ -484,6 +484,7 @@ async def lifespan(_app):
     if os.environ.get("KC_NIGHTSCOUT_SYNC", "1") == "1":
         nightscout.start_background_sync()
         tidepool.start_background_sync()
+        nightscout_send.start_background_sync()
         threading.Thread(target=db.backup_loop, name="backup", daemon=True).start()
     yield
 
@@ -534,11 +535,13 @@ async def same_origin_writes(request: Request, call_next):
 
 
 @app.middleware("http")
-async def tidepool_follows_the_log(request: Request, call_next):
-    """A saved, changed or deleted meal or entry is sent to Tidepool soon (okf/features/tidepool-sync.md)."""
+async def syncs_follow_the_log(request: Request, call_next):
+    """A saved, changed or deleted meal or entry is sent to Tidepool and Nightscout soon
+    (okf/features/tidepool-sync.md, okf/features/nightscout-send.md)."""
     response = await call_next(request)
     if request.method != "GET" and response.status_code < 300 and request.url.path.startswith(("/api/meals", "/api/entries")):
         tidepool.poke()
+        nightscout_send.poke()
     return response
 
 
@@ -730,9 +733,23 @@ def check_pin():
 
 
 # ----- foods -----
+def food_ratings(c) -> dict:
+    """How the meals each food was in were rated (okf/domain/meal-rating.md): {food_id: {"gi": {...}, "rise": {...}, "meals": n}}."""
+    out = {}
+    for r in c.execute("SELECT DISTINCT i.food_id, m.id, m.gi, m.rise FROM meal_items i JOIN meals m ON m.id = i.meal_id "
+                       "WHERE i.food_id IS NOT NULL AND m.deleted_at IS NULL AND (m.gi IS NOT NULL OR m.rise IS NOT NULL)"):
+        f = out.setdefault(r["food_id"], {"gi": {}, "rise": {}, "meals": 0})
+        f["meals"] += 1
+        for k in ("gi", "rise"):
+            if r[k]:
+                f[k][r[k]] = f[k].get(r[k], 0) + 1
+    return out
+
+
 @app.get("/api/foods")
 def list_foods(c=Depends(con)):
-    return [food_out(c, f) for f in c.execute("SELECT * FROM foods ORDER BY name COLLATE NOCASE")]
+    ratings = food_ratings(c)
+    return [{**food_out(c, f), "ratings": ratings.get(f["id"])} for f in c.execute("SELECT * FROM foods ORDER BY name COLLATE NOCASE")]
 
 
 # ----- each account confirms each food's carbs once (okf/features/confirm-food.md) -----
@@ -1650,6 +1667,20 @@ def restore_meal(mid: int, c=Depends(con)):
     return {"ok": True}
 
 
+class RatingIn(BaseModel):
+    gi: Literal["low", "medium", "high"] | None = None
+    rise: Literal["slow", "steady", "fast"] | None = None
+
+
+@app.put("/api/meals/{mid}/rating")
+def rate_meal(mid: int, body: RatingIn, c=Depends(con)):
+    """The parent's own rating (okf/features/rate-meal.md): on any day, and it changes nothing else about the meal."""
+    get_meal(c, mid)
+    with c:
+        c.execute("UPDATE meals SET gi = ?, rise = ? WHERE id = ?", (body.gi, body.rise, mid))
+    return {"gi": body.gi, "rise": body.rise}
+
+
 @app.post("/api/meals/{mid}/comments")
 def add_comment(mid: int, body: CommentIn, c=Depends(con)):
     m = get_meal(c, mid)
@@ -1927,7 +1958,7 @@ def export_csv(start: str, end: str, c=Depends(con)):
     buf = io.StringIO()
     w = csv.writer(buf)
     w.writerow(["date", "time", "type", "food", "portion", "grams", "qty", "carbs_g", "meal_total_g", "eaten",
-                "bg_mg_dl", "insulin_u", "insulin_kind", "comments", "moved_from", "bg_source", "insulin_min_before_eating", "eating_min", "changed_later", "meal_total_from_foods_g"])
+                "bg_mg_dl", "insulin_u", "insulin_kind", "comments", "moved_from", "bg_source", "insulin_min_before_eating", "eating_min", "changed_later", "meal_total_from_foods_g", "gi_rating", "rise_rating"])
     rows = []
     for m in meals_for_days(c, first.isoformat(), last.isoformat()):
         comments = " | ".join(f"{x['time']} {x['text']}" for x in m["comments"])
@@ -1935,11 +1966,12 @@ def export_csv(start: str, end: str, c=Depends(con)):
             hand = i["entered_carbs"] is not None   # no weight (okf/domain/meal.md)
             rows.append([m["day"], m["time"], "meal", i["food_name"], i["portion_label"], "" if hand else f"{i['grams']:g}", "" if hand else f"{i['qty']:g}",
                          i["carbs"], m["total"], m["eaten"] or "", blank(m["bg"]), blank(m["insulin"]), m["insulin_kind"] or "",
-                         comments, m["moved_from"] or "", m["bg_source"] or "", blank(m["insulin_offset_min"]), blank(m["eat_min"]), m["edited_at"] or "", m["items_total"]])
+                         comments, m["moved_from"] or "", m["bg_source"] or "", blank(m["insulin_offset_min"]), blank(m["eat_min"]), m["edited_at"] or "", m["items_total"],
+                         m["gi"] or "", m["rise"] or ""])
     for e in entries_for_days(c, first.isoformat(), last.isoformat()):
         rows.append([e["day"], e["time"], "entry", "", "", "", "", "" if e["carbs"] is None else f"{e['carbs']:g}", "", "",
                      e["bg"] if e["bg"] is not None else "", "" if e["insulin"] is None else f"{e['insulin']:g}",
-                     e["insulin_kind"] or "", e["note"], e["moved_from"] or "", "meter" if e["bg"] is not None else "", "", "", e["edited_at"] or "", ""])
+                     e["insulin_kind"] or "", e["note"], e["moved_from"] or "", "meter" if e["bg"] is not None else "", "", "", e["edited_at"] or "", "", "", ""])
     for r in sorted(rows, key=lambda r: (r[0], r[1])):   # stable: meal items keep their order
         w.writerow([cell_text(x) for x in r])
     days = (last - first).days + 1
@@ -2159,6 +2191,8 @@ def ns_connect(body: NightscoutIn, c=Depends(con)):
         fail(400, str(e))
     lo, hi = nightscout.targets(url, body.token)
     with c:
+        if url != (db.get_setting(c, "ns_url") or "").rstrip("/"):   # a different site: stop sending and start afresh
+            nightscout_send.forget(c)
         db.set_setting(c, "ns_url", url)
         db.set_setting(c, "ns_token", body.token)
         if lo and hi and db.get_setting(c, "target_low") is None:
@@ -2173,6 +2207,69 @@ def ns_disconnect(c=Depends(con)):
     with c:
         db.set_setting(c, "ns_token", None)
     return {"ok": True}
+
+
+# ----- sending to Nightscout (okf/features/nightscout-send.md) -----
+class NightscoutSendIn(BaseModel):
+    send_from: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}$")
+    carbs: bool = True
+    insulin: bool = True
+    bg: bool = True
+
+
+@app.get("/api/nightscout/send", dependencies=[Depends(parent)])
+def ns_send_status(c=Depends(con)):
+    return nightscout_send.public(c)
+
+
+@app.put("/api/nightscout/send", dependencies=[Depends(parent)])
+def ns_send_save(body: NightscoutSendIn, c=Depends(con)):
+    """Checks with Nightscout that the token may write treatments, then saves and turns sending on."""
+    if not nightscout_send.enabled():
+        fail(400, "Sending to Nightscout only works in production: this copy's meals are test data.")
+    url, token = db.get_setting(c, "ns_url"), db.get_setting(c, "ns_token")
+    if not (url and token):
+        fail(400, "Connect Nightscout first.")
+    try:
+        nightscout_send.check(url, token)
+    except nightscout_send.SendError as e:
+        fail(400, str(e))
+    with c:
+        db.set_setting(c, "ns_send_from", body.send_from)
+        db.set_setting(c, "ns_send_kinds", json.dumps({"carbs": body.carbs, "insulin": body.insulin, "bg": body.bg}))
+        db.set_setting(c, "ns_send_on", "on")
+    nightscout_send.poke()
+    return nightscout_send.public(c)
+
+
+@app.post("/api/nightscout/send/sync", dependencies=[Depends(parent)])
+def ns_send_now(resend: bool = False, c=Depends(con)):
+    """Send now, or with ?resend=1 send every treatment again (Nightscout replaces each by its identifier)."""
+    try:
+        r = nightscout_send.sync_once(resend)
+    except nightscout_send.SendError as e:
+        fail(502, str(e))
+    if not r:
+        fail(400, "Turn on sending first.")
+    return {**nightscout_send.public(c), **r}
+
+
+@app.post("/api/nightscout/send/off", dependencies=[Depends(parent)])
+def ns_send_off(c=Depends(con)):
+    """Stops sending; what's in Nightscout stays."""
+    with c:
+        db.set_setting(c, "ns_send_on", "")
+    return nightscout_send.public(c)
+
+
+@app.delete("/api/nightscout/send/data", dependencies=[Depends(parent)])
+def ns_send_remove(c=Depends(con)):
+    """Deletes every treatment Kitchen Carbs sent, and turns sending off."""
+    try:
+        n = nightscout_send.remove_all()
+    except nightscout_send.SendError as e:
+        fail(502, str(e))
+    return {**nightscout_send.public(c), "removed": n}
 
 
 @app.put("/api/targets", dependencies=[Depends(parent)])

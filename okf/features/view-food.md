@@ -15,6 +15,7 @@ links:
   takes that food off the plate again, each with a short notice; the weight is then set on the
   plate with the slider, whose tick shows the serving's weight.
 - ⓘ opens the details over the photo: each portion's weight and carbs, carbs per 100 g, source, verified or not,
-  notes, the label photo, and 'Estimated photo' when the photo is a stand-in.
+  notes, the label photo, 'Estimated photo' when the photo is a stand-in, and how the meals it was in were rated
+  (okf/features/rate-meal.md).
 - 'Edit in Manage' sits right under the name in the details (decided 29 Oct; at the top so a phone needn't scroll the card), which opens that food in Manage → Foods; the parent PIN is
   asked first if Manage is locked.

@@ -22,7 +22,7 @@
 
 A kitchen-tablet and phone app for a family managing a child's type 1 diabetes: look up carbs by portion, add up
 a plate by weight, log meals with BG and insulin, see the CGM curve after each meal from Nightscout, export a
-report for the care team, and optionally sync to Tidepool. The design and rules come from the OKF concept map in
+report for the care team, and optionally send the log to Nightscout or Tidepool. The design and rules come from the OKF concept map in
 `okf/` (see `PLAN.md`).
 
 ## Demo reels
@@ -88,7 +88,8 @@ or http://localhost in dev. Opened by LAN IP over plain http, those two fall bac
 2. `tools/deploy.sh --yes` (there is nothing in QA to check yet).
 3. On the tablet, open `http://<server IP>:8090` and add it to the home screen.
 4. **Manage**: create a parent PIN, connect Nightscout with a `readable` token (not the API secret),
-   then scan labels or check the sample foods.
+   then scan labels or check the sample foods. To also send the log's carbs and insulin to Nightscout (for
+   OpenAPS forecasts), give the token a role with `api:treatments:*` and turn on **Send to Nightscout**.
 
 ### Releasing a change
 1. `tools/qa.sh` copies production's data into `data-qa/` and starts the new code on it (port 8091).
