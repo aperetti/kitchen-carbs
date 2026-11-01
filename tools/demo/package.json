@@ -1,0 +1,5 @@
+{
+  "private": true,
+  "description": "Records the Kitchen Carbs demo reels (record.sh).",
+  "dependencies": { "playwright": "1.49.1" }
+}
