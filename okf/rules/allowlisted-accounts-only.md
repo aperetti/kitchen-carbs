@@ -12,4 +12,6 @@ links:
 - The server checks the Firebase ID token itself (signature, project, expiry, verified email) and the allow list
   before creating a session; the browser's word is never taken for who is signed in.
 - Removing an email from the list signs out that account's devices at their next request.
-- Sign-in is off only when no Firebase project is configured (dev on the laptop).
+- Sign-in is off only when no Firebase project is configured, and only in dev: production and QA refuse to start
+  without one.
+- Nothing guarded is kept by a shared cache (Cloudflare), so a stored copy can't be served without sign-in.

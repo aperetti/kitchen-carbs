@@ -2,6 +2,12 @@
 Each version is what went to the family's kitchen on that date (okf/architecture/releases.md).
 
 ## Unreleased
+- **Security fix:** a crafted request on the home network could read and change the log without signing in.
+  Every request is now checked against the path the server actually serves, odd Host headers are refused, and
+  the web framework and other packages are updated past their known security problems.
+- Exports and photos are marked private, so Cloudflare never keeps a copy it could hand to someone else.
+- The parent PIN locks for 10 minutes after 10 wrong tries. Production and QA won't start without Google sign-in
+  set up. Exported CSV files can't carry spreadsheet formulas from food names.
 - Manage → Foods and photos: **Generate missing photos** makes a photo for every portion that has none, one at a
   time. Portions of a food that already has a photo are estimated from it; the rest are drawn from the food's name.
   Each one still waits for a parent to check it.

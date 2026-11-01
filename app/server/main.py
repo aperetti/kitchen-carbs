@@ -52,11 +52,29 @@ def _hash(pin: str, salt: str) -> str:
     return hashlib.sha256((salt + pin).encode()).hexdigest()
 
 
+PIN_TRIES, PIN_WINDOW_S = 10, 600   # then the PIN is locked for the rest of the window (okf/architecture/auth.md)
+_pin_misses: list[float] = []
+_pin_lock = threading.Lock()
+
+
+def pin_ok(pin: str, salt: str, h: str) -> bool:
+    """A 4-digit PIN can't hold out against unlimited guesses, so wrong ones are counted."""
+    with _pin_lock:
+        cutoff = time.time() - PIN_WINDOW_S
+        _pin_misses[:] = [t for t in _pin_misses if t > cutoff]
+        if len(_pin_misses) >= PIN_TRIES:
+            fail(429, "Too many wrong PINs. Try again in 10 minutes.")
+        if pin and secrets.compare_digest(_hash(pin, salt), h):
+            return True
+        _pin_misses.append(time.time())
+        return False
+
+
 def parent(x_parent_pin: str = Header(default=""), c=Depends(con)):
     h, salt = db.get_setting(c, "pin_hash"), db.get_setting(c, "pin_salt")
     if not h:
         fail(403, "Set a parent PIN first.")
-    if not x_parent_pin or not secrets.compare_digest(_hash(x_parent_pin, salt), h):
+    if not pin_ok(x_parent_pin, salt, h):
         fail(401, "Wrong PIN.")
 
 
@@ -455,6 +473,8 @@ def has_glucose(c):
 # ---------- app ----------
 @asynccontextmanager
 async def lifespan(_app):
+    if os.environ.get("KC_ENV") in ("prod", "qa") and not auth.enabled():   # never open by accident (okf/rules/allowlisted-accounts-only.md)
+        raise RuntimeError("FIREBASE_PROJECT_ID isn't set: production and QA won't start without Google sign-in.")
     db.init()
     with db.connect() as c:   # a job can't survive a restart: say so instead of spinning for ever
         c.execute("UPDATE portions SET photo_job = NULL, photo_job_error = 'Interrupted by a server restart. Try again.' "
@@ -468,7 +488,7 @@ async def lifespan(_app):
     yield
 
 
-app = FastAPI(title="Kitchen Carbs", docs_url="/api/docs", openapi_url="/api/openapi.json", lifespan=lifespan)
+app = FastAPI(title="Kitchen Carbs", docs_url=None, redoc_url=None, openapi_url=None, lifespan=lifespan)
 
 # ---------- Google sign-in (okf/architecture/auth.md, okf/rules/allowlisted-accounts-only.md) ----------
 OPEN_PATHS = ("/api/auth/",)                      # the page and its scripts load too, to show the sign-in screen
@@ -522,11 +542,24 @@ async def tidepool_follows_the_log(request: Request, call_next):
     return response
 
 
+def no_shared_cache(response, path: str):
+    """Cloudflare caches .pdf, .csv and .jpg by default; a stored copy would be served without sign-in."""
+    if path.startswith(("/photos/", "/img/")):
+        response.headers["Cache-Control"] = "private, max-age=31536000, immutable"
+    else:
+        response.headers["Cache-Control"] = "private, no-store"
+    return response
+
+
 @app.middleware("http")
 async def signed_in_only(request: Request, call_next):
-    path = request.url.path
-    if not auth.enabled() or not path.startswith(GUARDED) or path.startswith(OPEN_PATHS):
+    # The path the router uses, not request.url.path: that one is rebuilt from the Host header, and a Host such as
+    # 'x/y' made /api/log look like /y/api/log here while the router still served /api/log (okf/architecture/auth.md).
+    path = request.scope["path"]
+    if not path.startswith(GUARDED) or path.startswith(OPEN_PATHS):
         return await call_next(request)
+    if not auth.enabled():
+        return no_shared_cache(await call_next(request), path)
     raw = request.cookies.get(auth.COOKIE)
     c = db.connect()
     try:
@@ -537,9 +570,23 @@ async def signed_in_only(request: Request, call_next):
     if not found:
         return JSONResponse({"detail": "Sign in with Google first.", "signin": True}, status_code=401)
     request.state.email = found[0]
-    response = await call_next(request)
+    response = no_shared_cache(await call_next(request), path)
     if found[1]:   # the 30 days were renewed: send the cookie again with the new expiry
         _set_cookie(response, request, raw)
+    return response
+
+
+HOST_OK = re.compile(r"^(?:[A-Za-z0-9](?:[A-Za-z0-9.-]{0,251}[A-Za-z0-9])?|\[[0-9A-Fa-f:.]+\])(?::\d{1,5})?$")
+
+
+@app.middleware("http")
+async def plain_host_and_headers(request: Request, call_next):
+    """Outermost: a Host that isn't a host name ('x/y', 'a#') is refused before anything reads the URL."""
+    if not HOST_OK.match(request.headers.get("host", "")):
+        return JSONResponse({"detail": "Bad Host header."}, status_code=400)
+    response = await call_next(request)
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("Referrer-Policy", "same-origin")
     return response
 
 
@@ -665,7 +712,7 @@ def session(c=Depends(con)):
 @app.post("/api/pin")
 def set_pin(body: PinIn, c=Depends(con)):
     h, salt = db.get_setting(c, "pin_hash"), db.get_setting(c, "pin_salt")
-    if h and not secrets.compare_digest(_hash(body.old_pin, salt), h):
+    if h and not pin_ok(body.old_pin, salt, h):
         fail(401, "The current PIN is wrong.")
     salt = secrets.token_hex(8)
     with c:
@@ -1863,6 +1910,11 @@ def blank(v):
     return "" if v is None else f"{v:g}"
 
 
+def cell_text(x):
+    """Food names come from Open Food Facts and FatSecret: text a spreadsheet would run as a formula gets a leading '."""
+    return "'" + x if isinstance(x, str) and x[:1] in ("=", "+", "-", "@", "\t", "\r") else x
+
+
 @app.get("/api/export.csv")
 def export_csv(start: str, end: str, c=Depends(con)):
     try:
@@ -1886,7 +1938,7 @@ def export_csv(start: str, end: str, c=Depends(con)):
                      e["bg"] if e["bg"] is not None else "", "" if e["insulin"] is None else f"{e['insulin']:g}",
                      e["insulin_kind"] or "", e["note"], e["moved_from"] or "", "meter" if e["bg"] is not None else "", "", "", e["edited_at"] or "", ""])
     for r in sorted(rows, key=lambda r: (r[0], r[1])):   # stable: meal items keep their order
-        w.writerow(r)
+        w.writerow([cell_text(x) for x in r])
     days = (last - first).days + 1
     if has_glucose(c) and days > 0:
         s, e = day_bounds_ms(first.isoformat(), days)
@@ -2170,7 +2222,7 @@ def photo_sized(width: int, folder: str, name: str):
     if width not in photos.WIDTHS or not PHOTO_PATH.match(path) or not os.path.exists(os.path.join(db.PHOTO_DIR, path)):
         fail(404, "No such photo.")
     return FileResponse(photos.sized(path, width), media_type="image/jpeg",
-                        headers={"Cache-Control": "public, max-age=31536000, immutable"})
+                        headers={"Cache-Control": "private, max-age=31536000, immutable"})
 
 
 app.mount("/photos", StaticFiles(directory=db.PHOTO_DIR, check_dir=False), name="photos")

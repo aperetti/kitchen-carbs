@@ -26,5 +26,15 @@ links:
   (POST /api/auth/device/approve, parent PIN), and the waiting device's next poll gets a session for the approver's
   email. A code works once; a server restart drops waiting codes.
 - Every /api/ route except /api/auth/* and every photo needs a valid session; the page itself loads so it can show
-  the sign-in screen. Firebase only allows sign-in from its 'Authorized domains', so the site needs a host name
+  the sign-in screen. The check reads the path the router uses (the ASGI path), never a URL rebuilt from the Host
+  header: a Host such as 'x/y' once made the rebuilt path look unguarded while /api/log was still served
+  (security review, 1 Nov). Requests whose Host isn't a plain host name are refused (400).
+- Guarded responses are never stored by Cloudflare or other shared caches: API answers are 'private, no-store',
+  photos 'private' (a browser may keep them, nothing in between). Cloudflare caches .pdf, .csv and .jpg by default
+  and would otherwise hand a family member's export to anyone asking for the same URL.
+- Production and QA refuse to start without a Firebase project (KC_ENV prod or qa), so a missing setting can't
+  quietly open the app; only dev runs without sign-in.
+- The parent PIN locks for 10 minutes after 10 wrong tries in 10 minutes.
+- Security headers on every response: X-Content-Type-Options nosniff and Referrer-Policy same-origin. The API docs
+  pages are off. Firebase only allows sign-in from its 'Authorized domains', so the site needs a host name
   there (an IP address may not be accepted).

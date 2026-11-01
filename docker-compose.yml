@@ -19,7 +19,7 @@ services:
     <<: *app
     container_name: kitchen-carbs
     # /etc/localtime: meals are grouped by the server's local day
-    ports: ["${PROD_PORT:-8090}:8080"]      # 8080 is taken on the host
+    ports: ["${KC_BIND:-0.0.0.0}:${PROD_PORT:-8090}:8080"]   # 8080 is taken on the host; KC_BIND=127.0.0.1 keeps it off the LAN
     environment:
       <<: *env
       KC_ENV: prod
@@ -31,7 +31,7 @@ services:
     <<: *app
     profiles: [qa]
     container_name: kitchen-carbs-qa
-    ports: ["${QA_PORT:-8091}:8080"]
+    ports: ["${KC_BIND:-0.0.0.0}:${QA_PORT:-8091}:8080"]
     environment:
       <<: *env
       KC_ENV: qa

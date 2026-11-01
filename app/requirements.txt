@@ -1,9 +1,9 @@
-fastapi==0.115.6
-uvicorn[standard]==0.34.0
-python-multipart==0.0.20
-requests==2.32.3
+fastapi==0.162.0
+uvicorn[standard]==0.54.0
+python-multipart==0.0.33
+requests==2.34.2
 pillow==13.0.0
 zxing-cpp==3.1.1
 google-auth==2.60.0
 pywebpush==2.5.0
-fpdf2==2.8.3
+fpdf2==2.9.0

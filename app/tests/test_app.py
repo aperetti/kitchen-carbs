@@ -1092,6 +1092,53 @@ def test_app_files_are_revalidated(app):
     assert re.search(r'src="app.js\?v=[0-9a-f]{8}"', page) and re.search(r'href="app.css\?v=[0-9a-f]{8}"', page)
 
 
+def test_security_review_fixes(app, monkeypatch):
+    """Security review 1 Nov (okf/architecture/auth.md): Host tricks, shared caches, PIN guessing, CSV formulas."""
+    client, main = app
+    client.post("/api/entries", json={"client_id": "entry-0001", "day": "2026-10-27", "time": "18:00", "carbs": 15, "note": "=HYPERLINK(1)"})
+    monkeypatch.setenv("FIREBASE_PROJECT_ID", "kitchen-carbs-test")
+    for host in ("x/y", "a/", "evil.com/x?", "x#", "x/api/auth", "a b", ""):   # once served /api/log without sign-in
+        r = client.get("/api/log", headers={"Host": host})
+        assert r.status_code == 400, host
+    for host in ("kitchen.example.com", "192.168.0.10:8092", "localhost:8090", "[::1]:8090"):
+        r = client.get("/api/log", headers={"Host": host})
+        assert r.status_code == 401 and r.json()["signin"] is True, host
+    for path in ("/api/docs", "/api/openapi.json", "/redoc", "/docs"):          # API docs are off
+        assert client.get(path).status_code in (401, 404), path
+    assert client.get("/").headers["x-content-type-options"] == "nosniff"
+    monkeypatch.delenv("FIREBASE_PROJECT_ID")
+    # nothing guarded may be kept by Cloudflare or another shared cache
+    assert client.get("/api/log").headers["cache-control"] == "private, no-store"
+    r = client.get("/api/export.csv?start=2026-10-27&end=2026-10-27")
+    assert r.headers["cache-control"] == "private, no-store" and "'=HYPERLINK(1)" in r.text   # not run as a formula
+    assert client.get("/api/export.pdf?start=2026-10-27&end=2026-10-27").headers["cache-control"] == "private, no-store"
+    p = next(f for f in client.get("/api/foods").json() if f["portions"][0]["photo"]["styled"])["portions"][0]["photo"]["styled"]
+    for url in (f"/photos/{p}", f"/img/320/{p}"):
+        assert client.get(url).headers["cache-control"].startswith("private"), url
+    # the PIN locks after 10 wrong tries
+    for _ in range(main.PIN_TRIES):
+        assert client.get("/api/settings", headers={"X-Parent-Pin": "0000"}).status_code == 401
+    assert client.get("/api/settings").status_code == 429                                    # even the right one, for now
+    main._pin_misses.clear()
+    assert client.get("/api/settings").status_code == 200
+
+
+def test_production_needs_sign_in(tmp_path, monkeypatch):
+    """A missing Firebase setting must not quietly open production or QA."""
+    monkeypatch.setenv("KC_DATA", str(tmp_path)); monkeypatch.setenv("KC_NIGHTSCOUT_SYNC", "0")
+    monkeypatch.delenv("FIREBASE_PROJECT_ID", raising=False)
+    from server import db, main
+    importlib.reload(db); importlib.reload(main)
+    for env in ("prod", "qa"):
+        monkeypatch.setenv("KC_ENV", env)
+        with pytest.raises(RuntimeError, match="FIREBASE_PROJECT_ID"):
+            with TestClient(main.app):
+                pass
+    monkeypatch.setenv("KC_ENV", "prod"); monkeypatch.setenv("FIREBASE_PROJECT_ID", "kitchen-carbs-test")
+    with TestClient(main.app) as client:
+        assert client.get("/api/log").status_code == 401
+
+
 def test_sign_in_with_a_code_and_frames(app, monkeypatch):
     # okf/features/sign-in.md: kiosks and the Home Assistant dashboard
     client, main = app
