@@ -2,6 +2,8 @@
 Each version is what went to the family's kitchen on that date (okf/architecture/releases.md).
 
 ## Unreleased
+
+## v2026.11.01 · 1 Nov 2026
 - **Security fix:** a crafted request on the home network could read and change the log without signing in.
   Every request is now checked against the path the server actually serves, odd Host headers are refused, and
   the web framework and other packages are updated past their known security problems.
