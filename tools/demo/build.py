@@ -30,13 +30,14 @@ ff("-i", f"{D}/export.mp4", *X264, f"{OUT}/export.mp4")
 # each sliding in from the right over the one before
 marks = {n: [m["t"] for m in json.load(open(f"{D}/{n}.json"))] for n in ("plate", "summary", "log", "manage", "settings", "phone")}
 marks["export"] = [0.3, 12.5]
-CUTS = [("card", "title", 3.2), ("card", "plate", 1.4), ("plate", (2, -.4), (5, 0), 1.35),
-        ("card", "summary", 1.4), ("summary", (0, -.2), (1, -.1), 1.3), ("summary", (3, -.7), (4, 0), 1.2), ("summary", (5, -.4), (6, -.2), 1.2),
-        ("card", "log", 1.4), ("log", (0, -.2), (1, -1.7), 1.4), ("log", (2, -.2), (3, 4.6), 1.4), ("log", (4, -.2), (5, -.1), 1.4),
-        ("card", "manage", 1.4), ("manage", (0, -.1), (1, -.3), 1.4), ("manage", (2, -.2), (2, 6.4), 1.4),
-        ("card", "export", 1.4), ("export", (0, 0), (1, 0), 1.6),
-        ("card", "settings", 1.4), ("settings", (1, -.2), (2, -.1), 1.4),
-        ("card", "phone", 1.4), ("phone", (0, -.3), (3, -.3), 1.6), ("card", "end", 4.5)]
+CARD_S = 2.6   # each section card, swipes included
+CUTS = [("card", "title", 3.4), ("card", "plate", CARD_S), ("plate", (2, -.4), (5, 0), 1.35),
+        ("card", "summary", CARD_S), ("summary", (0, -.2), (1, -.1), 1.3), ("summary", (3, -.7), (4, 0), 1.2), ("summary", (5, -.4), (6, -.2), 1.2),
+        ("card", "log", CARD_S), ("log", (0, -.2), (1, -1.7), 1.4), ("log", (2, -.2), (3, 4.6), 1.4), ("log", (4, -.2), (5, -.1), 1.4),
+        ("card", "manage", CARD_S), ("manage", (0, -.1), (1, -.3), 1.4), ("manage", (2, -.2), (2, 6.4), 1.4),
+        ("card", "export", CARD_S), ("export", (0, 0), (1, 0), 1.6),
+        ("card", "settings", CARD_S), ("settings", (1, -.2), (2, -.1), 1.4),
+        ("card", "phone", CARD_S), ("phone", (0, -.3), (3, -.3), 1.6), ("card", "end", 4.5)]
 parts = []
 for i, c in enumerate(CUTS):
     seg = f"{D}/seg/{i:02d}.mp4"
