@@ -770,6 +770,32 @@ def test_generate_photo_from_name_alone(app, monkeypatch):
     assert client.post(f"/api/portions/{p['id']}/generate").status_code == 400
 
 
+def test_generate_missing_photos(app, monkeypatch):
+    """okf/features/photo-pipeline.md step 8: every portion with no photo, estimated from a sibling when there is one."""
+    client, main = app
+    sent = []
+    monkeypatch.setattr(main.photos, "generate", lambda paths, prompt, quality="fast": sent.append((paths, prompt)) or f"candidate/{len(sent)}.jpg")
+    monkeypatch.setattr(main.labels, "guess_container", lambda name, serving, package=None: "bowl")
+    food = client.post("/api/foods", json={"name": "Plain rice", "carbs_per_100g": 28, "source_kind": "usda", "source_ref": "USDA FDC 1", "tags": []}).json()
+    client.post(f"/api/foods/{food['id']}/portions", json={"label": "½ cup", "grams": 80})
+    ps = client.post(f"/api/foods/{food['id']}/portions", json={"label": "1 cup", "grams": 160}).json()["portions"]
+    half, cup = sorted(ps, key=lambda p: p["grams"])
+    client.post(f"/api/portions/{half['id']}/original", files={"file": ("r.jpg", jpeg_bytes(), "image/jpeg")})
+    oats = client.post("/api/foods", json={"name": "Oats", "carbs_per_100g": 60, "source_kind": "usda", "source_ref": "USDA FDC 2", "tags": []}).json()
+    oat = client.post(f"/api/foods/{oats['id']}/portions", json={"label": "1 cup", "grams": 40}).json()["portions"][0]
+    assert client.post("/api/photos/generate-missing", headers={"X-Parent-Pin": "0"}).status_code == 401
+    missing = [p for f in client.get("/api/foods").json() for p in f["portions"]
+               if not (p["photo"]["original"] or p["photo"]["styled"] or p["photo"]["candidate"] or p["job"])]
+    assert client.post("/api/photos/generate-missing").json()["queued"] == len(missing) == len(sent)
+    foods = {f["id"]: f for f in client.get("/api/foods").json()}
+    got = {p["id"]: p for f in foods.values() for p in f["portions"]}
+    assert got[cup["id"]]["photo"]["candidate_kind"] == "estimate"            # from the ½ cup's photo
+    assert got[oat["id"]]["photo"]["candidate_kind"] == "generated" and got[oat["id"]]["container"] == "bowl"
+    assert got[half["id"]]["photo"]["candidate"] is None and not any(p["job"] for p in got.values())
+    assert all(not p["photo"]["styled"] or p["id"] not in {m["id"] for m in missing} for p in got.values())   # nothing accepted on its own
+    assert client.post("/api/photos/generate-missing").json()["queued"] == 0   # each has a photo to check now
+
+
 def test_size_reference_goes_with_a_dish(app):
     client, main = app
     from server.photos import build_prompt

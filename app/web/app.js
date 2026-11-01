@@ -1331,11 +1331,12 @@ function manageRows() {
   return `<button class="row addrow ${S.m.food === "add" ? "on" : ""}" data-mfood="add"><span class="t"><b>+ Add a food</b><span>Look it up, scan a label, or type it in</span></span></button>
     ${S.foods.some(x => x.fiber_lookup) || S.m.food === FIBER ? `<button class="row addrow ${S.m.food === FIBER ? "on" : ""}" data-mfood="${FIBER}"><span class="t"><b>Fill in fiber</b>
       <span>${S.foods.filter(x => x.fiber_lookup).length} saved food${S.foods.filter(x => x.fiber_lookup).length === 1 ? "" : "s"} can get fiber from their source</span></span></button>` : ""}
+    ${missingPhotosRow()}
     <button class="row addrow" data-act="quick-scan"><span class="t"><b>Scan a barcode</b><span>Check the label numbers, save, and a photo is made for you</span></span></button>
     ${S.foods.map(x => `<button class="row ${x.id === S.m.food ? "on" : ""}" data-mfood="${esc(x.id)}">
       ${x.portions[0] && shownPhoto(x.portions[0]) ? `<img ${sized(shownPhoto(x.portions[0]), "64px")} alt="">` : `<span class="noimg"></span>`}
       <span class="t"><b>${esc(x.name)}</b><span>${x.portions.length} portion${x.portions.length === 1 ? "" : "s"}</span>
-      ${x.portions.some(p => p.job) ? `<em class="gen">Making a photo…</em>` : x.portions.some(p => p.photo.candidate) ? `<em class="gen">New photo to check</em>` : ""}
+      ${x.portions.some(p => p.job?.started) ? `<em class="gen">Making a photo…</em>` : x.portions.some(p => p.job) ? `<em class="gen">Photo waiting its turn</em>` : x.portions.some(p => p.photo.candidate) ? `<em class="gen">New photo to check</em>` : ""}
       ${x.trust !== "parent-verified" ? "<em>Not verified</em>" : ""}</span></button>`).join("")}`;
 }
 
@@ -1393,6 +1394,17 @@ async function fiberSave() {
 }
 
 /* ---------- live photo jobs (okf/features/photo-pipeline.md) ---------- */
+/* every portion with no photo at all, made one at a time on the server (okf/features/photo-pipeline.md, step 8) */
+const missingPhotos = () => S.foods.flatMap(f => f.portions.filter(p => !p.photo.original && !p.photo.styled && !p.photo.candidate && !p.job));
+let confirmMissing = 0;
+function missingPhotosRow() {
+  const n = missingPhotos().length, queued = S.foods.reduce((k, f) => k + f.portions.filter(p => p.job && !p.job.started).length, 0);
+  if (!n && !queued) return "";
+  const ask = Date.now() - confirmMissing < 4000;
+  return `<button class="row addrow" data-act="photos-missing" ${n ? "" : "disabled"}><span class="t"><b>${!n ? "Making missing photos"
+    : ask ? `Tap again to make ${n} photo${n === 1 ? "" : "s"}` : "Generate missing photos"}</b><span>${!n ? `${queued} waiting their turn, one at a time`
+    : `${n} portion${n === 1 ? " has" : "s have"} no photo. Each one is made with Gemini and waits for you to check it`}</span></span></button>`;
+}
 const jobsRunning = () => S.foods.some(f => f.portions.some(p => p.job));
 const sinceText = iso => { const s = Math.max(0, Math.round((Date.now() - new Date(iso)) / 1000)); return s < 60 ? `${s} s` : `${Math.floor(s / 60)} min ${s % 60} s`; };
 let jobPoll = null;
@@ -1567,7 +1579,7 @@ function portionsEditor(f) {
     const sibling = photoSource(f, p);
     const busy = S.m.busy[p.id];
     const job = p.job && `<div class="jobbar" role="progressbar" aria-label="Making the photo"><i></i></div>
-      <span class="meta">${{ estimate: "Making an estimated photo", generate: "Generating a photo" }[p.job.kind] || "Styling with Gemini"} · <span data-since="${esc(p.job.started)}">${sinceText(p.job.started)}</span></span>`;
+      <span class="meta">${!p.job.started ? "Waiting its turn" : `${{ estimate: "Making an estimated photo", generate: "Generating a photo" }[p.job.kind] || "Styling with Gemini"} · <span data-since="${esc(p.job.started)}">${sinceText(p.job.started)}</span>`}</span>`;
     return `<tr data-pid="${p.id}">
       <td data-l="Portion">${labelInput("", p.label, "pLabel")}${portionAmount(p.label) ? "" : `<span class="warn small">Needs a number and unit</span>`}</td>
       <td data-l="${gramsHead}"><input class="pGrams" type="number" step="1" min="1" inputmode="decimal" value="${p.grams}" aria-label="${gramsHead}">${f.cook_ratio && f.basis !== "as-sold"
@@ -1859,6 +1871,16 @@ const mClick = async e => {
   if (t.dataset.act === "sign-out-others") {
     try { const r = await api("/api/accounts/sign-out-others", { method: "POST", parent: true }); S.accounts = null; renderAccounts(); toast(`${r.signed_out} other device${r.signed_out === 1 ? "" : "s"} signed out`); }
     catch (err) { toast(err.message); }
+    return;
+  }
+  if (t.dataset.act === "photos-missing") {
+    if (Date.now() - confirmMissing > 4000) { confirmMissing = Date.now(); $("#mRows").innerHTML = manageRows(); setTimeout(() => $("#mRows") && ($("#mRows").innerHTML = manageRows()), 4100); return; }
+    confirmMissing = 0; t.disabled = true;
+    try {
+      const r = await api("/api/photos/generate-missing", { method: "POST", parent: true });
+      toast(r.queued ? `Making ${r.queued} photo${r.queued === 1 ? "" : "s"}, one at a time` : "No portions are missing a photo");
+      S.foods = await api("/api/foods"); store.set("foods", S.foods); liveManage(); watchJobs();
+    } catch (err) { toast(err.message); $("#mRows").innerHTML = manageRows(); }
     return;
   }
   if (t.dataset.act === "quick-scan") { Object.assign(S.m, { food: "add", addTab: "lookup", scan: null, review: null }); mNav(); S.m.look.scanning = true; renderManage(); return; }

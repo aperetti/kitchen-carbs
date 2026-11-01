@@ -1338,21 +1338,25 @@ RUN_JOBS_IN_BACKGROUND = True   # tests run them inline
 ESTIMATE, GENERATED = 1, 2   # candidate_estimated: 0 = your photo styled, 1 = from another portion, 2 = from the name alone
 
 
-def _generate(c, pid, ref_path, container, estimated, estimate=None, describe=None, guess=False):
+def _generate(c, pid, ref_path, container, estimated, estimate=None, describe=None, guess=False, queued=False):
     """Start a Gemini job for a portion; it runs in the background and the Manage screen polls for it.
 
     With guess, the dish is picked first (okf/domain/photo-style.md), also in the background.
+    With queued, the portion is claimed with no start time ('Waiting its turn') and the job is returned for a queue to run.
     """
     with c:   # claim the portion; a second press while one runs is refused
         claimed = c.execute("UPDATE portions SET photo_job = ?, photo_job_started = ?, photo_job_error = NULL "
                             "WHERE id = ? AND photo_job IS NULL",
-                            (("style", "estimate", "generate")[estimated], now().isoformat(timespec="seconds"), pid)).rowcount
+                            (("style", "estimate", "generate")[estimated], None if queued else now().isoformat(timespec="seconds"), pid)).rowcount
     if not claimed:
         fail(409, "A photo for this portion is already being made.")
 
     def job():
         jc = db.connect()
         try:
+            if queued:
+                with jc:
+                    jc.execute("UPDATE portions SET photo_job_started = ? WHERE id = ?", (now().isoformat(timespec="seconds"), pid))
             p = jc.execute("SELECT * FROM portions WHERE id = ?", (pid,)).fetchone()
             f = jc.execute("SELECT * FROM foods WHERE id = ?", (p["food_id"],)).fetchone()
             dish = container
@@ -1381,6 +1385,8 @@ def _generate(c, pid, ref_path, container, estimated, estimate=None, describe=No
         finally:
             jc.close()
 
+    if queued:
+        return job
     if RUN_JOBS_IN_BACKGROUND:
         threading.Thread(target=job, name=f"photo-{pid}", daemon=True).start()
     else:
@@ -1420,6 +1426,34 @@ def generate_photo(pid: int, c=Depends(con)):
     _generate(c, pid, None, p["container"], GENERATED, describe={"food": f["name"], "grams": p["grams"], "label": p["label"]},
               guess=p["container"] == "auto")
     return food_out(c, f)
+
+
+@app.post("/api/photos/generate-missing", dependencies=[Depends(parent)])
+def generate_missing_photos(c=Depends(con)):
+    """Every portion with no photo at all, one at a time: estimated from a sibling's photo, else from the name (okf/features/photo-pipeline.md)."""
+    missing = c.execute("SELECT p.* FROM portions p JOIN foods f ON f.id = p.food_id WHERE p.photo_original IS NULL AND p.photo_styled IS NULL "
+                        "AND p.photo_candidate IS NULL AND p.photo_job IS NULL ORDER BY f.name COLLATE NOCASE, p.sort, p.id").fetchall()
+    jobs = []
+    for p in missing:
+        f = get_food(c, p["food_id"])
+        ref = c.execute("SELECT * FROM portions WHERE food_id = ? AND id != ? AND (photo_styled IS NOT NULL OR photo_original IS NOT NULL) "
+                        "ORDER BY photo_styled IS NULL, grams = ? DESC, sort", (p["food_id"], p["id"], f["serving_grams"])).fetchone()
+        what = {"food": f["name"], "grams": p["grams"], "label": p["label"]}
+        if ref:
+            jobs.append(_generate(c, p["id"], ref["photo_styled"] or ref["photo_original"], p["container"], ESTIMATE,
+                                  {**what, "ref_grams": ref["grams"]}, queued=True))
+        else:
+            jobs.append(_generate(c, p["id"], None, p["container"], GENERATED, describe=what, guess=p["container"] == "auto", queued=True))
+
+    def run_all():   # one at a time, so Gemini isn't asked for twenty photos at once
+        for job in jobs:
+            job()
+
+    if RUN_JOBS_IN_BACKGROUND:
+        threading.Thread(target=run_all, name="photos-missing", daemon=True).start()
+    else:
+        run_all()
+    return {"queued": len(jobs)}
 
 
 @app.post("/api/portions/{pid}/review", dependencies=[Depends(parent)])

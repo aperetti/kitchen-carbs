@@ -28,3 +28,8 @@ links:
 7. A favorite's plate photo (decided 30 Oct): Gemini combines the photos of the favorite's foods into one photo of the
    meal, checked before use and labelled as combined (okf/features/favorite-plates.md). Made while the parent waits,
    not in the background, since it starts from the favorite's check screen.
+8. All missing at once (decided 1 Nov): in Manage → Foods and photos, 'Generate missing photos' (with the count, tap
+   again to confirm) queues every portion with no photo, no photo to check and no photo being made. A portion whose
+   food has another portion with a photo is estimated from it (as in 5); the rest are generated from the name (as in 6).
+   They run one at a time on the server, so Gemini isn't flooded; queued portions show 'Waiting its turn'. Each one
+   still lands as a photo to check, flagged estimated; nothing is accepted on its own.
