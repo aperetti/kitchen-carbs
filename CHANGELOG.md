@@ -2,6 +2,8 @@
 Each version is what went to the family's kitchen on that date (okf/architecture/releases.md).
 
 ## Unreleased
+
+## v2026.11.01.2 · 1 Nov 2026
 - Only the app itself and the family's own dashboard (set on the server) can show Kitchen Carbs inside a frame.
 
 ## v2026.11.01 · 1 Nov 2026
