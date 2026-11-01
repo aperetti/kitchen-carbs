@@ -66,6 +66,11 @@ address sent to Open Food Facts. To ship a new version from the laptop (`SERVER`
       --exclude __pycache__ --exclude .pytest_cache --exclude .env ./ $SERVER:t1d/kitchen-carbs/
     ssh $SERVER 't1d/kitchen-carbs/tools/qa.sh'       # check http://<host>:8093
     ssh $SERVER 't1d/kitchen-carbs/tools/deploy.sh'
+    tools/release.sh                                   # after a good deploy: version, tag, GitHub release
+
+Write what changed under `## Unreleased` in [CHANGELOG.md](CHANGELOG.md) as you go; `tools/release.sh` turns it
+into the dated version, tags it, and publishes a GitHub release with those notes (it needs `gh auth login` and an
+`origin` remote; until then the tags stay local and are published on the next run).
 
 The schema is frozen at version 1 since the first deploy: new tables or columns are new migrations.
 

@@ -16,7 +16,8 @@ links:
 | QA | data-qa/ = copy of production taken by tools/qa.sh | 8093 on the homelab | tools/qa.sh |
 | production | data/ on the homelab | 8092 (HTTPS via the Cloudflare Tunnel) | tools/deploy.sh on the homelab |
 - QA shows a banner so nobody logs a real meal there by mistake.
-- Deploy order: tests → QA on a fresh copy → check QA → deploy (which backs up production first).
+- Deploy order: tests → QA on a fresh copy → check QA → deploy (which backs up production first) → release notes
+  and a GitHub release (okf/architecture/releases.md).
 - Secrets: GEMINI_KEY and the FatSecret client in .env in the parent folder; never in the image or the repo.
 - Production (first deployed 27 Oct): the homelab server, in ~/t1d/kitchen-carbs. Its address and login stay out of
   the repo.
