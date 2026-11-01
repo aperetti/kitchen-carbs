@@ -2,6 +2,8 @@
 Each version is what went to the family's kitchen on that date (okf/architecture/releases.md).
 
 ## Unreleased
+
+## v2026.11.01.3 · 1 Nov 2026
 - Manage → Foods and photos: **Check new photos** goes through every new photo one after another, with Use, Try
   again, Discard and Skip, without opening each food.
 - **Send to Nightscout** (Manage → Nightscout, off until switched on): the log's carbs, rapid-acting insulin and meter
