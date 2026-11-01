@@ -152,8 +152,10 @@ function otherMatches(shown) {
 /* Fiber, for reference only: never taken off the carbs (okf/domain/food.md) */
 const fiberIn = (f, g) => Math.round(g * f.fiber_per_100g / 10) / 10;
 const fiberText = (f, g) => f.fiber_per_100g == null ? "" : ` (including ${fiberIn(f, g)} g fiber)`;
+const RISE = ["fast", "medium", "slow"];   // the words, order and pictures Loop and twiist use (okf/domain/meal-rating.md)
+const RISE_PIC = { fast: "🍭", medium: "🌮", slow: "🍕" };
 /* How the meals a food was in were rated (okf/features/rate-meal.md): counts, and a corner tag when 2+ meals mostly agree */
-const ratingText = r => "Rise " + RISE.filter(o => r[o]).sort((a, b) => r[b] - r[a]).map(o => `${o} ${r[o]}`).join(", ");
+const ratingText = r => "Rise " + RISE.filter(o => r[o]).sort((a, b) => r[b] - r[a]).map(o => `${RISE_PIC[o]} ${o} ${r[o]}`).join(", ");
 function riseLean(r) {
   if (!r) return "";
   const n = Object.values(r).reduce((a, b) => a + b, 0);
@@ -168,7 +170,7 @@ function foodCard(f) {
   const serving = f.portions[0];
   return `<article class="card ${open ? "open" : ""} ${serving ? "addable" : ""}" ${serving ? `data-addcard="${esc(f.id)}" tabindex="0" role="button" aria-pressed="${onPlate > 0}" aria-label="${esc(f.name)}, ${esc(serving.label)}, ${serving.carbs} grams of carbs. Tap to ${onPlate ? "take off" : "add to"} the plate"` : ""}>
     <div class="cimg">${img ? `<img ${sized(img, "(min-width: 1100px) 300px, (min-width: 681px) 33vw, 50vw")} alt="" loading="lazy">` : `<span class="noimg">No photo yet</span>`}
-      ${tags.length || lean ? `<div class="ctags">${tags.map(t => `<span>${t}</span>`).join("")}${lean ? `<span class="rate">${cap(lean)} rise</span>` : ""}</div>` : ""}
+      ${tags.length || lean ? `<div class="ctags">${tags.map(t => `<span>${t}</span>`).join("")}${lean ? `<span class="rate">${RISE_PIC[lean]} ${cap(lean)} rise</span>` : ""}</div>` : ""}
       ${onPlate ? `<span class="onplate" title="On the plate · ${fmtG(onPlate)}" aria-label="On the plate, ${fmtG(onPlate)}">✓</span>` : ""}
       <b class="cname" title="${esc(f.name)}"><span>${esc(f.name)}</span></b>
       <button class="info" data-info="${esc(f.id)}" aria-expanded="${open}" aria-label="Details for ${esc(f.name)}">${open ? "×" : "i"}</button>
@@ -941,7 +943,6 @@ function renderLog() {
 }
 const cap = s => s[0].toUpperCase() + s.slice(1);
 const KIND = { rapid: "rapid-acting", long: "long-acting", bolus: "bolus", basal: "basal" };
-const RISE = ["fast", "medium", "slow"];   // the words and order Loop and twiist use (okf/domain/meal-rating.md)
 const fmtU = u => `${(+u).toFixed(2).replace(/0$/, "")} u`;           // 2.5 -> "2.50" -> "2.5 u"; 0.05 stays
 const entrySummary = e => [e.bg != null && `BG ${e.bg}`, e.insulin != null && `${fmtU(e.insulin)} ${KIND[e.insulin_kind]}`,
   e.carbs != null && `${+e.carbs} g carbs`].filter(Boolean).join(" · ") || "Note";
@@ -1124,7 +1125,7 @@ async function renderMeal() {
     ${S.session?.glucose ? `<div class="glab"><span class="label">Glucose · mg/dL</span><span class="meta" id="gUpdated"></span></div><div id="gBox"><p class="meta">Loading glucose…</p></div>` : ""}
     <div class="glab"><span class="label">How fast it rose</span><span class="meta">Your own judgement, to spot patterns</span></div>
     <div class="seg neutral rateseg" id="rateBox" role="group" aria-label="How fast glucose rose">
-      ${RISE.map(o => `<button type="button" data-rate="${o}" class="${m.rise === o ? "on" : ""}" aria-pressed="${m.rise === o}">${cap(o)}</button>`).join("")}</div>
+      ${RISE.map(o => `<button type="button" data-rate="${o}" class="${m.rise === o ? "on" : ""}" aria-pressed="${m.rise === o}"><span aria-hidden="true">${RISE_PIC[o]}</span> ${cap(o)}</button>`).join("")}</div>
     <div class="glab"><span class="label">How much was eaten</span>${ed ? "" : `<span class="meta">Read-only</span>`}</div>
     ${ed ? `<div class="seg neutral eatseg" role="group" aria-label="How much was eaten">${EATEN.map(x => `<button type="button" data-eaten="${x}" class="${m.eaten === x ? "on" : ""}" aria-pressed="${m.eaten === x}">${cap(x)}</button>`).join("")}</div>
       <p class="note">This is a note. Carbs stay as served.</p>` : `<p>${m.eaten ? cap(m.eaten) : "Not set"}</p>`}

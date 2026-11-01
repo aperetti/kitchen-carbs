@@ -16,7 +16,8 @@ plate. Only the rise (decided 1 Nov, GI dropped): GI is a property of a food, wh
 with its fat, fibre, pre-bolus and the day all mixed in. It matches how Loop-based pumps such as twiist ask how fast
 a meal's carbs absorb, not their GI.
 - One optional choice on a meal: **Rise** Fast / Medium / Slow, the words and order Loop and twiist use for
-  absorption speed (decided 1 Nov). It is the parent's judgement; the app never sets or
+  absorption speed, each with Loop's picture: 🍭 lollipop, 🌮 taco, 🍕 pizza (decided 1 Nov). The pictures go
+  wherever the rating shows: the buttons, the food details and the card's corner tag. It is the parent's judgement; the app never sets or
   suggests it.
 - Beside them, measured from the CGM when there is a reading at the meal: how much glucose rose in the first hour
   (highest reading in the hour after the meal time minus the reading at the meal, in mg/dL), and minutes from the

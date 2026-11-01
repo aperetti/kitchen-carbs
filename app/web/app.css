@@ -357,7 +357,8 @@ body.signed-out .tabs, body.signed-out .platebar { display: none !important; }
   background: var(--accent); color: var(--paper); font-size: 16px; font-weight: 600; line-height: 1; box-shadow: 0 0 0 2px rgba(250, 250, 249, .9); }
 .onplate.fresh { animation: onplateIn .3s ease-out; }   /* only right after a tap, never on a weight change */
 @keyframes onplateIn { from { transform: translateY(-6px); opacity: 0; } to { transform: none; opacity: 1; } }
-.ctags span.rate { color: var(--ink); }   /* a rating is not a warning (okf/rules/descriptive-stats-only.md) */
+.ctags span.rate { color: var(--ink); }
+.rateseg button span { margin-right: 4px; }   /* a rating is not a warning (okf/rules/descriptive-stats-only.md) */
 .card:has(.onplate) .ctags { top: 42px; }   /* 'Not verified' moves below the badge */
 #plateView .pitem.justadded { animation: rowAdded 1.6s ease-out; }
 @keyframes rowAdded { 0%, 30% { background: rgba(31, 58, 95, .10); } 100% { background: transparent; } }
