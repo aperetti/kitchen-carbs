@@ -13,7 +13,7 @@ links:
 # Send to Nightscout
 Decided 1 Nov: the family doses with pens, a CGM uploads to Nightscout, and they want the logged carbs and insulin in
 Nightscout for forecasting with OpenAPS, not a closed loop. Last 30 days included.
-- Manage → Nightscout (parent PIN), under the connection: 'Send to Nightscout', with 'Send from' (a date; 30 days
+- Manage → Settings → Nightscout (parent PIN), under the connection: 'Send to Nightscout', with 'Send from' (a date; 30 days
   ago by default) and a switch for each kind, all on by default:
   - **Carbs**: each meal's total (a corrected total wins) as a 'Meal Bolus' treatment with its foods in the notes;
     carbs typed in an entry as a 'Carb Correction'.

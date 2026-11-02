@@ -21,7 +21,7 @@ steps:
     phase: Set up (once)
     name: Connect Nightscout
     doing: "Creates a token in Nightscout and pastes the site address and token into the app; optionally turns on sending the log's carbs and insulin to Nightscout for OpenAPS forecasts."
-    screen: "Manage → Nightscout (parent PIN)"
+    screen: "Manage → Settings → Nightscout (parent PIN)"
     thinking: "I want the forecast to know what he ate and what I gave, without anything counted twice."
     risk: "Using the API secret, which gives full write access; long-acting insulin counted as rapid-acting; the same insulin sent from two places."
     helps: "Reading needs only a readable token; sending is off until switched on and needs a role limited to treatments; long-acting goes as a note; a warning about double counting sits beside each switch; token stays on the home server. Tidepool can be connected in Settings to receive the log's carbs, meter BG and insulin, each switched on separately."

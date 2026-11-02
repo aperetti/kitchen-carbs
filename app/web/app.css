@@ -212,6 +212,16 @@ input[type="time"], input[type="date"], .field input, .field select, .field text
 .subtabs button { background: none; border: 0; min-height: 52px; color: var(--vein); font-weight: 500; border-bottom: 2px solid transparent; cursor: pointer; padding: 0; }
 .subtabs button.on { color: var(--ink); border-bottom-color: var(--ink); }
 .mbody { flex: 1; min-height: 0; display: flex; }
+/* Settings sidebar (okf/design/components/settings-nav.md) */
+.setwrap { flex: 1; display: flex; min-width: 0; min-height: 0; overflow: auto; }   /* scrolls by itself, so the sidebar can stay put */
+.setwrap > .pad { margin: 0; }
+.setnav { position: sticky; top: 0; align-self: flex-start; flex: none; width: 220px; padding: 28px 0 28px 32px;
+  display: flex; flex-direction: column; }
+.setnav button { background: none; border: 0; border-left: 2px solid var(--line); text-align: left; padding: 9px 0 9px 14px;
+  min-height: 44px; font: inherit; font-size: 16px; color: var(--vein); cursor: pointer; }
+.setnav button:hover { color: var(--ink); }
+.setnav button.on { color: var(--ink); font-weight: 500; border-left-color: var(--ink); }
+#setBody h2 { scroll-margin-top: 20px; }
 .form { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; max-width: 760px; }   /* a column never grows past the screen */
 .field { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; } .field input[type="file"] { max-width: 100%; }
 .field > span { font-size: 15px; color: var(--vein); }
@@ -422,6 +432,13 @@ body.signed-out .tabs, body.signed-out .platebar { display: none !important; }
   .subtabs::-webkit-scrollbar { display: none; }
   .subtabs button { flex: none; white-space: nowrap; }
   .subtabs [data-act="lock"] { position: sticky; right: 0; padding: 0 16px 0 20px; background: linear-gradient(to right, transparent, var(--surface) 14px); }
+  .setwrap { flex-direction: column; }
+  .setnav { width: auto; align-self: stretch; flex-direction: row; gap: 4px; overflow-x: auto; scrollbar-width: none; padding: 8px 16px;
+    background: var(--surface); border-bottom: 1px solid var(--line); z-index: 2; }
+  .setnav::-webkit-scrollbar { display: none; }
+  .setnav button { flex: none; white-space: nowrap; border-left: 0; border-bottom: 2px solid transparent; padding: 6px 10px; }
+  .setnav button.on { border-bottom-color: var(--ink); }
+  #setBody h2 { scroll-margin-top: 76px; }
 }
 @media (max-width: 680px) {
   .bar .nm { display: none; }

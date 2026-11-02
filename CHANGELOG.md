@@ -2,6 +2,9 @@
 Each version is what went to the family's kitchen on that date (okf/architecture/releases.md).
 
 ## Unreleased
+- Manage: **Nightscout moved into Settings**, at the top. Settings now has a list of its sections down the side (across
+  the top on a phone) to jump straight to one. 'Send to Nightscout' now shows even before Nightscout is connected,
+  saying to connect it first.
 
 ## v2026.11.01.3 · 1 Nov 2026
 - Manage → Foods and photos: **Check new photos** goes through every new photo one after another, with Use, Try

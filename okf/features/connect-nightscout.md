@@ -10,7 +10,8 @@ links:
   constrained_by: [rules/nightscout-sends-what-was-logged.md, rules/nightscout-token-server-only.md, rules/glucose-units.md]
 ---
 # Connect Nightscout
-- Behind the parent PIN, in Manage.
+- Behind the parent PIN, in Manage → Settings, under the Nightscout heading (its own tab until 1 Nov; see
+  design/components/settings-nav.md). The target range is set there too.
 - Ask for an access token with the `readable` role (Nightscout Admin tools → Subjects), not the API_SECRET.
 - Test button: fetch the latest entry and show its time and value.
 - Units: mg/dL (confirmed).

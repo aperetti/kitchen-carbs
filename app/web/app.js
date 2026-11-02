@@ -1287,6 +1287,7 @@ const mSnap = () => ({ tab: S.m.tab, food: S.m.food, addTab: S.m.addTab,
 const mHash = s => "#manage/" + [s.tab, s.tab === "foods" ? s.food : null, s.tab === "foods" && s.food === "add" ? s.addTab : null]
   .filter(Boolean).map(encodeURIComponent).join("/");
 function mApply(s) {
+  if (s.tab === "nightscout") { s = { ...s, tab: "settings" }; S.m.goto = "set-nightscout"; }   // Nightscout moved into Settings (okf/design/components/settings-nav.md)
   Object.assign(S.m, { tab: s.tab || "foods", food: s.food ?? null, addTab: ["new", "batch"].includes(s.addTab) ? s.addTab : "lookup", scan: s.scan || null, review: s.review || null, err: "" });
   S.m.look.scanning = false;
 }
@@ -1329,10 +1330,10 @@ function renderManage() {
       <p class="err" id="pinErr"></p><div class="actions"><button class="btn primary">Unlock</button><button type="button" class="btn quiet" data-act="pin-cancel">Cancel</button></div></form>`;
     return;
   }
-  el.innerHTML = `<div class="subtabs">${[["foods", "Foods and photos"], ["style", "Photo style"], ["tags", "Tags"], ["nightscout", "Nightscout"], ["settings", "Settings"]].map(([k, l]) =>
+  el.innerHTML = `<div class="subtabs">${[["foods", "Foods and photos"], ["style", "Photo style"], ["tags", "Tags"], ["settings", "Settings"]].map(([k, l]) =>
       `<button data-mtab="${k}" class="${S.m.tab === k ? "on" : ""}">${l}</button>`).join("")}
       <button data-act="lock" style="margin-left:auto">Lock</button></div><div class="mbody" id="mbody"></div>`;
-  ({ foods: renderManageFoods, style: loadStyle, tags: renderTags, nightscout: renderNightscout, settings: renderSettings })[S.m.tab]();
+  ({ foods: renderManageFoods, style: loadStyle, tags: renderTags, settings: renderSettings })[S.m.tab]();
 }
 
 const $m = () => $("#mbody");
@@ -2680,11 +2681,11 @@ function renderTags() {
 }
 
 async function renderNightscout() {
-  if (!$m()) return;
-  let s; try { s = await api("/api/nightscout"); } catch (err) { if (stillOn("nightscout")) $m().innerHTML = `<div class="empty">${esc(err.message)}</div>`; return; }
-  if (!stillOn("nightscout")) return;
+  const box = $("#nsBox"); if (!box) return;
+  let s; try { s = await api("/api/nightscout"); } catch (err) { box.innerHTML = `<section class="form"><h2>Nightscout</h2><p class="err">${esc(err.message)}</p></section>`; return; }
+  if (!box.isConnected) return;
   const ago = ms => ms ? `${Math.max(0, Math.round((Date.now() - ms) / 60000))} min ago` : "never";
-  $m().innerHTML = `<div class="pad"><div class="form">
+  box.innerHTML = `<section class="form">
     <h2>Nightscout</h2>
     <p class="meta">The app pulls glucose readings every 5 minutes. It writes to Nightscout only if 'Send to Nightscout' below is turned on. The token stays on the kitchen server.</p>
     ${s.configured ? `<div class="strip"><div class="tirl"><span>Connected to <b>${esc(s.url)}</b></span></div>
@@ -2696,12 +2697,12 @@ async function renderNightscout() {
       <label class="field"><span>Nightscout address</span><input id="nsUrl" type="url" required placeholder="https://yoursite.example.com" value="${esc(s.url || "")}"></label>
       <label class="field"><span>Access token with the "readable" role (Admin tools → Subjects). Not the API secret. To send the log too, the token also needs a role with api:treatments:*.</span><input id="nsToken" type="password" required autocomplete="off"></label>
       <p class="err" id="nsErr"></p><div class="actions"><button class="btn primary">Test and save</button><button type="button" class="btn quiet" data-act="form-reset">Cancel</button></div></form>
-    ${s.configured ? `<div id="nsSendBox"></div>` : ""}
+    <div id="nsSendBox" data-connected="${s.configured ? 1 : ""}"></div>
     <form class="form" id="tgForm"><h3>Target range (mg/dL)</h3><p class="meta">Used for time in range. Default 70–180; set it from your care team's advice.</p>
       <div class="fieldrow"><label class="field"><span>Low</span><input id="tgLow" type="number" min="54" max="120" value="${s.low}"></label>
       <label class="field"><span>High</span><input id="tgHigh" type="number" min="120" max="300" value="${s.high}"></label></div>
       <div class="actions"><button class="btn">Save range</button><button type="button" class="btn quiet" data-act="form-reset">Cancel</button></div></form>
-  </div></div>`;
+  </section>`;
   renderNsSend();
 }
 
@@ -2709,6 +2710,7 @@ async function renderNightscout() {
 let confirmNsRemove = 0;
 async function renderNsSend(msg = "") {
   const box = $("#nsSendBox"); if (!box) return;
+  if (!box.dataset.connected) { box.innerHTML = `<section class="form"><h3>Send to Nightscout</h3><p class="meta">Connect Nightscout above first. Then the log's carbs, insulin and meter BG can be sent to it, so OpenAPS can forecast with them.</p></section>`; return; }
   let t; try { t = await api("/api/nightscout/send", { parent: true }); } catch { return; }
   if (!t.available) { box.innerHTML = `<section class="form"><h3>Send to Nightscout</h3><p class="meta">Only production sends, so test meals never reach the real record.</p></section>`; return; }
   const k = t.kinds;
@@ -2762,7 +2764,8 @@ async function renderSettings() {
   try { const d = await api("/api/dose-settings"); S.doseEdit = d.settings || { carb_ratio: [], isf: [], target: [] }; S.doseUpdated = d.updated; } catch { S.doseEdit = null; }
   if (!stillOn("settings")) return;
   const st = S.settings;
-  $m().innerHTML = `<div class="pad"><div class="form">
+  $m().innerHTML = `<div class="setwrap"><nav class="setnav" id="setNav" aria-label="Settings sections"></nav><div class="pad"><div class="form" id="setBody">
+    <div id="nsBox"></div>
     ${st ? `<form class="form" id="offContact"><h2>Food lookup</h2>
       <label class="field"><span>Contact email sent to Open Food Facts with each lookup, so they can reach you if something goes wrong</span>
         <input id="offContactEmail" type="email" required maxlength="120" value="${esc(st.off_contact)}"></label>
@@ -2788,9 +2791,44 @@ async function renderSettings() {
       <div class="fieldrow"><label class="field"><span>Current PIN</span><input id="oldPin" type="password" inputmode="numeric" required></label>
       <label class="field"><span>New PIN (4 to 8 digits)</span><input id="newPin" type="password" inputmode="numeric" pattern="\\d{4,8}" required></label></div>
       <div class="actions"><button class="btn">Change PIN</button><button type="button" class="btn quiet" data-act="form-reset">Cancel</button></div></form>
-    </div></div>`;
-  S.accounts = null; renderAccounts(); renderPush(); renderTidepool();
+    </div></div></div>`;
+  setNav();
+  S.accounts = null; renderAccounts(); renderPush(); renderTidepool(); renderNightscout();
 }
+
+/* Settings sidebar (okf/design/components/settings-nav.md): built from the section headings, which arrive as each box loads */
+function setNav() {
+  const body = $("#setBody"), nav = $("#setNav"); if (!body || !nav) return;
+  const draw = () => {
+    if (!nav.isConnected) return;
+    const hs = [...body.querySelectorAll("h2")];
+    hs.forEach(h => { h.id ||= "set-" + h.textContent.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""); });
+    const html = hs.map(h => `<button type="button" data-setgo="${h.id}">${esc(h.textContent)}</button>`).join("");
+    if (nav.innerHTML !== html) { nav.innerHTML = html; setNavMark(); }
+    if (S.m.goto && $("#" + S.m.goto)) { $("#" + S.m.goto).scrollIntoView({ block: "start" }); S.m.goto = null; }
+  };
+  let queued = false;
+  new MutationObserver(() => { if (!queued) { queued = true; requestAnimationFrame(() => { queued = false; draw(); }); } }).observe(body, { childList: true, subtree: true });
+  draw();
+}
+function setNavMark() {   // mark the heading whose section is in view
+  const nav = $("#setNav"); if (!nav) return;
+  const view = nav.parentNode, r = nav.getBoundingClientRect();
+  const top = getComputedStyle(view).flexDirection === "column" ? r.bottom : view.getBoundingClientRect().top;   // phones: below the sticky row
+  const hs = [...document.querySelectorAll("#setBody h2")];
+  let cur = hs[0];
+  for (const h of hs) if (h.getBoundingClientRect().top <= top + 80) cur = h;
+  if (view.scrollTop + view.clientHeight >= view.scrollHeight - 4) cur = hs.at(-1) ?? cur;   // the last sections can't reach the top
+  for (const b of nav.children) {
+    const on = b.dataset.setgo === cur?.id;
+    if (on !== b.classList.contains("on")) { b.classList.toggle("on", on); if (on && nav.scrollWidth > nav.clientWidth) nav.scrollLeft = b.offsetLeft - (nav.clientWidth - b.offsetWidth) / 2; }   // phones: keep it in the row, without disturbing a smooth scroll
+  }
+}
+addEventListener("scroll", () => { if ($("#setNav")) setNavMark(); }, true);
+addEventListener("click", e => {
+  const b = e.target.closest("[data-setgo]"); if (!b) return;
+  $("#" + b.dataset.setgo)?.scrollIntoView({ behavior: "smooth", block: "start" });
+});
 
 /* ---------- Tidepool (okf/features/tidepool-sync.md) ---------- */
 let confirmTpRemove = 0;
