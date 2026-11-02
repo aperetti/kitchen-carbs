@@ -27,6 +27,7 @@ Nightscout for forecasting with OpenAPS, not a closed loop. Last 30 days include
 - Warnings beside the switches: 'Set long-acting insulin as the profile's basal rate in Nightscout; it is sent only
   as a note.' and 'Switch a kind off if a pump or another app also puts it in Nightscout, or the forecast counts it
   twice.'
+- Dev and QA never send; they show the same options greyed out under a note saying only production sends.
 - Status: when it last sent and how many treatments are in Nightscout, or the last error in the warn colour.
 - Kept in step: a new or changed meal or entry is sent within a minute (and every 5 minutes anyway); a deleted one,
   or a kind switched off, is deleted from Nightscout for good (not just hidden, so nothing reading Nightscout still

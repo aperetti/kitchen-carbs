@@ -5,7 +5,7 @@ Each version is what went to the family's kitchen on that date (okf/architecture
 - Manage: **Nightscout moved into Settings**, and Settings is reordered: food lookup and accounts first, then
   insulin, the log, Nightscout, Tidepool, notifications and the scale. Settings now has a list of its sections down the side (across
   the top on a phone) to jump straight to one. 'Send to Nightscout' now shows even before Nightscout is connected,
-  saying to connect it first.
+  saying to connect it first. On the test copies its options show greyed out, since only the kitchen's real copy sends.
 
 ## v2026.11.01.3 · 1 Nov 2026
 - Manage → Foods and photos: **Check new photos** goes through every new photo one after another, with Use, Try

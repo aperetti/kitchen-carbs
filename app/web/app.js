@@ -2712,27 +2712,27 @@ async function renderNsSend(msg = "") {
   const box = $("#nsSendBox"); if (!box) return;
   if (!box.dataset.connected) { box.innerHTML = `<section class="form"><h3>Send to Nightscout</h3><p class="meta">Connect Nightscout above first. Then the log's carbs, insulin and meter BG can be sent to it, so OpenAPS can forecast with them.</p></section>`; return; }
   let t; try { t = await api("/api/nightscout/send", { parent: true }); } catch { return; }
-  if (!t.available) { box.innerHTML = `<section class="form"><h3>Send to Nightscout</h3><p class="meta">Only production sends, so test meals never reach the real record.</p></section>`; return; }
-  const k = t.kinds;
+  const k = t.kinds, off = t.available ? "" : "disabled";   // dev and QA show the options greyed out, so they can be seen but never send
   box.innerHTML = `<form class="form" id="nsSendForm"><h3>Send to Nightscout</h3>
+    ${off ? `<p class="warn">Only production sends, so test meals never reach the real record. The options below are shown for reference.</p>` : ""}
     <p class="meta">Sends the log's carbs, insulin and meter BG to Nightscout as treatments, so OpenAPS or another app can forecast with them.
       New, changed and deleted meals and entries follow within a minute. Only what Kitchen Carbs sent is ever changed.</p>
     ${t.on ? `<p>Sending. ${t.last_sync ? `Last sent ${esc(movedLabel(t.last_sync))}` : "Not sent yet"} · ${t.sent} treatment${t.sent === 1 ? "" : "s"} in Nightscout.</p>`
       : t.sent ? `<p class="meta">Not sending. ${t.sent} treatment${t.sent === 1 ? "" : "s"} still in Nightscout. Save to start again.</p>` : ""}
     ${t.last_error ? `<p class="warn">Last try failed: ${esc(t.last_error)}</p>` : ""}
-    <label class="field"><span>Send from</span><input id="nsFrom" type="date" max="${localDay()}" value="${esc(t.from)}" required></label>
+    <label class="field"><span>Send from</span><input id="nsFrom" ${off} type="date" max="${localDay()}" value="${esc(t.from)}" required></label>
     <fieldset class="field"><legend>What to send</legend>
-      <label class="check"><input type="checkbox" id="nsCarbs" ${k.carbs ? "checked" : ""}><span>Carbs: each meal's total with its foods, and carbs typed in entries</span></label>
-      <label class="check"><input type="checkbox" id="nsIns" ${k.insulin ? "checked" : ""}><span>Rapid-acting insulin typed on meals and entries, at the time it was given</span></label>
-      <label class="check"><input type="checkbox" id="nsBg" ${k.bg ? "checked" : ""}><span>Meter BG typed on meals and entries (never CGM)</span></label>
+      <label class="check"><input type="checkbox" ${off} id="nsCarbs" ${k.carbs ? "checked" : ""}><span>Carbs: each meal's total with its foods, and carbs typed in entries</span></label>
+      <label class="check"><input type="checkbox" ${off} id="nsIns" ${k.insulin ? "checked" : ""}><span>Rapid-acting insulin typed on meals and entries, at the time it was given</span></label>
+      <label class="check"><input type="checkbox" ${off} id="nsBg" ${k.bg ? "checked" : ""}><span>Meter BG typed on meals and entries (never CGM)</span></label>
       <p class="meta">Long-acting insulin goes only as a note: OpenAPS would count it as rapid-acting. Set its effect as the basal rate in the Nightscout profile.</p>
       <p class="meta warn">Switch a kind off if a pump or another app also puts it in Nightscout, or the forecast counts it twice.</p>
       <p class="meta">Switching a kind off removes what was sent of it.</p></fieldset>
     <p class="meta">The token needs a role with api:treatments:* (Admin tools → Roles), as well as 'readable'. Saving checks this first.</p>
     <p class="err" role="alert">${esc(msg)}</p>
-    <div class="actions"><button class="btn primary">${t.on ? "Save" : "Check and send"}</button>
+    ${off ? "" : `<div class="actions"><button class="btn primary">${t.on ? "Save" : "Check and send"}</button>
       ${t.on ? `<button type="button" class="btn" data-act="nss-sync">Send now</button><button type="button" class="btn" data-act="nss-resend">Resend everything</button><button type="button" class="btn quiet" data-act="nss-off">Turn off</button>` : ""}
-      ${t.sent ? `<button type="button" class="btn quiet" data-act="nss-remove">${Date.now() - confirmNsRemove < 4000 ? "Tap again to remove" : "Remove from Nightscout"}</button>` : ""}</div></form>`;
+      ${t.sent ? `<button type="button" class="btn quiet" data-act="nss-remove">${Date.now() - confirmNsRemove < 4000 ? "Tap again to remove" : "Remove from Nightscout"}</button>` : ""}</div>`}</form>`;
 }
 
 /* Insulin settings by time of day (okf/domain/insulin-settings.md); used only by the meal summary */
