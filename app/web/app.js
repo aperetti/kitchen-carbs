@@ -1353,8 +1353,8 @@ function renderManageFoods() {
 }
 function manageRows() {
   return `<button class="row addrow ${S.m.food === "add" ? "on" : ""}" data-mfood="add"><span class="t"><b>+ Add a food</b><span>Look it up, scan a label, or type it in</span></span></button>
-    ${S.foods.some(x => x.fiber_lookup) || S.m.food === FIBER ? `<button class="row addrow ${S.m.food === FIBER ? "on" : ""}" data-mfood="${FIBER}"><span class="t"><b>Fill in fiber</b>
-      <span>${S.foods.filter(x => x.fiber_lookup).length} saved food${S.foods.filter(x => x.fiber_lookup).length === 1 ? "" : "s"} can get fiber from their source</span></span></button>` : ""}
+    ${S.foods.some(x => x.fiber_per_100g == null) || S.m.food === FIBER ? `<button class="row addrow ${S.m.food === FIBER ? "on" : ""}" data-mfood="${FIBER}"><span class="t"><b>Fill in fiber</b>
+      <span>${(n => `${n} food${n === 1 ? "" : "s"} without fiber`)(S.foods.filter(x => x.fiber_per_100g == null).length)}</span></span></button>` : ""}
     ${reviewRow()}
     ${missingPhotosRow()}
     <button class="row addrow" data-act="quick-scan"><span class="t"><b>Scan a barcode</b><span>Check the label numbers, save, and a photo is made for you</span></span></button>
@@ -1369,15 +1369,21 @@ function manageRows() {
 const FIBER = "fill-in-fiber";
 const fib = () => (S.m.fib ??= {});   // food id -> { status, fiber, per_grams, notes, warnings, conf }
 const fibReady = r => r?.status === "ready" && r.fiber != null && r.fiber !== "" && r.conf;
+const typeFiber = f => ({ status: "ready", typed: true, fiber: null, per_grams: f.serving_grams || 100, per_serving: !!f.serving_grams, notes: [], warnings: [], conf: false });
 function fiberPanel() {
-  const st = fib(), foods = S.foods.filter(f => f.fiber_lookup || st[f.id]?.status === "saved");
-  const waiting = foods.filter(f => !st[f.id]).length, ready = foods.filter(f => fibReady(st[f.id])).length;
-  if (!foods.length) return `<div class="form"><p class="meta">Every food whose source can be read again has fiber now. Fiber for other foods can be typed on the food.</p></div>`;
+  const st = fib(), foods = S.foods.filter(f => f.fiber_per_100g == null || st[f.id]?.status === "saved");
+  const look = foods.filter(f => f.fiber_lookup || (st[f.id] && !st[f.id].typed)), typed = foods.filter(f => !look.includes(f));
+  typed.forEach(f => (st[f.id] ??= typeFiber(f)));   // nothing to read again: typed from the label or the care team
+  const waiting = look.filter(f => !st[f.id]).length, ready = foods.filter(f => fibReady(st[f.id])).length;
+  if (!foods.length) return `<div class="form"><p class="meta">Every food has fiber now.</p></div>`;
   return `<div class="form fiberfill">
-    <p class="meta">Fiber is read again from where each food came from: its barcode, FatSecret or USDA number, or its saved label photo.
-      Check each number against the label or source and tick it. Only fiber is saved; carbs, portions and the log stay as they are.</p>
+    <p class="meta">Check each number against the label or source and tick it. Only fiber is saved; carbs and portions stay as they are.
+      Logged meals with the food that have no fiber get it too.</p>
+    ${look.length ? `<h3>Look it up</h3><p class="meta">Read again from where each food came from: its barcode, FatSecret or USDA number, or its saved label photo.</p>
     ${waiting ? `<div class="actions"><button class="btn primary" data-act="fib-look" ${st.busy ? "disabled" : ""}>${st.busy ? "Looking up…" : `Look up fiber for ${waiting} food${waiting === 1 ? "" : "s"}`}</button></div>` : ""}
-    <ul class="fiblist">${foods.map(f => fiberRow(f, st[f.id])).join("")}</ul>
+    <ul class="fiblist">${look.map(f => fiberRow(f, st[f.id])).join("")}</ul>` : ""}
+    ${typed.length ? `<h3>Type it in</h3><p class="meta">These have nothing to read again. Type the fiber from the package or the care team's numbers.</p>
+    <ul class="fiblist">${typed.map(f => fiberRow(f, st[f.id])).join("")}</ul>` : ""}
     <p class="err" id="fibErr"></p>
     <div class="actions"><button class="btn primary" data-act="fib-save" ${ready ? "" : "disabled"}>Save ${ready} checked</button></div></div>`;
 }
@@ -1385,9 +1391,10 @@ function fiberRow(f, r) {
   const src = f.source_kind === "label" ? `Label photo · ${esc(f.source_ref)}` : esc(f.source_ref), label = f.label_photo;
   const head = `<div class="fibhead"><b>${esc(f.name)}</b><span class="meta">${src}</span></div>`;
   if (!r || r.status === "loading") return `<li>${head}<span class="meta">${r ? "Looking it up…" : "Not looked up yet"}</span></li>`;
-  if (r.status === "error") return `<li>${head}<p class="err">${esc(r.err)}</p><button class="btn small quiet" data-act="fib-retry" data-fid="${esc(f.id)}">Try again</button></li>`;
+  if (r.status === "error") return `<li>${head}<p class="err">${esc(r.err)}</p><div class="actions"><button class="btn small quiet" data-act="fib-retry" data-fid="${esc(f.id)}">Try again</button>
+    <button class="btn small quiet" data-act="fib-type" data-fid="${esc(f.id)}">Type it in</button></div></li>`;
   if (r.status === "saved") return `<li class="saved">${head}<span class="meta">Saved: ${r.fiber} g fiber per ${r.per_grams} g</span></li>`;
-  const where = label ? "the label" : f.source_kind === "openfoodfacts" ? "the package" : "the source";
+  const where = r.typed ? "the label or the care team's numbers" : label ? "the label" : f.source_kind === "openfoodfacts" ? "the package" : "the source";
   return `<li data-fid="${esc(f.id)}">${head}
     ${r.notes.length ? `<span class="meta">From the source: ${esc(r.notes.join("; "))}</span>` : ""}
     ${r.warnings.length ? `<ul class="warnlist">${r.warnings.map(w => `<li>${esc(w)}</li>`).join("")}</ul>` : ""}
@@ -1876,6 +1883,7 @@ const mClick = async e => {
   if (t.dataset.bact) { await batchAct(t); return; }
   if (t.dataset.act === "fib-look") { fiberLook(S.foods.filter(f => f.fiber_lookup && !fib()[f.id]).map(f => f.id)); return; }
   if (t.dataset.act === "fib-retry") { fiberLook([t.dataset.fid]); return; }
+  if (t.dataset.act === "fib-type") { fib()[t.dataset.fid] = typeFiber(foodById(t.dataset.fid)); refreshFiber(); return; }
   if (t.dataset.act === "fib-save") { t.disabled = true; await fiberSave(); return; }
   if (t.dataset.quality) {
     try { S.style = await api("/api/style/quality", { method: "PUT", parent: true, body: { quality: t.dataset.quality } }); renderStyle(); toast("Photo speed saved"); }

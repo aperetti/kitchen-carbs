@@ -2,6 +2,9 @@
 Each version is what went to the family's kitchen on that date (okf/architecture/releases.md).
 
 ## Unreleased
+- **Fill in fiber** (Manage → Foods and photos) now lists every food without fiber. Foods with nothing to look up
+  again get a box to type it from the package or the care team's numbers, ticked like the rest. Saving a food's fiber
+  also adds it to logged meals with that food that had none.
 
 ## v2026.11.02 · 2 Nov 2026
 - **Fiber in the log**: each meal shows its fiber beside the carbs ("Including 4.5 g fiber"), and names any foods

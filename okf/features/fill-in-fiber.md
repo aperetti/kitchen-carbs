@@ -10,7 +10,13 @@ links:
   constrained_by: [rules/label-reading-needs-check.md, rules/provenance-required.md, rules/no-dosing.md, rules/backup-before-change.md]
 ---
 # Fill in fiber
-- Manage → Foods shows 'Fill in fiber' while any food has no fiber and a source the app can read again (decided 28 Oct).
+- Manage → Foods shows 'Fill in fiber' while any food has no fiber (decided 28 Oct for foods with a source to read
+  again; every food without fiber since 2 Nov).
+- Foods with nothing to read again (care-team and typed-in foods, or a source that can't be reached) are listed under
+  'Type it in': a box for the grams of fiber in the food's own serving (or per 100 g) and its own tick ('Matches the
+  label or the care team's numbers'), saved with the same 'Save N checked'.
+- Saving a food's fiber also fills it in on logged meals with that food that have none, in each item's own cooked or
+  dry state (okf/domain/meal.md). Fiber a meal already has is never changed, and the carbs never are.
 - Each food is read again from where it came from, never from another product: Open Food Facts by its barcode,
   FatSecret by its food number, USDA by its FDC number, and a scanned label by its saved label photo (Gemini reads it
   again). Care-team and typed-in foods have nothing to read again; fiber is typed in on the food instead.

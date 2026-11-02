@@ -449,6 +449,14 @@ def item_fiber(c, i) -> float | None:
     return f["fiber_per_100g"] * i.carbs_per_100g / f["carbs_per_100g"] if f["carbs_per_100g"] else f["fiber_per_100g"]
 
 
+def fill_meal_fiber(c, food_id: str):
+    """Logged items of this food with no fiber get it, in their own state; fiber a meal already has stays (okf/domain/meal.md)."""
+    c.execute("""UPDATE meal_items SET fiber_per_100g = (
+                   SELECT CASE WHEN f.carbs_per_100g > 0 THEN f.fiber_per_100g * meal_items.carbs_per_100g / f.carbs_per_100g
+                               ELSE f.fiber_per_100g END FROM foods f WHERE f.id = meal_items.food_id)
+                 WHERE food_id = ? AND fiber_per_100g IS NULL AND entered_carbs IS NULL""", (food_id,))
+
+
 def meal_fiber(items) -> dict:
     """A meal's fiber, for reference only: never subtracted, and a corrected carb total doesn't change it (okf/domain/meal.md)."""
     known = [i for i in items if i["fiber_per_100g"] is not None]
@@ -834,6 +842,8 @@ def update_food(food_id: str, body: FoodIn, request: Request, c=Depends(con)):
                    body.notes.strip(), body.basis, body.cook_raw_g, body.cook_cooked_g, measured_at,
                    body.serving_fiber, body.fiber_per_100g, fiber_at, food_id))
         set_food_tags(c, food_id, body.tags)
+        if body.fiber_per_100g is not None:
+            fill_meal_fiber(c, food_id)
         if "barcode" in body.model_fields_set:   # a form that doesn't send it keeps the one there
             c.execute("UPDATE foods SET barcode = ? WHERE id = ?", (body.barcode, food_id))
         if f["carbs_per_100g"] != body.carbs_per_100g or not same_batch:   # the carbs-to-weight changed: everyone checks again
@@ -912,6 +922,7 @@ def set_fiber(food_id: str, body: FiberIn, c=Depends(con)):
     with c:
         c.execute("UPDATE foods SET serving_fiber=?, fiber_per_100g=?, fiber_checked_at=?, updated_at=datetime('now','localtime') "
                   "WHERE id=?", (body.fiber if f["serving_grams"] else None, round(body.fiber * 100 / base, 2), today(), food_id))
+        fill_meal_fiber(c, food_id)
     return food_out(c, get_food(c, food_id))
 
 

@@ -1447,6 +1447,21 @@ def test_meal_fiber(app, monkeypatch):
     assert (seen["days"][0]["fiber"], seen["days"][0]["fiber_unknown"]) == (3.0, 2)
 
 
+def test_filling_fiber_fills_logged_meals_without_it(app):
+    """okf/features/fill-in-fiber.md: a typed fiber fills logged items that had none, in their own state; others keep theirs."""
+    client, _ = app
+    body = {"name": "Crackers", "serving_grams": 30, "serving_carbs": 20, "source_kind": "care-team", "source_ref": "plan", "verified": True}
+    f = client.post("/api/foods", json=body).json()
+    item = lambda cp: {"food_id": f["id"], "food_name": "Crackers", "portion_label": "1 pack", "grams": 30, "carbs_per_100g": cp, "qty": 1}
+    client.post("/api/meals", json={"client_id": "fib-fill-01", "day": "2026-10-27", "time": "10:00", "items": [item(66.67)]})
+    assert client.put(f"/api/foods/{f['id']}/fiber", json={"fiber": 3, "confirmed": False}).status_code == 400
+    client.put(f"/api/foods/{f['id']}/fiber", json={"fiber": 3, "confirmed": True})   # 10 g per 100 g
+    client.post("/api/meals", json={"client_id": "fib-fill-02", "day": "2026-10-27", "time": "11:00", "items": [item(66.67)]})
+    client.put(f"/api/foods/{f['id']}/fiber", json={"fiber": 6, "confirmed": True})   # changed later: logged meals keep theirs
+    meals = client.get("/api/log?day=2026-10-27").json()["meals"]
+    assert [m["fiber"] for m in meals if m["time"] in ("10:00", "11:00")] == [3.0, 3.0]
+
+
 def test_pdf_text_keeps_only_font_characters():
     from server import report
     assert report.safe("Crème ✎ → café") == "Crème   café"

@@ -122,3 +122,4 @@
 - 2026-11-01 — Nightscout moved from its own Manage tab into Settings; Settings gained a sidebar of its headings (design/components/settings-nav.md).
 - 2026-11-01 — Connect Nightscout accepts a site with no readings yet, so sending works before the CGM arrives.
 - 2026-11-02 — Meal fiber: logged items keep their food's fiber; the log shows each meal's fiber and the PDF each day's total (domain/meal.md).
+- 2026-11-02 — Fill in fiber lists every food without fiber, with a typed box for foods with no source to read again; filling a food's fiber fills it on logged meals that had none.
