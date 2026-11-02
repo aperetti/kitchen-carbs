@@ -208,3 +208,23 @@ def test_v17_nightscout_sent_and_meal_rating(tmp_path, monkeypatch):
     con = sqlite3.connect(db)
     assert con.execute("SELECT COUNT(*) FROM nightscout_sent").fetchone() == (0,)
     assert con.execute("SELECT day, rise FROM meals").fetchall() == [("2026-10-26", None)]
+
+
+def test_v19_meal_fiber_filled_from_the_food(tmp_path, monkeypatch):
+    """Version 19: weighed items get their food's fiber once, in their own state; by-hand items and foods without fiber stay empty."""
+    real = migrations.MIGRATIONS
+    monkeypatch.setattr(migrations, "MIGRATIONS", real[:18]); monkeypatch.setattr(migrations, "LATEST", 18)
+    db = deployed_db(tmp_path)
+    con = sqlite3.connect(db)
+    con.executescript("INSERT INTO foods(id, name, carbs_per_100g, fiber_per_100g, source_kind, source_ref) VALUES ('oats', 'Oats', 60, 10, 'usda', 'x');"
+                      "UPDATE meal_items SET food_id = 'kiwi';"
+                      "INSERT INTO meal_items(meal_id, food_id, food_name, portion_label, grams, carbs_per_100g, qty, carbs_exact) "
+                      "VALUES (1, 'oats', 'Oats, cooked', '1 bowl', 200, 15, 1, 30);"
+                      "INSERT INTO meal_items(meal_id, food_name, portion_label, grams, carbs_per_100g, qty, carbs_exact, entered_carbs) "
+                      "VALUES (1, 'Juice', 'Carbs entered by hand', 0, 0, 1, 12, 12);")
+    con.commit(); con.close()
+    monkeypatch.setattr(migrations, "MIGRATIONS", real); monkeypatch.setattr(migrations, "LATEST", len(real))
+    assert migrations.run(db, **QUIET) == 18
+    con = sqlite3.connect(db)
+    assert con.execute("SELECT food_name, fiber_per_100g, carbs_exact FROM meal_items ORDER BY id").fetchall() == [
+        ("Kiwi", None, 11.025), ("Oats, cooked", 2.5, 30), ("Juice", None, 12)]

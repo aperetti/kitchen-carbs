@@ -439,6 +439,23 @@ def targets(c):
     return int(db.get_setting(c, "target_low", 70)), int(db.get_setting(c, "target_high", 180))
 
 
+def item_fiber(c, i) -> float | None:
+    """The food's fiber per 100 g in the item's own state: the cooked or dry factor is the same one its carbs got."""
+    if i.entered_carbs is not None or not i.food_id:
+        return None
+    f = c.execute("SELECT carbs_per_100g, fiber_per_100g FROM foods WHERE id = ?", (i.food_id,)).fetchone()
+    if not f or f["fiber_per_100g"] is None:
+        return None
+    return f["fiber_per_100g"] * i.carbs_per_100g / f["carbs_per_100g"] if f["carbs_per_100g"] else f["fiber_per_100g"]
+
+
+def meal_fiber(items) -> dict:
+    """A meal's fiber, for reference only: never subtracted, and a corrected carb total doesn't change it (okf/domain/meal.md)."""
+    known = [i for i in items if i["fiber_per_100g"] is not None]
+    return {"fiber": round(sum(core.carbs_exact(i["grams"], i["fiber_per_100g"], i["qty"]) for i in known), 1),
+            "fiber_unknown": [i["food_name"] for i in items if i["fiber_per_100g"] is None]}
+
+
 def meals_for_days(c, first: str, last: str):
     out = []
     for m in c.execute("SELECT * FROM meals WHERE day BETWEEN ? AND ? AND deleted_at IS NULL ORDER BY day, time", (first, last)).fetchall():
@@ -449,7 +466,7 @@ def meals_for_days(c, first: str, last: str):
         own = sum(i["carbs_exact"] for i in items)
         exact = own if m["carbs_corrected"] is None else m["carbs_corrected"]   # a corrected total wins (okf/domain/meal.md)
         out.append({**dict(m), "items": items, "comments": comments, "total": core.whole_grams(exact), "total_exact": exact,
-                    "items_total": core.whole_grams(own)})
+                    "items_total": core.whole_grams(own), **meal_fiber(items)})
     return out
 
 
@@ -1553,10 +1570,11 @@ def create_meal(body: MealIn, c=Depends(con), x_kc_push: str = Header(default=""
                          now().strftime("%Y-%m-%d %H:%M") if body.day < today() else None,
                          *(getattr(body, k) for k in DETAILS))).lastrowid
         for i in body.items:
-            c.execute("INSERT INTO meal_items(meal_id, food_id, portion_id, food_name, portion_label, grams, carbs_per_100g, qty, carbs_exact, entered_carbs) "
-                      "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            c.execute("INSERT INTO meal_items(meal_id, food_id, portion_id, food_name, portion_label, grams, carbs_per_100g, qty, carbs_exact, entered_carbs, fiber_per_100g) "
+                      "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                       (mid, i.food_id, i.portion_id, i.food_name.strip(), i.portion_label, i.grams, i.carbs_per_100g, i.qty,
-                       i.entered_carbs if i.entered_carbs is not None else core.carbs_exact(i.grams, i.carbs_per_100g, i.qty), i.entered_carbs))
+                       i.entered_carbs if i.entered_carbs is not None else core.carbs_exact(i.grams, i.carbs_per_100g, i.qty), i.entered_carbs,
+                       item_fiber(c, i)))
     notify(lambda: meal_notice(c, mid), x_kc_push)
     return {"id": mid, "duplicate": False}
 
@@ -2013,6 +2031,7 @@ def export_pdf(start: str, end: str, c=Depends(con)):
         if not (dm or de):
             continue
         days.append({"day": day, "meals": dm, "entries": de, "carbs": core.whole_grams(carbs), "start_ms": s0, "points": pts,
+                     "fiber": round(sum(m["fiber"] for m in dm), 1), "fiber_unknown": sum(len(m["fiber_unknown"]) for m in dm),
                      "insulin": insulin_totals(de + dm), "glucose": core.glucose_stats(pts, low, high, s0, e0) if pts else None})
     s0, e0 = day_bounds_ms(first.isoformat(), n)
     overview = {"days": n, "logged_days": len(days), "meals": len(meals), "entries": len(entries),

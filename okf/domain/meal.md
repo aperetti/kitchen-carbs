@@ -21,6 +21,13 @@ removes the correction (with its own comment). It follows the rules for changing
 An item entered by hand (okf/domain/plate.md) stores its description as the name, 'Carbs entered by hand' as the
 label and the carbs as typed, with no weight; the log and the export show it that way.
 
+Fiber (decided 2 Nov), for reference only: each weighed item also keeps its food's fiber per 100 g as it was when saved,
+in the same cooked or dry state as its carbs, so a later change to the food doesn't rewrite the log. The meal's fiber
+is the sum over its items ('including 6.5 g fiber', to 0.1 g). Items whose food has no fiber, and items entered by
+hand, have none, and the meal says which foods ('fiber not known for Juice'). Fiber is never subtracted from the carbs
+and a corrected carb total doesn't change it (okf/domain/food.md, okf/rules/no-dosing.md). Meals saved before 2 Nov
+got their fiber once from the food as it was that day.
+
 Optional details that go with the meal (decided 29 Oct), each left empty unless someone enters it:
 - BG at the meal, in mg/dL, and where it came from: the CGM (under 15 minutes old) or a meter.
 - Insulin given for the meal: units (to 0.05 u) and Bolus or Basal. Only what a person typed (okf/rules/no-dosing.md).

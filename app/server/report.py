@@ -170,7 +170,7 @@ class Report(FPDF):
 
 
 def build(first: str, last: str, days: list[dict], overview: dict, low: int, high: int, made: datetime) -> bytes:
-    """days: [{day, meals, entries, carbs, insulin, glucose, points, start_ms}] for days with anything logged."""
+    """days: [{day, meals, entries, carbs, fiber, fiber_unknown, insulin, glucose, points, start_ms}] for days with anything logged."""
     rng = day_label(first, True) if first == last else f"{day_label(first)} – {day_label(last, True)}"
     pdf = Report(rng)
     pdf.add_page()
@@ -216,6 +216,9 @@ def build(first: str, last: str, days: list[dict], overview: dict, low: int, hig
         pdf.set_text_color(*ACCENT)
         pdf.cell(0, 18, f"{d['carbs']} g carbs", align="R", new_x="LMARGIN", new_y="NEXT")
         pdf.fact("Insulin given ", insulin_text(d["insulin"]))
+        if d["meals"]:   # reference only, never taken off the carbs (okf/domain/meal.md)
+            unknown = d["fiber_unknown"]
+            pdf.fact("Fiber ", f"{d['fiber']:g} g" + (f", not known for {unknown} food{'s' if unknown != 1 else ''}" if unknown else ""))
         g = d["glucose"]
         if g and g["count"]:
             pdf.fact("In range ", f"{g['in_range']:g}%")

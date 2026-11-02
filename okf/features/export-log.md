@@ -18,7 +18,8 @@ app's own Kitchen Sans), so it downloads as a file on the tablet and phones alik
 - First page: 'Kitchen Carbs · Meal log', the date range and when it was made; then the range at a glance: carbs per
   day (average), insulin given by kind (total and per day), and, with CGM data, time in range as a bar (below / in /
   above the family's target) with average, CV, GMI (14+ days) and sensor coverage, marked incomplete under 70 %.
-- Then one section per day that has anything logged, oldest first: the day's carbs total, insulin given and time in
+- Then one section per day that has anything logged, oldest first: the day's carbs total, its fiber total (the meals'
+  fiber, with how many foods had none; decided 2 Nov), insulin given and time in
   range, a small glucose trace for the day with the target band and meal times marked, and a table in time order:
   time, what (each food with its carbs, or the entry's values), carbs, BG, insulin, and notes (how much was eaten,
   comments, the corrected-total reason). A moved or later-changed row says 'edited'; the dates stay in the CSV.

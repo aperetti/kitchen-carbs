@@ -1427,6 +1427,26 @@ def test_export_pdf(app):
     assert client.get("/api/export.pdf?start=2026-10-20&end=2026-10-20").status_code == 200   # nothing logged
 
 
+def test_meal_fiber(app, monkeypatch):
+    """okf/domain/meal.md: items keep their food's fiber in their own state; the meal and the PDF's day add it up."""
+    client, main = app
+    bar = client.post("/api/foods", json={"name": "Bar", "serving_grams": 40, "serving_carbs": 24, "serving_fiber": 3,
+                                          "source_kind": "care-team", "source_ref": "test", "verified": True}).json()   # 60 g carbs, 7.5 g fiber per 100 g
+    body = {"client_id": "fiber-0001", "day": "2026-10-27", "time": "12:00", "items": [
+        {"food_id": bar["id"], "food_name": "Bar", "portion_label": "1 bar, cooked", "grams": 80, "carbs_per_100g": 30, "qty": 1},
+        {"food_id": "pasta-cooked", "food_name": "Pasta, cooked", "portion_label": "1 cup", "grams": 140, "carbs_per_100g": 30.9, "qty": 1},
+        {"food_name": "Juice", "portion_label": "Carbs entered by hand", "entered_carbs": 12}]}
+    mid = client.post("/api/meals", json=body).json()["id"]
+    client.put(f"/api/foods/{bar['id']}", json={"name": "Bar", "serving_grams": 40, "serving_carbs": 24, "serving_fiber": 10,
+                                                 "source_kind": "care-team", "source_ref": "test", "verified": True})   # history stays
+    m = next(x for x in client.get("/api/log?day=2026-10-27").json()["meals"] if x["id"] == mid)
+    assert m["fiber"] == 3.0 and m["fiber_unknown"] == ["Pasta, cooked", "Juice"] and m["total"] == 79   # carbs untouched: 24 + 43 + 12
+    seen = {}
+    monkeypatch.setattr(main.report, "build", lambda first, last, days, *a, **k: seen.update(days=days) or b"%PDF")
+    client.get("/api/export.pdf?start=2026-10-27&end=2026-10-27")
+    assert (seen["days"][0]["fiber"], seen["days"][0]["fiber_unknown"]) == (3.0, 2)
+
+
 def test_pdf_text_keeps_only_font_characters():
     from server import report
     assert report.safe("Crème ✎ → café") == "Crème   café"

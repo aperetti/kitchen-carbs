@@ -964,13 +964,16 @@ const deletedList = d => !d.deleted?.length ? "" : `<details class="deleted"><su
   ${d.editable ? "" : `<p class="meta">Earlier days are read-only, so these can't be restored unless a parent allows changes in Manage → Settings.</p>`}</details>`;
 
 /* Meals and manual entries in one timeline (okf/design/components/entry-row.md). */
+// a meal's fiber, for reference only: never taken off the carbs (okf/domain/meal.md)
+const fiberLine = m => m.fiber == null ? "" : m.fiber_unknown.length === m.items.length ? "Fiber not known for these foods"
+  : `Including ${m.fiber} g fiber${m.fiber_unknown.length ? `; not known for ${m.fiber_unknown.join(", ")}` : ""}`;
 function logRows(d) {
   const rows = [...d.meals.map(m => ({ t: m.time, m })), ...d.entries.map(e => ({ t: e.time, e }))].sort((a, b) => a.t.localeCompare(b.t));
   if (!rows.length) return `<div class="empty">Nothing logged${d.day === localDay() ? " yet today" : " this day"}.</div>`;
   return rows.map(({ m, e }) => m
     ? `<button class="lrow ${m.id === S.log.sel && !S.log.selEntry && !S.log.adding ? "on" : ""}" data-meal="${m.id}">
       <span class="tm">${m.time}${modMark(m)}</span><span class="it"><b>${esc(m.items.map(i => `${i.food_name} ${i.carbs} g carbs${i.entered_carbs != null ? " (by hand)" : ""}`).join(" · "))}</b>
-      <span>Eaten: ${m.eaten ? cap(m.eaten) : "not set"}${m.bg != null ? ` · BG&nbsp;${m.bg}` : ""}${m.insulin != null ? ` · ${fmtU(m.insulin)} ${m.insulin_kind}` : ""}${m.two_h != null ? ` · 2&nbsp;h&nbsp;${m.two_h}` : ""}${m.carbs_corrected != null ? ` · <i class="moved">Carbs edited</i>` : ""}</span>
+      <span>Eaten: ${m.eaten ? cap(m.eaten) : "not set"}${m.bg != null ? ` · BG&nbsp;${m.bg}` : ""}${m.insulin != null ? ` · ${fmtU(m.insulin)} ${m.insulin_kind}` : ""}${m.two_h != null ? ` · 2&nbsp;h&nbsp;${m.two_h}` : ""}${m.fiber != null && m.fiber_unknown.length < m.items.length ? ` · Fiber&nbsp;${m.fiber}&nbsp;g` : ""}${m.carbs_corrected != null ? ` · <i class="moved">Carbs edited</i>` : ""}</span>
       ${m.comments.length ? `<span class="lcmt">${esc(m.comments.map(c => c.text).join(" · "))}</span>` : ""}</span>
       <span class="c">${m.total}</span></button>`
     : `<button class="lrow entry ${e.id === S.log.selEntry ? "on" : ""}" data-entry="${e.id}">
@@ -1117,6 +1120,7 @@ async function renderMeal() {
         <label class="field"><span>Why it changed (required)</span><input id="cfReason" maxlength="400" minlength="3" placeholder="e.g. only ate half the pasta, label was wrong" autocomplete="off"></label>
         <button type="button" class="linkbtn" data-act="fix-cancel">Keep the total as it was</button></form>` : ""}
     <span class="meta">${m.items.map(i => `${esc(i.food_name)}, ${i.carbs} g carbs (${i.entered_carbs != null ? "entered by hand" : fmtG(itemG(i))})`).join(" · ")}</span>
+    <span class="meta">${esc(fiberLine(m))}</span>
     ${whenBox(m, "meals")}
     <div class="glab"><span class="label">BG, insulin and time to eat</span></div>
     ${ed ? `<form id="mdetForm" class="mdetform"><label class="field"><span>Blood glucose (mg/dL)${m.bg != null && m.bg_source === "cgm" ? " · from the CGM" : ""}</span><input id="mdBg" type="number" inputmode="numeric" min="20" max="600" step="1" value="${m.bg ?? ""}" placeholder="Meter reading"></label>

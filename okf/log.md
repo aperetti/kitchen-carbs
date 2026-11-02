@@ -121,3 +121,4 @@
 - 2026-11-01 — Rate a meal: rise 🍭 fast / 🌮 medium / 🍕 slow from the log (GI dropped the same day: it belongs to a food, not a meal), with the measured first-hour rise and minutes to peak; foods show how their meals were rated (features/rate-meal.md, domain/meal-rating.md).
 - 2026-11-01 — Nightscout moved from its own Manage tab into Settings; Settings gained a sidebar of its headings (design/components/settings-nav.md).
 - 2026-11-01 — Connect Nightscout accepts a site with no readings yet, so sending works before the CGM arrives.
+- 2026-11-02 — Meal fiber: logged items keep their food's fiber; the log shows each meal's fiber and the PDF each day's total (domain/meal.md).

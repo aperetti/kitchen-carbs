@@ -216,11 +216,21 @@ def m018_meal_rating(con):
     con.execute("ALTER TABLE meals ADD COLUMN rise TEXT")   # fast, medium, slow
 
 
+def m019_meal_fiber(con):
+    """Each weighed item keeps its food's fiber, in the item's own cooked or dry state (okf/domain/meal.md).
+    Meals saved before this get it once from the food as it is now."""
+    con.execute("ALTER TABLE meal_items ADD COLUMN fiber_per_100g REAL")   # NULL: the food had none, or entered by hand
+    con.execute("""UPDATE meal_items SET fiber_per_100g = (
+                     SELECT CASE WHEN f.carbs_per_100g > 0 THEN f.fiber_per_100g * meal_items.carbs_per_100g / f.carbs_per_100g
+                                 ELSE f.fiber_per_100g END FROM foods f WHERE f.id = meal_items.food_id)
+                   WHERE entered_carbs IS NULL AND food_id IS NOT NULL""")
+
+
 MIGRATIONS = [m001_schema, m002_sessions, m003_cooked_state, m004_moved_from, m005_portion_labels, m006_fiber,
               m007_food_confirmations, m008_meal_details, m009_barcode,
               m010_entered_carbs, m011_edited_later,
               m012_soft_delete, m013_carbs_corrected, m014_favorite_photo,
-              m015_push_subscriptions, m016_tidepool_sent, m017_nightscout_sent, m018_meal_rating]
+              m015_push_subscriptions, m016_tidepool_sent, m017_nightscout_sent, m018_meal_rating, m019_meal_fiber]
 LATEST = len(MIGRATIONS)
 
 

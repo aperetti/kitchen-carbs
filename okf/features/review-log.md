@@ -11,6 +11,8 @@ links:
 ---
 # Review log
 Day view; previous/next day.
+- Each meal shows its fiber beside the carbs, in the list and the meal's details, and the foods without fiber
+  (okf/domain/meal.md, decided 2 Nov).
 - Change when: every meal and entry's details have its date and time, editable on any day; a moved entry is marked
   with where it was first logged (okf/rules/same-day-edits.md, decided 28 Oct).
 - One Save for every change (decided 31 Oct, replacing the same day's 'Change' button and 'Not saved yet' line): a
