@@ -2,6 +2,8 @@
 Each version is what went to the family's kitchen on that date (okf/architecture/releases.md).
 
 ## Unreleased
+
+## v2026.11.01.5 · 1 Nov 2026
 - Nightscout connects even when it has no glucose readings yet, so the log can be sent before the CGM is set up.
 
 ## v2026.11.01.4 · 1 Nov 2026
