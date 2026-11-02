@@ -13,5 +13,6 @@ links:
 - Behind the parent PIN, in Manage → Settings, under the Nightscout heading (its own tab until 1 Nov; see
   design/components/settings-nav.md). The target range is set there too.
 - Ask for an access token with the `readable` role (Nightscout Admin tools → Subjects), not the API_SECRET.
-- Test button: fetch the latest entry and show its time and value.
+- Test button: fetch the latest entry and show its time and value. A site with no readings yet (no CGM uploading)
+  still connects, saying so, so the log can be sent before the CGM arrives (1 Nov).
 - Units: mg/dL (confirmed).

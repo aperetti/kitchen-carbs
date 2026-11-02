@@ -2,6 +2,7 @@
 Each version is what went to the family's kitchen on that date (okf/architecture/releases.md).
 
 ## Unreleased
+- Nightscout connects even when it has no glucose readings yet, so the log can be sent before the CGM is set up.
 
 ## v2026.11.01.4 · 1 Nov 2026
 - Manage: **Nightscout moved into Settings**, and Settings is reordered: food lookup and accounts first, then

@@ -1836,7 +1836,7 @@ const mSubmit = async e => {
   } else if (id === "nsForm") {
     const btn = e.target.querySelector("button"); btn.disabled = true; $("#nsErr").textContent = "";
     try { const r = await api("/api/nightscout", { method: "POST", parent: true, body: { url: $("#nsUrl").value.trim(), token: $("#nsToken").value.trim() } });
-      toast(`Connected. Latest reading ${r.latest.sgv} mg/dL.`); S.session.glucose = true; renderNightscout(); }
+      toast(r.latest ? `Connected. Latest reading ${r.latest.sgv} mg/dL.` : "Connected. Nightscout has no glucose readings yet; they'll appear once the CGM uploads."); S.session.glucose = true; renderNightscout(); }
     catch (err) { $("#nsErr").textContent = err.message; btn.disabled = false; }
   } else if (id === "nsSendForm") {   // the token's permissions are checked with Nightscout before it's saved
     const btn = e.target.querySelector(".btn.primary"); btn.disabled = true;

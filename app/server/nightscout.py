@@ -35,9 +35,10 @@ def _get(url: str, token: str, path: str, params: dict):
 
 
 def latest(url: str, token: str):
+    """The newest reading, or None when the site has none yet (no CGM uploading); the token is checked either way."""
     rows = _get(url, token, "/api/v1/entries/sgv.json", {"count": 1})
     if not rows:
-        raise NightscoutError("Connected, but Nightscout has no glucose readings yet.")
+        return None
     return {"date_ms": rows[0]["date"], "sgv": rows[0]["sgv"], "direction": rows[0].get("direction")}
 
 

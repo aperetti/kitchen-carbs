@@ -350,6 +350,11 @@ def test_nightscout_is_read_only_and_token_hidden(app, monkeypatch):
     for verb in ("post", "put", "delete", "patch"):
         monkeypatch.setattr(main.nightscout.requests, verb, fail_write)
     monkeypatch.setattr(main.threading, "Thread", lambda target, daemon: type("T", (), {"start": lambda s: None})())
+    empty = lambda url, params=None, **kw: R({}) if url.endswith("status.json") else R([])
+    monkeypatch.setattr(main.nightscout.requests, "get", empty)   # no CGM uploading yet: still connects
+    r = client.post("/api/nightscout", json={"url": "https://ns.example.org/", "token": "kitchen-abc123"})
+    assert r.status_code == 200 and r.json()["latest"] is None
+    monkeypatch.setattr(main.nightscout.requests, "get", fake_get)
     r = client.post("/api/nightscout", json={"url": "https://ns.example.org/", "token": "kitchen-abc123"})
     assert r.status_code == 200
     monkeypatch.setattr(main.nightscout.time, "time", lambda: datetime(2026, 10, 27, 21, 0).timestamp())
