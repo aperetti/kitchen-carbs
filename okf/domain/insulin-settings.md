@@ -17,4 +17,6 @@ Decided 29 Oct: by time of day, like a pump's settings. Set in Manage → Settin
 - Each is a list of blocks by start time; the first starts at 00:00 and a block runs until the next one starts.
   Example: 00:00 1:15, 06:00 1:12, 11:00 1:15.
 - The summary uses the blocks for the meal's time. The date they were last changed is shown under the numbers.
+- Round the dose down to (decided 2 Nov): 0.05, 0.1, 0.5 or 1 u, to match what the pump or pen can give. 0.05 u until
+  changed. Only the summary's dose follows it; insulin typed into the log is still in steps of 0.05 u.
 - Values are copied from the pump or the care team's plan; the app never suggests or adjusts them.

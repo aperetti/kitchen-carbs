@@ -2,6 +2,7 @@
 Each version is what went to the family's kitchen on that date (okf/architecture/releases.md).
 
 ## Unreleased
+- The meal summary's insulin can now round down to 0.05, 0.1, 0.5 or 1 unit, to match the pump or pen. Set it under Manage → Settings → Insulin settings; it stays at 0.05 until you change it.
 
 ## v2026.11.02.2 · 2 Nov 2026
 - **Fill in fiber** (Manage → Foods and photos) now lists every food without fiber. Foods with nothing to look up

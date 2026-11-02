@@ -17,6 +17,17 @@ def test_steps_and_rounding_down():
     assert dose.calc(45, None, None, dose.check_settings(SETTINGS), "07:15")["dose"] == 3.75   # breakfast block 1:12
 
 
+def test_rounding_step_is_the_parents():
+    """okf/domain/insulin-settings.md: 0.05, 0.1, 0.5 or 1 u, always down; settings saved before it default to 0.05."""
+    assert dose.calc(62, 210, 0.6, SETTINGS, "18:30")["dose"] == 5.3                # older saved settings: no round_to
+    for step, want in ((0.1, 5.3), (0.5, 5.0), (1, 5.0)):
+        r = dose.calc(62, 210, 0.6, dose.check_settings({**SETTINGS, "round_to": step}), "18:30")
+        assert (r["dose"], r["round_to"]) == (want, step)
+    assert dose.calc(39, None, None, dose.check_settings({**SETTINGS, "round_to": 0.5}), "18:30")["dose"] == 2.5  # 2.6 down
+    with pytest.raises(ValueError, match="0.05, 0.1, 0.5 or 1"):
+        dose.check_settings({**SETTINGS, "round_to": 0.25})
+
+
 def test_iob_only_comes_off_the_correction():
     s = dose.check_settings(SETTINGS)
     big = dose.calc(30, 170, 5, s, "12:00")                          # correction 1 u, IOB 5 u: correction gone, carbs stay
@@ -42,6 +53,8 @@ def test_summary_endpoint(app):
     assert client.get("/api/dose?carbs=40&at=18:30").json()["ready"] is False      # no settings, no number
     assert client.put("/api/dose-settings", json=SETTINGS, headers={"X-Parent-Pin": ""}).status_code == 401
     assert client.put("/api/dose-settings", json={**SETTINGS, "isf": []}).status_code == 422
+    assert client.put("/api/dose-settings", json={**SETTINGS, "round_to": 0.3}).status_code == 422
+    assert client.put("/api/dose-settings", json={**SETTINGS, "round_to": 0.5}).json()["settings"]["round_to"] == 0.5
     assert client.put("/api/dose-settings", json=SETTINGS).json()["updated"] == "2026-10-27"
     now_ms = int(datetime(2026, 10, 27, 18, 30).timestamp() * 1000)
     with main.db.connect() as c:

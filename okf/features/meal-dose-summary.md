@@ -20,7 +20,7 @@ Decided 29 Oct. 'Save to log' on the plate opens a modal before anything is save
   - Carbs: 62 g ÷ 15 = 4.13 u
   - Correction: (210 − 120) ÷ 50 = 1.80 u
   - Insulin on board: −0.60 u (off the correction only, never below zero)
-  - Total 5.33 u → **5.30 u** (rounded down to 0.05 u)
+  - Total 5.33 u → **5.30 u** (rounded down to 0.05 u, or the step set in the insulin settings: 5.00 u at 0.5 u)
 - BG below target: the negative correction lowers the carb dose, never below zero. Below 70 mg/dL the BG shows as low.
 - No BG: carbs only, and it says no correction was added. No settings: the summary shows the meal, says the ratios
   aren't set up, and links to Manage → Settings.

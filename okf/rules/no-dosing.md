@@ -16,7 +16,8 @@ Until 29 Oct the app never calculated insulin. On 29 Oct the parent decided the 
   in the meal summary starts empty and is never filled in from the calculated dose.
 - Inputs are the parent's own settings, set behind the parent PIN (okf/domain/insulin-settings.md). No settings, no number.
 - Every step is on screen: carbs ÷ carb ratio, (BG − target) ÷ correction factor, insulin on board, the total.
-- Rounded **down** to 0.05 u, never up, and never below zero.
+- Rounded **down** to the step set with the insulin settings (0.05, 0.1, 0.5 or 1 u, matching the pump or pen; 0.05 u
+  unless changed, decided 2 Nov), never up, and never below zero.
 - BG from the CGM only if the reading is under 15 minutes old; otherwise it must be typed. It can always be overwritten.
 - Insulin on board comes from Nightscout and is taken off the correction only. If Nightscout has none, the summary says
   plainly that nothing was taken off.

@@ -785,7 +785,7 @@ function drawDose() {
       <dt>Correction</dt><dd>${k.correction_u == null ? "No BG, so none added."
         : `(${k.bg} − ${k.target}) ÷ ${k.isf} = <b>${k.correction_u < 0 ? "−" : ""}${u2(Math.abs(k.correction_u))} u</b>${k.correction_u < 0 ? " (BG under target lowers the dose)" : ""}`}</dd>
       <dt>Insulin on board</dt><dd>${iobLine}</dd>
-      <dt>Total</dt><dd>${(+k.total_exact).toFixed(3).replace(/0$/, "")} u, rounded down to 0.05 u</dd>
+      <dt>Total</dt><dd>${(+k.total_exact).toFixed(3).replace(/0$/, "")} u, rounded down to ${k.round_to ?? 0.05} u</dd>
     </dl>
     <p class="meta">Worked out from your settings${d.updated ? ` (changed ${esc(dayLabel(d.updated))})` : ""}. Check it against the pump before giving.</p>`;
 }
@@ -2750,6 +2750,7 @@ async function renderNsSend(msg = "") {
 /* Insulin settings by time of day (okf/domain/insulin-settings.md); used only by the meal summary */
 const DOSE_KINDS = [["carb_ratio", "Carb ratio", "g of carbs per 1 u", 1, 150, "e.g. 15"], ["isf", "Correction factor", "mg/dL lowered by 1 u", 5, 500, "e.g. 50"],
   ["target", "Target BG", "mg/dL", 70, 200, "e.g. 120"]];
+const DOSE_STEPS = [0.05, 0.1, 0.5, 1];
 function doseForm() {
   const d = S.doseEdit; if (!d) return "";
   return `<form class="form" id="doseForm"><h2>Insulin settings</h2>
@@ -2762,10 +2763,12 @@ function doseForm() {
           <input type="number" class="dVal" inputmode="decimal" min="${lo}" max="${hi}" step="any" value="${b.value}" placeholder="${ph}" aria-label="${label}" required>
           ${i ? `<button type="button" class="rm" data-act="dose-rm" data-i="${i}" aria-label="Remove this time">×</button>` : `<span class="dfirst">from midnight</span>`}</div>`).join("")}
         <button type="button" class="linkbtn" data-act="dose-add">+ Add a time</button></fieldset>`; }).join("")}
+    <label class="field"><span>Round the dose down to, to match what the pump or pen can give</span><select id="doseRound">${DOSE_STEPS.map(s =>
+      `<option value="${s}" ${(d.round_to ?? 0.05) === s ? "selected" : ""}>${s} u</option>`).join("")}</select></label>
     <div class="actions"><button class="btn">Save insulin settings</button></div></form>`;
 }
 function doseCollect() {
-  const out = {};
+  const out = { round_to: +($("#doseRound")?.value ?? 0.05) };
   for (const fs of document.querySelectorAll("#doseForm .doseset")) out[fs.dataset.k] = [...fs.querySelectorAll(".doserow")].map(r => ({
     start: r.querySelector(".dStart").value, value: r.querySelector(".dVal").value === "" ? "" : +r.querySelector(".dVal").value }));
   return out;

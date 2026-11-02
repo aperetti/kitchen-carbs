@@ -2136,6 +2136,7 @@ class DoseSettingsIn(BaseModel):
     carb_ratio: list[DoseBlock] = Field(max_length=24)
     isf: list[DoseBlock] = Field(max_length=24)
     target: list[DoseBlock] = Field(max_length=24)
+    round_to: float = dose.STEP_U
 
 
 def dose_settings(c):
