@@ -12,6 +12,8 @@ links:
 # Settings sidebar
 Decided 1 Nov: Nightscout moved from its own Manage tab into Settings, which had grown long, so Settings gained a
 sidebar to move between its headings.
+- Section order, as the family asked: Food lookup, Family accounts, Sign in another device, Change parent PIN,
+  Insulin settings, Log, Nightscout, Tidepool, Notifications, Kitchen scale.
 - Built from the page's own section headings (h2), so a new section appears without touching the sidebar.
 - Wide screens: a narrow column on the left that stays put while the sections scroll. The heading in view is shown in
   ink with a bar beside it; the rest in the quiet vein colour.

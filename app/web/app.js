@@ -2765,7 +2765,6 @@ async function renderSettings() {
   if (!stillOn("settings")) return;
   const st = S.settings;
   $m().innerHTML = `<div class="setwrap"><nav class="setnav" id="setNav" aria-label="Settings sections"></nav><div class="pad"><div class="form" id="setBody">
-    <div id="nsBox"></div>
     ${st ? `<form class="form" id="offContact"><h2>Food lookup</h2>
       <label class="field"><span>Contact email sent to Open Food Facts with each lookup, so they can reach you if something goes wrong</span>
         <input id="offContactEmail" type="email" required maxlength="120" value="${esc(st.off_contact)}"></label>
@@ -2773,26 +2772,27 @@ async function renderSettings() {
         `<option value="${k}" ${st.off_country === k ? "selected" : ""}>${esc(l)}</option>`).join("")}</select></label>
       <p class="meta">Default: ${esc(st.off_contact_default)}. FatSecret is ${esc(st.fatsecret)}${st.fatsecret === "set up" ? "" : ": add FAT_SECRET_CLIENT_ID and FAT_SECRET_CLIENT_SECRET to .env"}.</p>
       <div class="actions"><button class="btn">Save contact</button><button type="button" class="btn quiet" data-act="form-reset">Cancel</button></div></form>` : ""}
+    <div id="accountsBox"></div>
+    <form class="form" id="pinChange"><h2>Change parent PIN</h2>
+      <div class="fieldrow"><label class="field"><span>Current PIN</span><input id="oldPin" type="password" inputmode="numeric" required></label>
+      <label class="field"><span>New PIN (4 to 8 digits)</span><input id="newPin" type="password" inputmode="numeric" pattern="\\d{4,8}" required></label></div>
+      <div class="actions"><button class="btn">Change PIN</button><button type="button" class="btn quiet" data-act="form-reset">Cancel</button></div></form>
+    <div id="doseBox">${doseForm()}</div>
     ${st ? `<section class="form"><h2>Log</h2>
       <label class="check"><input type="checkbox" id="pastEdits" ${st.past_edits ? "checked" : ""}>Allow changes to earlier days</label>
       <p class="meta">On: meals and entries from earlier days can be changed, deleted or added, and each change is marked ✎ in the log and 'Changed later' in the export.
         Off: earlier days are read-only. Moving a meal or entry to another date and time works either way.</p></section>` : ""}
-    <div id="doseBox">${doseForm()}</div>
-    <div id="pushBox"></div>
+    <div id="nsBox"></div>
     <div id="tidepoolBox"></div>
-    <div id="accountsBox"></div>
+    <div id="pushBox"></div>
     <section class="form"><h2>Kitchen scale</h2>
       ${Scale.supported ? `<p class="meta">Connect the scale from the plate. The app reads the standard Bluetooth weight scale and the Decent Scale.
         For another scale, the raw viewer shows what it sends: weigh a few known amounts and the format can be worked out and added.</p>
         <div class="actions"><button type="button" class="btn" data-act="scale-raw">Open raw viewer</button></div><pre class="rawlog" id="rawLog" hidden></pre>`
       : `<p class="meta">This browser can't talk to Bluetooth devices. Safari on iPad and iPhone doesn't support it; use Chrome or Edge on Android,
         ChromeOS, Windows or a Mac.${window.isSecureContext ? "" : " It also needs the secure address (the https name, or localhost)."}</p>`}</section>
-    <form class="form" id="pinChange"><h2>Change parent PIN</h2>
-      <div class="fieldrow"><label class="field"><span>Current PIN</span><input id="oldPin" type="password" inputmode="numeric" required></label>
-      <label class="field"><span>New PIN (4 to 8 digits)</span><input id="newPin" type="password" inputmode="numeric" pattern="\\d{4,8}" required></label></div>
-      <div class="actions"><button class="btn">Change PIN</button><button type="button" class="btn quiet" data-act="form-reset">Cancel</button></div></form>
     </div></div></div>`;
-  setNav();
+  setNav();   // the order the family asked for (okf/design/components/settings-nav.md)
   S.accounts = null; renderAccounts(); renderPush(); renderTidepool(); renderNightscout();
 }
 

@@ -2,7 +2,8 @@
 Each version is what went to the family's kitchen on that date (okf/architecture/releases.md).
 
 ## Unreleased
-- Manage: **Nightscout moved into Settings**, at the top. Settings now has a list of its sections down the side (across
+- Manage: **Nightscout moved into Settings**, and Settings is reordered: food lookup and accounts first, then
+  insulin, the log, Nightscout, Tidepool, notifications and the scale. Settings now has a list of its sections down the side (across
   the top on a phone) to jump straight to one. 'Send to Nightscout' now shows even before Nightscout is connected,
   saying to connect it first.
 
