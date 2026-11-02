@@ -2,6 +2,8 @@
 Each version is what went to the family's kitchen on that date (okf/architecture/releases.md).
 
 ## Unreleased
+
+## v2026.11.02 · 2 Nov 2026
 - **Fiber in the log**: each meal shows its fiber beside the carbs ("Including 4.5 g fiber"), and names any foods
   without fiber. The PDF shows each day's fiber total. Fiber is for reference only and is never taken off the carbs.
   Meals saved before today get their fiber from the foods as they are now.
