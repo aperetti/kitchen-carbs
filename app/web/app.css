@@ -451,7 +451,7 @@ body.signed-out .tabs, body.signed-out .platebar { display: none !important; }
 .mhead { display: none; }
 /* phone: adding or editing a food is its own screen (okf/design/guidelines/phone-layout.md) */
 @media (max-width: 680px) {
-  body:has(.split.focus) .bar, .manage:has(.split.focus) .subtabs, .split.focus > .list { display: none; }
+  body:has(.split.focus:not([hidden])) .bar, .manage:has(.split.focus) .subtabs, .split.focus > .list { display: none; }
   .split.focus > .detail { padding: 0 16px 32px; gap: 16px; }
   .mhead { display: flex; align-items: center; gap: 12px; position: sticky; top: 0; z-index: 3; margin: 0 -16px; padding: 8px 16px;
     background: var(--surface); border-bottom: 1px solid var(--line); }
@@ -822,3 +822,20 @@ p.moved { margin: 6px 0 0; }
 .planform input[type=date], .planform input[type=time], .planedit input { flex: 0 1 auto; height: 44px; border: 1px solid var(--line); border-radius: 10px; background: var(--paper); padding: 0 10px; font-size: 16px; color: var(--ink); }
 .planform #planName { flex: 1 1 180px; height: 44px; }
 .planedit #peName { flex: 1 1 180px; }
+
+/* Phone log: the list alone; a meal, entry or plan is a card that slides in and follows a swipe back (okf/design/components/log-card.md) */
+@media (max-width: 680px) {
+  #v-log:not(.focus) > .detail { display: none; }
+  #v-log.focus > .detail { min-height: 100%; background: var(--surface); transform: translateX(var(--drag, 0)); transition: transform .2s ease-out; }
+  #v-log.dragging > .detail { transition: none; }
+  #v-log.cardin > .detail { animation: cardin .24s ease-out; }
+  @keyframes cardin { from { transform: translateX(100%); } }
+}
+@media (max-width: 680px) and (prefers-reduced-motion: reduce) {
+  #v-log.cardin > .detail { animation: none; }
+  #v-log.focus > .detail { transition: none; }
+}
+@media (max-width: 680px) {
+  #v-log.focus .mdh > b:first-child { display: none; }   /* the card's bar already says it */
+  #v-log:not(.focus) .lrow.on { background: none; }      /* nothing is "chosen" while only the list shows */
+}

@@ -107,6 +107,12 @@ function route() {
   if (v === "manage") mBooted = true;
   VIEWS.forEach(x => ($("#v-" + x).hidden = x !== v));
   document.querySelectorAll("#tabs a").forEach(a => a.dataset.v === v ? a.setAttribute("aria-current", "page") : a.removeAttribute("aria-current"));
+  if (v === "log") {   // Back from a card with unsaved changes stays on it (okf/design/components/log-card.md)
+    const was = S.log.card, card = logFromHash();
+    if (was && !card && logDirty()) { history.pushState({ logCard: true }, "", cardHash()); toast("Save or discard the changes first"); return; }
+    S.log.card = card; if (!card && was) { S.log.adding = false; S.log.selPlan = null; }
+    cardView(false);
+  } else if (S.log.card) { S.log.card = false; cardView(false); }
   ({ foods: () => { renderFoods(); if (splitMode()) renderPlate(); }, plate: renderPlate, log: () => loadLog(S.log.day), manage: renderManage })[v]();
   if (v === "foods" || v === "plate") loadPlans().then(changed => { if (changed && !S.plate.length) renderPlate(); });
   renderPlatebar(v);
@@ -463,7 +469,7 @@ const planList = d => d.day !== localDay() || !S.plans.length ? "" : `<div class
     <span class="c">${p.carbs}</span></button>`).join("")}</div>`;
 let confirmPlanDel = 0;
 function renderPlan(p) {
-  $("#mealDetail").innerHTML = `<div class="mdh"><b>${esc(p.name)}</b><span class="c planc">${p.carbs} <small>g carbs</small></span></div>
+  $("#mealDetail").innerHTML = `${cardHead(p.name)}<div class="mdh"><b>${esc(p.name)}</b><span class="c planc">${p.carbs} <small>g carbs</small></span></div>
     <p class="meta">Planned for ${esc(planWhen(p))}${p.day < localDay() ? `, <span class="warn">overdue</span>` : ""}. Not in the log or Nightscout's carbs until it's put on the plate and saved.</p>
     <span class="meta">${p.items.map(i => `${esc(i.food_name)}, ${whole(planItemCarbs(i))} g carbs (${i.entered != null ? "entered by hand" : fmtG(i.grams)})`).join(" · ")}</span>
     <div class="actions" style="padding-top:12px"><button class="btn primary" data-act="plan-use" data-pid="${p.id}">Put on the plate</button></div>
@@ -495,6 +501,7 @@ function refreshBadges() {
 
 /* Tablets and computers: Foods and the plate side by side, with a draggable divider (okf/design/components/plate-bar.md) */
 const SPLIT_MQ = matchMedia("(min-width: 900px)");
+const PHONE_MQ = matchMedia("(max-width: 680px)");
 const splitMode = () => SPLIT_MQ.matches;
 function placePlate() {   // one plate element: in the Foods screen's right pane when split, on its own screen otherwise
   const pv = $("#plateView"), home = splitMode() ? $("#platePane") : $("#v-plate");
@@ -1003,7 +1010,7 @@ async function loadLog(day) {
   catch (err) { $("#logList").innerHTML = `<div class="empty">${esc(err.message)}</div>`; $("#mealDetail").innerHTML = ""; return; }
   const meals = S.log.data.meals;
   if (S.log.selEntry && !S.log.data.entries.some(e => e.id === S.log.selEntry)) S.log.selEntry = null;
-  if (!S.log.selEntry && !S.log.adding && !meals.find(m => m.id === S.log.sel)) S.log.sel = meals.length ? meals[meals.length - 1].id : null;
+  if (!S.log.card && !S.log.selEntry && !S.log.adding && !meals.find(m => m.id === S.log.sel)) S.log.sel = meals.length ? meals[meals.length - 1].id : null;
   if (S.log.period !== "day") await loadPeriod();
   renderLog();
 }
@@ -1049,7 +1056,62 @@ function renderLog() {
         <button class="btn small" data-act="export" data-fmt="pdf">PDF</button><button class="btn small quiet" data-act="export" data-fmt="csv">CSV</button></div>
     </div>`;
   renderMeal();
+  cardSync();
 }
+
+/* Phone: a meal, entry or plan is a card over the list and a history step (okf/design/components/log-card.md) */
+const cardHash = () => S.log.adding ? "#log/add" : S.log.selPlan ? `#log/plan/${S.log.selPlan}` : S.log.selEntry ? `#log/entry/${S.log.selEntry}` : S.log.sel ? `#log/meal/${S.log.sel}` : "#log";
+const cardHead = title => `<div class="mhead"><button type="button" class="btn quiet small" data-act="card-back">‹ Log</button><b>${esc(title)}</b></div>`;
+function logFromHash() {   // #log/meal/12 opens that card on a phone, after Back, Forward or a reload
+  const [, kind, id] = location.hash.slice(1).split("/");
+  if (!PHONE_MQ.matches || !["meal", "entry", "plan", "add"].includes(kind)) return false;
+  Object.assign(S.log, { sel: kind === "meal" ? +id : S.log.sel, selEntry: kind === "entry" ? +id : null, selPlan: kind === "plan" ? +id : null, adding: kind === "add" });
+  return true;
+}
+function openCard() {
+  if (!PHONE_MQ.matches) return;
+  if (!S.log.card) S.log.listY = $("#v-log").scrollTop;
+  history[S.log.card ? "replaceState" : "pushState"]({ logCard: true }, "", cardHash());
+  S.log.card = true; cardView(true);
+}
+function cardBack() {
+  if (history.state?.logCard) history.back();   // the hashchange closes it
+  else { history.replaceState(null, "", "#log"); route(); }
+}
+function cardView(slide) {
+  const v = $("#v-log"), on = !!S.log.card;
+  if (v.classList.contains("focus") !== on) {
+    v.classList.toggle("focus", on);
+    if (on) { v.scrollTop = 0; if (slide) { v.classList.add("cardin"); setTimeout(() => v.classList.remove("cardin"), 300); } }
+    else requestAnimationFrame(() => { v.scrollTop = S.log.listY || 0; });   // back where the list was
+  }
+}
+function cardSync() {   // the card's item gone (deleted, moved away): back to the list; otherwise its address follows it
+  if (!S.log.card) return;
+  const d = S.log.data, there = S.log.adding || (S.log.selPlan ? S.plans.some(p => p.id === S.log.selPlan)
+    : S.log.selEntry ? d.entries.some(e => e.id === S.log.selEntry) : d.meals.some(m => m.id === S.log.sel));
+  if (!there) return cardBack();
+  if (location.hash !== cardHash()) history.replaceState(history.state, "", cardHash());
+}
+(() => {   // swipe right to go back; the card follows the finger
+  let s = null; const el = $("#mealDetail"), v = $("#v-log");
+  el.addEventListener("touchstart", e => {
+    s = S.log.card && e.touches.length === 1 && !e.target.closest("input, textarea, select, svg") ? { x: e.touches[0].clientX, y: e.touches[0].clientY, dx: 0, on: false } : null;
+  }, { passive: true });
+  el.addEventListener("touchmove", e => {
+    if (!s) return;
+    const dx = e.touches[0].clientX - s.x, dy = e.touches[0].clientY - s.y;
+    if (!s.on) { if (Math.abs(dy) > 12 && Math.abs(dy) > Math.abs(dx)) { s = null; return; } if (dx < 12) return; s.on = true; v.classList.add("dragging"); }
+    s.dx = Math.max(0, dx); v.style.setProperty("--drag", `${s.dx}px`);
+  }, { passive: true });
+  const end = () => {
+    if (!s) return;
+    const go = s.on && s.dx > innerWidth / 4; s = null;
+    v.classList.remove("dragging"); v.style.removeProperty("--drag");
+    if (go) cardBack();
+  };
+  el.addEventListener("touchend", end); el.addEventListener("touchcancel", end);
+})();
 const cap = s => s[0].toUpperCase() + s.slice(1);
 const KIND = { rapid: "rapid-acting", long: "long-acting", bolus: "bolus", basal: "basal" };
 const fmtU = u => `${(+u).toFixed(2).replace(/0$/, "")} u`;           // 2.5 -> "2.50" -> "2.5 u"; 0.05 stays
@@ -1091,7 +1153,7 @@ function logRows(d) {
 }
 
 function renderEntryForm() {
-  $("#mealDetail").innerHTML = `<form class="form" id="entryForm">
+  $("#mealDetail").innerHTML = `${cardHead("Add entry")}<form class="form" id="entryForm">
     <h2>Add entry${S.log.data.day === localDay() ? "" : ` to ${dayLabel(S.log.data.day)}`}</h2>
     <p class="meta">Record what happened. Leave out anything you don't have.${S.log.data.day === localDay() ? "" : " It will be marked ✎ Modified."}</p>
     <label class="timefield">Time <input type="time" id="enTime" value="${hhmm()}" required></label>
@@ -1122,7 +1184,7 @@ let confirmEntry = 0;
 function renderEntry(e) {
   const ed = S.log.data.editable;
   const val = v => v ?? "";
-  $("#mealDetail").innerHTML = `<div class="mdh"><b>${clk(e.time)}</b>${e.carbs != null ? `<span class="c">${+e.carbs} <small>g carbs</small></span>` : ""}</div>
+  $("#mealDetail").innerHTML = `${cardHead(`Entry at ${clk(e.time)}`)}<div class="mdh"><b>${clk(e.time)}</b>${e.carbs != null ? `<span class="c">${+e.carbs} <small>g carbs</small></span>` : ""}</div>
     ${ed ? `<form class="form entval" id="entValForm">
       <div class="fieldrow">
         <label class="field"><span>BG from the meter, mg/dL</span><input id="evBg" type="number" inputmode="numeric" min="20" max="600" step="1" value="${val(e.bg)}"></label>
@@ -1219,9 +1281,9 @@ async function renderMeal() {
   if (S.log.selPlan) { const p = S.plans.find(x => x.id === S.log.selPlan); if (p) { S.log.base = null; return renderPlan(p); } S.log.selPlan = null; }
   if (S.log.selEntry) return renderEntry(S.log.data.entries.find(e => e.id === S.log.selEntry));
   const el = $("#mealDetail"), d = S.log.data, m = d.meals.find(x => x.id === S.log.sel);
-  if (!m) { el.innerHTML = `<div class="empty">${d.meals.length ? "Choose a meal." : "Meals you save from the plate appear here."}</div>`; return; }
+  if (!m) { el.innerHTML = `${cardHead("Log")}<div class="empty">${d.meals.length ? "Choose a meal." : "Meals you save from the plate appear here."}</div>`; return; }
   const ed = d.editable;
-  el.innerHTML = `
+  el.innerHTML = `${cardHead(`Meal at ${clk(m.time)}`)}
     <div class="mdh"><b>${clk(m.time)}</b><span class="c">${m.total} <small>g carbs</small></span></div>
     ${m.carbs_corrected != null ? `<p class="meta moved">Corrected from ${m.items_total} g, the foods' own total. The reason is in the comments.</p>` : ""}
     ${ed ? `<button class="linkbtn fixlink" data-act="fix-carbs">Change total carbs</button>
@@ -1315,7 +1377,7 @@ $("#v-log").addEventListener("click", async e => {
     const bar = $("#logSave"); bar.classList.remove("nudge"); void bar.offsetWidth; bar.classList.add("nudge"); return;
   }
   if (t.matches("[data-day],[data-meal],[data-entry],[data-restore],[data-act=add-entry]")) S.log.selPlan = null;
-  if (t.dataset.plan) { S.log.selPlan = +t.dataset.plan; S.log.adding = false; confirmPlanDel = 0; renderLog(); if (innerWidth <= 680) $("#mealDetail").scrollIntoView(); return; }
+  if (t.dataset.plan) { S.log.selPlan = +t.dataset.plan; S.log.adding = false; confirmPlanDel = 0; renderLog(); openCard(); return; }
   if (t.dataset.act === "plan-use") return usePlan(S.plans.find(p => p.id === +t.dataset.pid), t);
   if (t.dataset.act === "plan-del") {
     if (Date.now() - confirmPlanDel > 4000) { confirmPlanDel = Date.now(); t.textContent = "Tap again to delete the plan"; return; }
@@ -1336,21 +1398,18 @@ $("#v-log").addEventListener("click", async e => {
   }
   if (t.dataset.day) { const day = t.dataset.day === "today" ? localDay() : shiftDay(d.day, +t.dataset.day); S.log.sel = null; loadLog(day); }
   else if (t.dataset.period) { S.log.period = t.dataset.period === "day" ? "day" : +t.dataset.period; if (S.log.period !== "day") await loadPeriod(); renderLog(); }
-  else if (t.dataset.act === "add-entry") {   // the form opens below the list on a phone: bring it into view
-    S.log.adding = true; S.log.selEntry = null; renderLog();
-    $("#mealDetail").scrollTop = 0;
-    $("#entryForm")?.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
-  }
-  else if (t.dataset.act === "entry-cancel") { S.log.adding = false; renderLog(); }
+  else if (t.dataset.act === "add-entry") { S.log.adding = true; S.log.selEntry = null; renderLog(); $("#mealDetail").scrollTop = 0; openCard(); }
+  else if (t.dataset.act === "entry-cancel") { if (S.log.card) return cardBack(); S.log.adding = false; renderLog(); }
+  else if (t.dataset.act === "card-back") cardBack();
   else if (t.dataset.kind) { S.log.kind = S.log.kind === t.dataset.kind ? null : t.dataset.kind; entryPreview(); }
-  else if (t.dataset.entry) { S.log.selEntry = +t.dataset.entry; S.log.adding = false; confirmEntry = 0; renderLog(); if (innerWidth <= 680) $("#mealDetail").scrollIntoView(); }
+  else if (t.dataset.entry) { S.log.selEntry = +t.dataset.entry; S.log.adding = false; confirmEntry = 0; renderLog(); openCard(); }
   else if (t.dataset.act === "del-entry") {
     if (Date.now() - confirmEntry > 4000) { confirmEntry = Date.now(); t.textContent = "Tap again to delete"; return; }
     try { await api(`/api/entries/${S.log.selEntry}`, { method: "DELETE" }); toast("Entry deleted. It can be restored from Deleted, below the day."); S.log.selEntry = null; loadLog(d.day); } catch (err) { toast(err.message); }
   }
   else if (t.dataset.act === "fix-carbs") { t.hidden = true; $("#carbsFix").hidden = false; $("#cfTotal").select(); }
   else if (t.dataset.act === "fix-cancel") { $("#carbsFix").reset(); $("#carbsFix").hidden = true; $(".fixlink").hidden = false; logDirty(); }
-  else if (t.dataset.meal) { S.log.sel = +t.dataset.meal; S.log.selEntry = null; S.log.adding = false; confirmDelete = 0; renderLog(); if (innerWidth <= 680) $("#mealDetail").scrollIntoView(); }
+  else if (t.dataset.meal) { S.log.sel = +t.dataset.meal; S.log.selEntry = null; S.log.adding = false; confirmDelete = 0; renderLog(); openCard(); }
   else if (t.dataset.ekind) {   // an entry's insulin type, saved with the rest
     const on = !t.classList.contains("on");
     t.parentElement.querySelectorAll("button").forEach(b => { b.classList.toggle("on", on && b === t); b.setAttribute("aria-pressed", on && b === t); });
@@ -2604,7 +2663,6 @@ async function saveScanned() {
    Phones: the scanner and a short list; each new food opens its own check screen, and Done goes back to the scanner
    at the top. Wider screens: one table. Complete saves the checked foods and leaves. */
 const batch = () => (S.m.batch ??= { rows: [], focus: null });
-const PHONE_MQ = matchMedia("(max-width: 680px)");
 const rowChecked = r => r.status === "ready" && r.confServ && r.confCarb && portionAmount(r.portion);
 const fiberNum = v => v === "" || v == null ? null : +v;
 function batchPanel() {
