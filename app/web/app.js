@@ -1260,7 +1260,7 @@ const saveBar = `<div class="savebar" id="logSave" hidden role="region" aria-lab
 function logSnap() {
   const v = id => $(id)?.value ?? null, f = $("#mdetForm");
   const ev = $("#entValForm");
-  return { day: v("#whDay"), time: v("#whTime"), ent: ev ? JSON.stringify([v("#evBg"), v("#evCarbs"), v("#evIns"), ev.querySelector("[data-ekind].on")?.dataset.ekind ?? "", v("#evNote").trim()]) : null, eaten: $(".eatseg .on")?.dataset.eaten ?? "", rate: $(".rateseg .on")?.dataset.rate ?? "", total: v("#cfTotal"), cmt: (v("#cmtText") || "").trim(),
+  return { day: v("#whDay"), time: v("#whTime"), ent: ev ? JSON.stringify([v("#evBg"), v("#evCarbs"), v("#evIns"), ev.querySelector("[data-ekind].on")?.dataset.ekind ?? "", v("#evNote").trim()]) : null, eaten: $(".eatseg .on")?.dataset.eaten ?? "", rate: $(".rateseg .on")?.dataset.rate ?? "", total: ((t) => t == null || t.trim() === "" ? t : String(+t))(v("#cfTotal")), cmt: (v("#cmtText") || "").trim(),
     det: f ? JSON.stringify([...f.querySelectorAll("input")].map(i => i.value).concat([...f.querySelectorAll("button.on")].map(b => b.dataset.dkind))) : null };
 }
 function logBaseline() { S.log.base = logSnap(); S.log.done = new Set(); document.body.classList.remove("unsaved"); logDirty(); }
@@ -1332,20 +1332,21 @@ async function renderMeal() {
   if (!m) { el.innerHTML = `${cardHead("Log")}<div class="empty">${d.meals.length ? "Choose a meal." : "Meals you save from the plate appear here."}</div>`; return; }
   const ed = d.editable, edit = editing();
   el.innerHTML = `${cardHead(`Meal at ${clk(m.time)}`)}
-    <div class="mdh"><b>${clk(m.time)}</b><span class="c">${m.total} <small>g carbs</small></span>${detailTools([ed && `<button type="button" data-act="fix-carbs-menu">Change total carbs</button>`,
-      `<button type="button" data-act="pin-meal">Pin as favorite</button>`, ed && `<button type="button" data-act="del-meal">Delete meal</button>`].filter(Boolean))}</div>
+    <div class="mdh"><b>${clk(m.time)}</b><span class="c">${m.total} <small>g carbs</small></span>${detailTools([`<button type="button" data-act="pin-meal">Pin as favorite</button>`, ed && `<button type="button" data-act="del-meal">Delete meal</button>`].filter(Boolean))}</div>
     ${m.carbs_corrected != null ? `<p class="meta moved">Corrected from ${m.items_total} g, the foods' own total. The reason is in the comments.</p>` : ""}
-    ${ed && edit ? `<button class="linkbtn fixlink" data-act="fix-carbs">Change total carbs</button>
-      <form id="carbsFix" class="carbsfix" hidden><p class="meta">For a discrepancy found later. The foods keep their saved carbs; the meal's total, the day's totals and the export use the new number.</p>
-        <label class="field"><span>Total carbs</span><span class="unitin"><input id="cfTotal" type="number" inputmode="decimal" min="0" max="1000" step="any" required value="${m.total}"> g</span></label>
-        <label class="field"><span>Why it changed (required)</span><input id="cfReason" maxlength="400" minlength="3" placeholder="e.g. only ate half the pasta, label was wrong" autocomplete="off"></label>
-        <button type="button" class="linkbtn" data-act="fix-cancel">Keep the total as it was</button></form>` : ""}
     <span class="meta">${m.items.map(i => `${esc(i.food_name)}, ${i.carbs} g carbs (${i.entered_carbs != null ? "entered by hand" : fmtG(itemG(i))})`).join(" · ")}</span>
     <span class="meta">${esc(fiberLine(m))}</span>
     ${!edit ? `<p class="${detailSummary(m) ? "" : "meta"}">${esc(detailSummary(m)) || "No BG or insulin added"}</p>${modNote(m)}` : whenBox(m, "meals") + (!ed ? "" : `
+    <div class="glab"><span class="label">Carbs</span></div>
+    <form id="carbsFix" class="carbsfix">
+      <label class="field"><span>Total carbs for the meal</span><span class="unitin"><input id="cfTotal" type="number" inputmode="decimal" min="0" max="1000" step="any" required value="${m.total}" data-was="${m.total}"> g</span></label>
+      <div id="cfWhy" hidden><label class="field"><span>Why it changed (needed to save)</span><input id="cfReason" maxlength="400" minlength="3" placeholder="e.g. only ate half the pasta, label was wrong" autocomplete="off"></label>
+        <p class="meta">The foods keep their saved carbs; the meal's total, the day's totals and the export use the new number.</p></div></form>
     <div class="glab"><span class="label">BG, insulin and time to eat</span></div>
     <form id="mdetForm" class="mdetform"><label class="field"><span>Blood glucose (mg/dL)${m.bg != null && m.bg_source === "cgm" ? " · from the CGM" : ""}</span><input id="mdBg" type="number" inputmode="numeric" min="20" max="600" step="1" value="${m.bg ?? ""}" placeholder="Meter reading"></label>
-        ${detailFields(m, m.bg, m.time)}</form>`)}
+        ${detailFields(m, m.bg, m.time)}</form>
+    <div class="glab"><span class="label">Note</span><span class="meta">Added to the comments</span></div>
+    <form class="cmtform" id="cmtForm"><input id="cmtText" maxlength="500" placeholder="e.g. had seconds, ate at a friend's" aria-label="Note" autocomplete="off"></form>`)}
     ${S.session?.glucose ? `<div class="glab"><span class="label">Glucose · mg/dL</span><span class="meta" id="gUpdated"></span></div><div id="gBox"><p class="meta">Loading glucose…</p></div>` : ""}
     <div class="glab"><span class="label">How fast it rose</span><span class="meta">Your own judgement, to spot patterns</span></div>
     <div class="seg neutral rateseg" id="rateBox" role="group" aria-label="How fast glucose rose">
@@ -1355,7 +1356,7 @@ async function renderMeal() {
       <p class="note">This is a note. Carbs stay as served.</p>` : `<p>${m.eaten ? cap(m.eaten) : "Not set"}</p>`}
     <div class="glab"><span class="label">Comments</span></div>
     <div class="cmt">${m.comments.map(c => `<div><span class="tm">${c.time.length > 5 ? movedLabel(c.time) : clk(c.time)}</span>${esc(c.text)}</div>`).join("") || (ed ? "" : `<span class="meta">None</span>`)}
-      ${ed ? `<form class="cmtform" id="cmtForm"><input id="cmtText" maxlength="500" placeholder="Add a comment" aria-label="Add a comment" autocomplete="off"></form>` : ""}</div>
+      ${ed && !edit ? `<form class="cmtform" id="cmtForm"><input id="cmtText" maxlength="500" placeholder="Add a comment" aria-label="Add a comment" autocomplete="off"></form>` : ""}</div>
     <form class="cmtform" id="pinMeal" hidden><input id="pinMealName" maxlength="60" value="${suggestName(m.time)}" aria-label="Favorite name"><button class="btn small">Pin</button></form>
     ${saveBar}`;
   logBaseline();
@@ -1433,11 +1434,10 @@ $("#v-log").addEventListener("click", async e => {
   }
   if (t.dataset.act === "log-save") return saveLogEdits(t);
   if (t.dataset.act === "log-discard") { S.log.base = null; S.log.edit = null; return renderMeal(); }
-  if (t.dataset.act === "edit" || t.dataset.act === "fix-carbs-menu") {
+  if (t.dataset.act === "edit") {
     if (logDirty()) { toast("Save or discard the changes first"); return; }
     S.log.edit = editKey(); renderMeal();
-    if (t.dataset.act === "fix-carbs-menu") { $(".fixlink").hidden = true; $("#carbsFix").hidden = false; $("#cfTotal").select(); }
-    else $("#mealDetail").querySelector("#whDay, #peName")?.scrollIntoView({ block: "nearest" });
+    $("#mealDetail").querySelector("#whDay, #peName")?.scrollIntoView({ block: "nearest" });
     return;
   }
   if (t.dataset.act === "edit-done") {
@@ -1467,8 +1467,6 @@ $("#v-log").addEventListener("click", async e => {
     if (Date.now() - confirmEntry > 4000) { confirmEntry = Date.now(); t.textContent = "Tap again to delete"; return; }
     try { await api(`/api/entries/${S.log.selEntry}`, { method: "DELETE" }); toast("Entry deleted. It can be restored from Deleted, below the day."); S.log.selEntry = null; loadLog(d.day); } catch (err) { toast(err.message); }
   }
-  else if (t.dataset.act === "fix-carbs") { t.hidden = true; $("#carbsFix").hidden = false; $("#cfTotal").select(); }
-  else if (t.dataset.act === "fix-cancel") { $("#carbsFix").reset(); $("#carbsFix").hidden = true; $(".fixlink").hidden = false; logDirty(); }
   else if (t.dataset.meal) { S.log.sel = +t.dataset.meal; S.log.selEntry = null; S.log.adding = false; confirmDelete = 0; renderLog(); openCard(); }
   else if (t.dataset.ekind) {   // an entry's insulin type, saved with the rest
     const on = !t.classList.contains("on");
@@ -1493,7 +1491,9 @@ $("#v-log").addEventListener("click", async e => {
     location.href = `/api/export.${t.dataset.fmt === "pdf" ? "pdf" : "csv"}?start=${from}&end=${to}`;
   }
 });
-$("#v-log").addEventListener("input", e => { if (e.target.closest("#entryForm")) entryPreview(); if (e.target.closest("#mealDetail")) logDirty(); });
+$("#v-log").addEventListener("input", e => {
+  if (e.target.id === "cfTotal") $("#cfWhy").hidden = e.target.value.trim() === "" || +e.target.value === +e.target.dataset.was;   // the reason only once it differs
+  if (e.target.closest("#entryForm")) entryPreview(); if (e.target.closest("#mealDetail")) logDirty(); });
 $("#v-log").addEventListener("change", e => { if (e.target.closest("#mealDetail")) logDirty(); });
 $("#v-log").addEventListener("submit", async e => {
   if (["carbsFix", "mdetForm", "whenForm", "cmtForm", "entValForm"].includes(e.target.id)) {   // Enter in any of them: the one Save

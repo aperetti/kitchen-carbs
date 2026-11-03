@@ -738,7 +738,7 @@ p.moved { margin: 6px 0 0; }
 .mdet { display: grid; gap: 12px; margin-top: 8px; }
 .mdet .mrow { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px 12px; }
 .mdet .field { margin: 0; }
-.mdet .dMinNote { line-height: 44px; }   /* level with the minutes box */
+.mdet .dMinNote { min-height: 44px; display: flex; align-items: center; }   /* level with the minutes box; wraps tightly */
 .mdet .unitin, .tphours .unitin { display: inline-flex; align-items: center; gap: 6px; color: var(--vein); }
 .mdet .unitin input, .tphours .unitin input { width: 96px; height: 44px; border: 1px solid var(--line); border-radius: 10px; background: var(--paper); padding: 0 10px; font-size: 18px; color: var(--ink); }
 .mdet .unitin[hidden] { display: none; }
@@ -778,7 +778,6 @@ p.moved { margin: 6px 0 0; }
 .carbsfix { display: grid; gap: 10px; padding: 8px 0 12px; }
 .carbsfix .unitin { display: inline-flex; align-items: center; gap: 6px; color: var(--vein); }
 .carbsfix #cfTotal { width: 110px; }
-.linkbtn.fixlink { display: block; margin: 4px 0 8px; text-align: left; }
 
 /* a food flying to the plate count, which then bumps (okf/features/browse-foods.md) */
 .flyer { position: fixed; z-index: 60; pointer-events: none; border-radius: 50%; object-fit: cover; background: var(--accent); box-shadow: 0 4px 14px rgba(0, 0, 0, .25); }

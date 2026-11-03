@@ -2,6 +2,7 @@
 Each version is what went to the family's kitchen on that date (okf/architecture/releases.md).
 
 ## Unreleased
+- Editing a meal in the log now shows its carbs ready to change and a Note box. A note is added to the meal's comments. Changing the carbs still asks why. "Change total carbs" is no longer in the ⋯ menu.
 
 ## v2026.11.03 · 3 Nov 2026
 - If a bolus is typed while the BG is under 70 mg/dL, the meal summary and Add entry now show a warning to treat the low first and follow the care team's plan. It uses the meter reading, or a CGM reading under 15 minutes old. Saving still works, so the log shows what was actually given.
