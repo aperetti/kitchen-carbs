@@ -1772,3 +1772,67 @@ def test_meal_window_rise_and_peak():
     w = meal_window(rs, m, m + 4 * 3_600_000)
     assert w["rise_1h"] == 85 and w["to_peak_min"] == 70
     assert meal_window(rs[1:], m, m + 4 * 3_600_000)["rise_1h"] is None                        # no reading at the meal
+
+
+def plan(day="2026-10-28", time="12:15", cid="plan-0001", name="School lunch"):
+    return {"client_id": cid, "name": name, "day": day, "time": time, "items": [
+        {"food_id": "pasta-cooked", "portion_id": 1, "food_name": "Pasta, cooked", "portion_label": "1 cup", "grams": 140,
+         "carbs_per_100g": 30.9, "base": 140, "basis": "cooked", "state": "cooked"},
+        {"food_name": "Juice box", "entered": 15}]}
+
+
+def test_planned_meals(app):
+    """okf/features/plan-meal.md: kept apart from the log; the meal saved from it replaces it."""
+    client, _ = app
+    assert client.post("/api/plans", json=plan(day="2026-10-26")).json()["detail"] == "A plan is for today or later."
+    assert "60 days ahead" in client.post("/api/plans", json=plan(day="2027-01-01")).json()["detail"]
+    assert client.post("/api/plans", json={**plan(), "items": [{"food_name": "Pasta"}]}).status_code == 422
+    p = client.post("/api/plans", json=plan()).json()
+    assert (p["carbs"], p["foods"], p["name"]) == (58, "Pasta, cooked, Juice box", "School lunch")   # 43.26 + 15
+    assert client.post("/api/plans", json=plan()).json()["id"] == p["id"]                          # sent twice: kept once
+    today = client.post("/api/plans", json=plan(day="2026-10-27", time="18:00", cid="plan-0002", name="Dinner")).json()
+    assert [x["id"] for x in client.get("/api/plans").json()] == [today["id"], p["id"]]
+    # never in a day's total, stats or exports
+    client.post("/api/meals", json=meal())
+    assert client.get("/api/log").json()["total"] == 43 and client.get("/api/log?day=2026-10-28").json()["total"] == 0
+    assert "Juice box" not in client.get("/api/export.csv?start=2026-10-27&end=2026-10-28").text
+    # name, date and time change on their own; the rows stay
+    u = client.put(f"/api/plans/{p['id']}", json={"name": "Lunch", "day": "2026-10-29", "time": "12:00"}).json()
+    assert (u["name"], u["day"], u["carbs"]) == ("Lunch", "2026-10-29", 58)
+    assert client.put(f"/api/plans/{p['id']}", json={"name": "Lunch", "day": "2026-10-20", "time": "12:00"}).status_code == 400
+    # saved to the log: the meal replaces the plan
+    eaten = client.post("/api/meals", json={**meal(cid="client-0009", time="18:10"), "plan_id": today["id"]}).json()
+    assert not eaten["duplicate"] and [x["id"] for x in client.get("/api/plans").json()] == [p["id"]]
+    assert client.delete(f"/api/plans/{p['id']}").json() == {"ok": True}
+    assert client.delete(f"/api/plans/{p['id']}").status_code == 404
+
+
+def test_planned_meal_goes_to_nightscout_as_a_note(app, monkeypatch):
+    """okf/rules/nightscout-sends-what-was-logged.md: a note with no carbs field until it's eaten, then a Meal Bolus."""
+    client, main = app
+    ns = FakeNightscout()
+    monkeypatch.setattr(main.nightscout_send.requests, "get", ns.get)
+    monkeypatch.setattr(main.nightscout_send.requests, "request", ns.request)
+    monkeypatch.setattr(main.nightscout_send, "_jwt", {})
+    monkeypatch.setattr(main.nightscout, "latest", lambda url, token: None)
+    monkeypatch.setattr(main.nightscout, "targets", lambda url, token: (None, None))
+    client.post("/api/nightscout", json={"url": "https://ns.example.com/", "token": "tok-good"})
+    client.put("/api/nightscout/send", json={"send_from": "2026-10-20"})
+    p = client.post("/api/plans", json=plan(day="2026-10-27", time="18:30")).json()
+    client.post("/api/nightscout/send/sync")
+    [note] = ns.docs.values()
+    assert note["eventType"] == "Note" and "carbs" not in note and "insulin" not in note
+    assert note["notes"] == "Planned meal: School lunch · Pasta, cooked, Juice box · 58 g carbs, not eaten yet"
+    assert datetime.fromtimestamp(note["date"] / 1000).strftime("%H:%M") == "18:30"
+    client.put(f"/api/plans/{p['id']}", json={"name": "Dinner", "day": "2026-10-27", "time": "19:00"})   # moved: the note follows
+    client.post("/api/nightscout/send/sync")
+    [note] = ns.docs.values()
+    assert datetime.fromtimestamp(note["date"] / 1000).strftime("%H:%M") == "19:00" and "Dinner" in note["notes"]
+    client.put("/api/nightscout/send", json={"send_from": "2026-10-20", "carbs": False})   # follows the Carbs switch
+    client.post("/api/nightscout/send/sync")
+    assert ns.docs == {}
+    client.put("/api/nightscout/send", json={"send_from": "2026-10-20"})
+    client.post("/api/meals", json={**meal(time="19:05"), "plan_id": p["id"]})
+    client.post("/api/nightscout/send/sync")
+    [bolus] = ns.docs.values()
+    assert (bolus["eventType"], bolus["carbs"]) == ("Meal Bolus", 43)

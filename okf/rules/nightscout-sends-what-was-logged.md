@@ -16,6 +16,8 @@ family uses pens and wants carbs and insulin in Nightscout for forecasting with 
   `readable` token as before.
 - Sent: a meal's carbs, carbs typed in an entry, rapid-acting (bolus) insulin typed on a meal or entry at the time
   it was given, and a meter BG typed on a meal or entry. Each kind can be switched off.
+- A planned meal (okf/domain/planned-meal.md) goes only as a 'Note' with its foods and carbs in the text, never in the
+  carbs field, so a forecast never counts food that hasn't been eaten (decided 2 Nov). It follows the Carbs switch.
 - Never sent: the meal summary's worked-out dose (okf/rules/no-dosing.md), CGM readings, a meal's BG taken from the
   CGM.
 - Long-acting (basal) insulin goes as a Note with the units in its text, never in the insulin field: OpenAPS counts

@@ -16,7 +16,7 @@ and `tools/okf_check.py` checks that the map is grounded:
 - every link points to a real concept
 
 ## Sections
-- [domain/](domain/) — Food, Portion, Carb value, Nutrition source, Photo, Plate, Meal, Meal log
+- [domain/](domain/) — Food, Portion, Carb value, Nutrition source, Photo, Plate, Planned meal, Meal, Meal log
 - [features/](features/) — what a person can do
 - [rules/](rules/) — safety and data rules that override convenience
 - [design/](design/index.md) — ODSF design-system profile: foundations, components, guidelines

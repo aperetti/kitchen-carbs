@@ -228,6 +228,7 @@ class MealIn(MealDetails):
     day: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}$")
     time: str = Field(pattern=TIME_RE)
     items: list[ItemIn] = Field(min_length=1, max_length=30)
+    plan_id: int | None = None   # saved from a planned meal: the meal replaces it (okf/features/plan-meal.md)
 
 
 class MealPatch(BaseModel):
@@ -569,7 +570,7 @@ async def syncs_follow_the_log(request: Request, call_next):
     """A saved, changed or deleted meal or entry is sent to Tidepool and Nightscout soon
     (okf/features/tidepool-sync.md, okf/features/nightscout-send.md)."""
     response = await call_next(request)
-    if request.method != "GET" and response.status_code < 300 and request.url.path.startswith(("/api/meals", "/api/entries")):
+    if request.method != "GET" and response.status_code < 300 and request.url.path.startswith(("/api/meals", "/api/entries", "/api/plans")):
         tidepool.poke()
         nightscout_send.poke()
     return response
@@ -1007,6 +1008,114 @@ def delete_tag(tid: int, c=Depends(con)):
     with c:  # foods keep their other tags
         c.execute("DELETE FROM tags WHERE id = ?", (tid,))
     return list_tags_rows(c)
+
+
+# ----- planned meals (okf/features/plan-meal.md, okf/domain/planned-meal.md) -----
+PLAN_DAYS = 60
+
+
+class PlanItem(BaseModel):
+    """A plate row as the plate keeps it: a weighed food, or carbs typed by hand."""
+    food_id: str | None = Field(default=None, max_length=80)
+    portion_id: int | None = None
+    food_name: str = Field(min_length=1, max_length=80)
+    portion_label: str = Field(default="", max_length=60)
+    grams: float | None = Field(default=None, gt=0, le=2000)
+    carbs_per_100g: float | None = Field(default=None, ge=0, le=100)
+    qty: float = Field(default=1, gt=0, le=10)
+    entered: float | None = Field(default=None, ge=0.5, le=300)
+    base: float | None = Field(default=None, gt=0, le=2000)
+    basis: str | None = Field(default=None, max_length=20)
+    state: str | None = Field(default=None, max_length=20)
+    cp_basis: float | None = Field(default=None, ge=0, le=100)
+    ratio: float | None = Field(default=None, gt=0, le=20)
+    ratio_day: str | None = Field(default=None, max_length=40)
+    locked: bool = False
+
+    @model_validator(mode="after")
+    def weighed_or_typed(self):
+        if self.entered is None and (self.food_id is None or self.portion_id is None or self.grams is None or self.carbs_per_100g is None):
+            raise ValueError("Each planned food needs its weight, or its carbs typed by hand.")
+        return self
+
+
+class PlanWhen(BaseModel):
+    name: str = Field(min_length=1, max_length=60)
+    day: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}$")
+    time: str = Field(pattern=TIME_RE)
+
+
+class PlanIn(PlanWhen):
+    client_id: str = Field(min_length=8, max_length=64)
+    items: list[PlanItem] = Field(min_length=1, max_length=30)
+
+
+class PlanUpdate(PlanWhen):
+    items: list[PlanItem] | None = Field(default=None, min_length=1, max_length=30)   # None: only the name, date and time
+
+
+def plan_out(p) -> dict:
+    items = json.loads(p["items"])
+    return {"id": p["id"], "client_id": p["client_id"], "name": p["name"], "day": p["day"], "time": p["time"], "items": items,
+            "carbs": core.whole_grams(core.plan_carbs(items)), "foods": ", ".join(i["food_name"] for i in items)}
+
+
+def check_plan_day(day: str):
+    try:
+        d = date.fromisoformat(day)
+    except ValueError:
+        fail(400, "Use a date like 2026-10-27.")
+    if day < today():
+        fail(400, "A plan is for today or later.")
+    if d > now().date() + timedelta(days=PLAN_DAYS):
+        fail(400, f"A plan can be up to {PLAN_DAYS} days ahead.")
+
+
+def get_plan(c, pid):
+    p = c.execute("SELECT * FROM planned_meals WHERE id = ?", (pid,)).fetchone()
+    if not p:
+        fail(404, "That plan is no longer there. It may have been eaten or deleted on another device.")
+    return p
+
+
+@app.get("/api/plans")
+def list_plans(c=Depends(con)):
+    """Every plan, earliest first; ones whose day has passed are overdue until eaten or deleted."""
+    return [plan_out(p) for p in c.execute("SELECT * FROM planned_meals ORDER BY day, time, id")]
+
+
+@app.post("/api/plans")
+def create_plan(body: PlanIn, c=Depends(con)):
+    check_plan_day(body.day)
+    existing = c.execute("SELECT * FROM planned_meals WHERE client_id = ?", (body.client_id,)).fetchone()
+    if existing:   # sent twice: kept once
+        return plan_out(existing)
+    stamp = now().strftime("%Y-%m-%d %H:%M")
+    with c:
+        pid = c.execute("INSERT INTO planned_meals(client_id, name, day, time, items, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                        (body.client_id, body.name.strip(), body.day, body.time,
+                         json.dumps([i.model_dump() for i in body.items]), stamp, stamp)).lastrowid
+    return plan_out(get_plan(c, pid))
+
+
+@app.put("/api/plans/{pid}")
+def update_plan(pid: int, body: PlanUpdate, c=Depends(con)):
+    p = get_plan(c, pid)
+    if body.day != p["day"]:   # an overdue plan can keep its day, but not move into the past
+        check_plan_day(body.day)
+    items = json.dumps([i.model_dump() for i in body.items]) if body.items is not None else p["items"]
+    with c:
+        c.execute("UPDATE planned_meals SET name = ?, day = ?, time = ?, items = ?, updated_at = ? WHERE id = ?",
+                  (body.name.strip(), body.day, body.time, items, now().strftime("%Y-%m-%d %H:%M"), pid))
+    return plan_out(get_plan(c, pid))
+
+
+@app.delete("/api/plans/{pid}")
+def delete_plan(pid: int, c=Depends(con)):
+    get_plan(c, pid)
+    with c:
+        c.execute("DELETE FROM planned_meals WHERE id = ?", (pid,))
+    return {"ok": True}
 
 
 # ----- favorite plates (okf/features/favorite-plates.md) -----
@@ -1604,6 +1713,8 @@ def create_meal(body: MealIn, c=Depends(con), x_kc_push: str = Header(default=""
                       (mid, i.food_id, i.portion_id, i.food_name.strip(), i.portion_label, i.grams, i.carbs_per_100g, i.qty,
                        i.entered_carbs if i.entered_carbs is not None else core.carbs_exact(i.grams, i.carbs_per_100g, i.qty), i.entered_carbs,
                        item_fiber(c, i)))
+        if body.plan_id is not None:
+            c.execute("DELETE FROM planned_meals WHERE id = ?", (body.plan_id,))
     notify(lambda: meal_notice(c, mid), x_kc_push)
     return {"id": mid, "duplicate": False}
 

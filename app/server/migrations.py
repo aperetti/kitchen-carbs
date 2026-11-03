@@ -226,11 +226,20 @@ def m019_meal_fiber(con):
                    WHERE entered_carbs IS NULL AND food_id IS NOT NULL""")
 
 
+def m020_planned_meals(con):
+    """Plates built ahead for a date and time, kept apart from the log so nothing counts them (okf/domain/planned-meal.md).
+    items is the plate's rows as JSON."""
+    con.execute("""CREATE TABLE planned_meals (
+      id INTEGER PRIMARY KEY, client_id TEXT NOT NULL UNIQUE, name TEXT NOT NULL, day TEXT NOT NULL, time TEXT NOT NULL,
+      items TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)""")
+
+
 MIGRATIONS = [m001_schema, m002_sessions, m003_cooked_state, m004_moved_from, m005_portion_labels, m006_fiber,
               m007_food_confirmations, m008_meal_details, m009_barcode,
               m010_entered_carbs, m011_edited_later,
               m012_soft_delete, m013_carbs_corrected, m014_favorite_photo,
-              m015_push_subscriptions, m016_tidepool_sent, m017_nightscout_sent, m018_meal_rating, m019_meal_fiber]
+              m015_push_subscriptions, m016_tidepool_sent, m017_nightscout_sent, m018_meal_rating, m019_meal_fiber,
+              m020_planned_meals]
 LATEST = len(MIGRATIONS)
 
 

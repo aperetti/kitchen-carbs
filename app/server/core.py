@@ -69,6 +69,12 @@ def carbs_exact(grams: float, carbs_per_100g: float, qty: float = 1.0) -> float:
     return grams * carbs_per_100g / 100.0 * qty
 
 
+def plan_carbs(items: list[dict]) -> float:
+    """A planned meal's plate rows (okf/domain/planned-meal.md): typed carbs, or weighed grams × carbs per 100 g."""
+    return sum(i["entered"] if i.get("entered") is not None else carbs_exact(i["grams"], i["carbs_per_100g"], i.get("qty") or 1)
+               for i in items)
+
+
 def total_carbs(exact_values) -> int:
     """Totals add the unrounded values, then round once."""
     return whole_grams(sum(exact_values))

@@ -228,3 +228,18 @@ def test_v19_meal_fiber_filled_from_the_food(tmp_path, monkeypatch):
     con = sqlite3.connect(db)
     assert con.execute("SELECT food_name, fiber_per_100g, carbs_exact FROM meal_items ORDER BY id").fetchall() == [
         ("Kiwi", None, 11.025), ("Oats, cooked", 2.5, 30), ("Juice", None, 12)]
+
+
+def test_v20_planned_meals_table(tmp_path, monkeypatch):
+    """Version 20: an empty table for planned meals; the log is untouched."""
+    real = migrations.MIGRATIONS
+    monkeypatch.setattr(migrations, "MIGRATIONS", real[:19]); monkeypatch.setattr(migrations, "LATEST", 19)
+    db = deployed_db(tmp_path)
+    con = sqlite3.connect(db)
+    meals = con.execute("SELECT COUNT(*) FROM meals").fetchone()[0]
+    con.close()
+    monkeypatch.setattr(migrations, "MIGRATIONS", real); monkeypatch.setattr(migrations, "LATEST", len(real))
+    migrations.run(db, **QUIET)
+    con = sqlite3.connect(db)
+    assert con.execute("SELECT COUNT(*) FROM planned_meals").fetchone()[0] == 0
+    assert con.execute("SELECT COUNT(*) FROM meals").fetchone()[0] == meals

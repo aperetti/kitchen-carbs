@@ -2,6 +2,7 @@
 Each version is what went to the family's kitchen on that date (okf/architecture/releases.md).
 
 ## Unreleased
+- Plan a meal ahead: build a plate, tap Plan for later and pick a date and time. Plans wait in today's log under Planned and on the empty plate, and aren't counted until you put one on the plate and save it. Nightscout shows a plan as a note with no carbs, so forecasts only count what was eaten.
 - The log can show times as 12-hour with AM/PM (6:30 PM) instead of 24-hour. Turn it on under Manage → Settings → Log; it applies for the whole family and to the PDF export.
 - The meal summary's insulin can now round down to 0.05, 0.1, 0.5 or 1 unit, to match the pump or pen. Set it under Manage → Settings → Insulin settings; it stays at 0.05 until you change it.
 

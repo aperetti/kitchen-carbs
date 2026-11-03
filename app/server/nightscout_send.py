@@ -1,6 +1,6 @@
 """Keeps Kitchen Carbs' treatments in Nightscout in step with the log, for forecasting (okf/features/nightscout-send.md,
 okf/architecture/nightscout-client.md). Off until a parent switches it on; only what was logged, never the calculated
-dose, never CGM, and long-acting insulin only as a note (okf/rules/nightscout-sends-what-was-logged.md)."""
+dose, never CGM, and long-acting insulin and planned meals only as notes (okf/rules/nightscout-sends-what-was-logged.md)."""
 import hashlib
 import json
 import logging
@@ -166,6 +166,12 @@ def wanted(c, cfg) -> dict:
             out[oid] = _insulin(oid, e["day"], e["time"], e["insulin"], e["insulin_kind"], "Correction Bolus", note=e["note"][:500])
         if k["bg"] and e["bg"] is not None:
             out[f"kc-entry-{e['id']}-bg"] = _bg(f"kc-entry-{e['id']}-bg", e["day"], e["time"], e["bg"])
+    if k["carbs"]:   # a planned meal: a note only, never in the carbs field, so no forecast counts it (okf/features/plan-meal.md)
+        for p in c.execute("SELECT * FROM planned_meals WHERE day >= ?", (cfg["from"],)).fetchall():
+            items = json.loads(p["items"])
+            carbs, foods = core.whole_grams(core.plan_carbs(items)), ", ".join(i["food_name"] for i in items)
+            out[f"kc-plan-{p['id']}"] = _doc(f"kc-plan-{p['id']}", p["day"], p["time"], "Note",
+                                             notes=f"Planned meal: {p['name']} · {foods} · {carbs} g carbs, not eaten yet"[:500])
     return out
 
 

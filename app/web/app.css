@@ -808,3 +808,17 @@ p.moved { margin: 6px 0 0; }
 /* tags on each Scan several food (okf/features/food-lookup.md) */
 .btags { display: flex; flex-wrap: wrap; gap: 0 20px; }
 .batchtab .btags .check { min-height: 40px; }
+
+/* Planned meals (okf/features/plan-meal.md): dashed and greyed, never mistaken for something eaten */
+.plans { margin: 4px 0 12px; }
+.lrow.plan { border: 1px dashed var(--line); border-radius: 10px; margin: 6px -10px 0; }
+.lrow.plan .c, .mdh .c.planc { color: var(--vein); }
+.planned { display: grid; gap: 8px; padding: 0 20px 24px; }
+.planned .prow { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border: 1px dashed var(--line); border-radius: 10px; }
+.planned .prow > span { display: grid; gap: 2px; min-width: 0; }
+.planfrom { margin: 0 0 12px; padding: 10px 12px; border: 1px dashed var(--line); border-radius: 10px; color: var(--vein); }
+.planform, .planedit { flex-wrap: wrap; }
+.planedit { display: flex; gap: 8px; align-items: center; }
+.planform input[type=date], .planform input[type=time], .planedit input { flex: 0 1 auto; height: 44px; border: 1px solid var(--line); border-radius: 10px; background: var(--paper); padding: 0 10px; font-size: 16px; color: var(--ink); }
+.planform #planName { flex: 1 1 180px; height: 44px; }
+.planedit #peName { flex: 1 1 180px; }

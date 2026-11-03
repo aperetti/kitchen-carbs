@@ -6,7 +6,7 @@ tags: [journey]
 timestamp: 2026-10-27
 status: draft
 links:
-  involves: [features/sign-in.md, features/install-app.md, features/food-lookup.md, features/manual-log.md, features/photo-style-setup.md, features/scan-label.md, features/favorite-plates.md, features/connect-nightscout.md, features/meal-glucose-view.md, features/glucose-stats-view.md, features/photo-pipeline.md, features/manage-foods.md, features/browse-foods.md, features/view-food.md, features/build-plate.md, features/kitchen-scale.md, features/log-meal.md, features/annotate-meal.md, features/review-log.md, features/export-log.md, features/fill-in-fiber.md, features/meal-dose-summary.md, features/confirm-food.md, features/notify-family.md, features/tidepool-sync.md, features/nightscout-send.md, features/rate-meal.md]
+  involves: [features/sign-in.md, features/install-app.md, features/food-lookup.md, features/manual-log.md, features/photo-style-setup.md, features/scan-label.md, features/favorite-plates.md, features/connect-nightscout.md, features/meal-glucose-view.md, features/glucose-stats-view.md, features/photo-pipeline.md, features/manage-foods.md, features/browse-foods.md, features/view-food.md, features/build-plate.md, features/kitchen-scale.md, features/log-meal.md, features/annotate-meal.md, features/review-log.md, features/export-log.md, features/fill-in-fiber.md, features/meal-dose-summary.md, features/confirm-food.md, features/notify-family.md, features/tidepool-sync.md, features/nightscout-send.md, features/rate-meal.md, features/plan-meal.md]
 steps:
   - id: sign-in
     phase: Set up (once)
@@ -80,6 +80,15 @@ steps:
     risk: "Today's plate differs a little from the favorite."
     helps: "Every item lands on the plate with its grams, ready to tune; carbs use current values."
     features: [features/favorite-plates.md]
+  - id: plan
+    phase: Mealtime
+    name: Plan a meal ahead
+    doing: "Builds tonight's dinner or tomorrow's school lunch ahead, taps 'Plan for later', and at mealtime puts the plan back on the plate from the empty plate or the log."
+    screen: "Plate → Plan for later; Log → Planned"
+    thinking: "I know what he's having; I want the carbs ready before the rush, and Nightscout to show it's coming."
+    risk: "A plan counted as eaten, in the day's total or in the forecast, when the meal changed or was skipped."
+    helps: "A plan is never in totals, stats, exports or Tidepool; Nightscout gets only a note with no carbs field; it becomes a meal only when saved to the log, which replaces the plan."
+    features: [features/plan-meal.md]
   - id: find
     phase: Mealtime
     name: Find the food

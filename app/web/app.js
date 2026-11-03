@@ -43,7 +43,8 @@ const S = {
   q: "", filter: store.get("filter", "all"), favSel: null, openCard: null,
   plate: store.get("plate", []).map(x => x.qty === 1 && x.base ? x   // older plates kept a ×quantity: fold it into the grams
     : { ...x, grams: Math.round(x.grams * (x.qty ?? 1) * 10) / 10, base: x.base ?? x.grams, qty: 1 }), queue: store.get("queue", []), plateTime: null,
-  log: { day: localDay(), data: null, sel: null, selEntry: null, adding: false, period: "day", stats: null, glucose: {} },
+  plans: store.get("plans", []), plan: store.get("planFrom", null),   // planned meals, and the one the plate came from (okf/features/plan-meal.md)
+  log: { day: localDay(), data: null, sel: null, selEntry: null, selPlan: null, adding: false, period: "day", stats: null, glucose: {} },
   m: { tab: "foods", food: null, addTab: "lookup", busy: {}, err: "", scan: null, look: { q: "", res: null, busy: false } },
 };
 
@@ -107,6 +108,7 @@ function route() {
   VIEWS.forEach(x => ($("#v-" + x).hidden = x !== v));
   document.querySelectorAll("#tabs a").forEach(a => a.dataset.v === v ? a.setAttribute("aria-current", "page") : a.removeAttribute("aria-current"));
   ({ foods: () => { renderFoods(); if (splitMode()) renderPlate(); }, plate: renderPlate, log: () => loadLog(S.log.day), manage: renderManage })[v]();
+  if (v === "foods" || v === "plate") loadPlans().then(changed => { if (changed && !S.plate.length) renderPlate(); });
   renderPlatebar(v);
 }
 addEventListener("hashchange", route);
@@ -124,6 +126,10 @@ function pickMealFilter() {
   if (tag) { S.filter = tag.id; store.set("filter", S.filter); }
 }
 async function loadFavs() { try { S.favs = await api("/api/favorites"); store.set("favs", S.favs); } catch { } }
+async function loadPlans() {   // true when they changed
+  try { const p = await api("/api/plans"), changed = JSON.stringify(p) !== JSON.stringify(S.plans); S.plans = p; store.set("plans", p); return changed; }
+  catch { return false; }
+}
 const suggestName = (t = hhmm()) => t < "10:30" ? "Breakfast" : t < "15:00" ? "Lunch" : "Dinner";
 const foodById = id => S.foods.find(f => f.id === id);
 const shownPhoto = p => p.photo.styled || p.photo.original;
@@ -393,9 +399,85 @@ $("#v-foods").addEventListener("submit", async e => {
   try { await api(`/api/favorites/${S.favSel}`, { method: "PUT", body: { name } }); await loadFavs(); renderFoods(); } catch (err) { toast(err.message); }
 });
 
+/* ---------- planned meals (okf/features/plan-meal.md) ---------- */
+const PLAN_DAYS = 60;
+const planWhen = p => `${p.day === localDay() ? "today" : p.day === shiftDay(localDay(), 1) ? "tomorrow" : dayLabel(p.day)} at ${clk(p.time)}`;
+const planItemCarbs = i => i.entered != null ? i.entered : exact(i.grams, i.carbs_per_100g, i.qty || 1);
+const duePlans = () => {   // the empty plate starts mealtime: today's plans and overdue ones
+  const due = S.plans.filter(p => p.day <= localDay()); if (!due.length) return "";
+  return `<div class="planned"><span class="label">Planned</span>${due.map(p => `<div class="prow"><span><b>${esc(p.name)}</b>
+      <span class="meta">${p.day < localDay() ? "Overdue · " : ""}${esc(planWhen(p))} · ${p.carbs} g carbs</span></span>
+    <button class="btn small" data-act="plan-use" data-pid="${p.id}">Put on the plate</button></div>`).join("")}</div>`;
+};
+function planForm() {
+  const p = S.plan, time = p?.time || S.plateTime || hhmm();
+  return `<form class="cmtform planform" id="planForm" hidden style="margin-top:8px">
+    <input id="planName" maxlength="60" required value="${esc(p?.name || suggestName(time))}" aria-label="Plan name">
+    <input type="date" id="planDay" required value="${p && p.day >= localDay() ? p.day : localDay()}" min="${localDay()}" max="${shiftDay(localDay(), PLAN_DAYS)}" aria-label="Date">
+    <input type="time" id="planTime" required value="${time}" aria-label="Time">
+    <button class="btn small">${p ? "Update plan" : "Plan"}</button></form>`;
+}
+const planRow = x => x.entered != null ? { food_name: x.food_name, entered: x.entered }
+  : { food_id: x.food_id, portion_id: x.portion_id, food_name: x.food_name, portion_label: x.portion_label, grams: x.grams, carbs_per_100g: x.carbs_per_100g,
+      qty: x.qty || 1, base: x.base, basis: x.basis, state: x.state, cp_basis: x.cp_basis, ratio: x.ratio, ratio_day: x.ratio_day, locked: !!x.locked };
+async function savePlan(btn) {
+  const body = { name: $("#planName").value.trim(), day: $("#planDay").value, time: $("#planTime").value, items: S.plate.map(planRow) };
+  if (!body.name || !body.day || !body.time) return;
+  btn.disabled = true;
+  let p;
+  try {
+    p = S.plan ? await api(`/api/plans/${S.plan.id}`, { method: "PUT", body }).catch(err => {
+          if (err.status === 404) return api("/api/plans", { method: "POST", body: { ...body, client_id: uid() } });   // gone meanwhile: a new one
+          throw err; })
+      : await api("/api/plans", { method: "POST", body: { ...body, client_id: uid() } });
+  } catch (err) { btn.disabled = false; toast(err.message); return; }
+  S.plate = []; S.plateTime = null; savePlate();
+  await loadPlans(); renderPlate();
+  toast(`Planned ${p.name} for ${planWhen(p)}`);
+}
+/* The plan back on the plate, each food with its current values (okf/rules/favorites-use-current-values.md) */
+let confirmReplace = 0;
+function usePlan(p, btn) {
+  if (!p) { toast("That plan is no longer there."); loadPlans().then(() => route()); return; }
+  if (S.plate.length && S.plan?.id !== p.id && Date.now() - confirmReplace > 4000) {
+    confirmReplace = Date.now(); btn.textContent = "Tap again to replace the plate"; return;
+  }
+  confirmReplace = 0;
+  const rows = [], gone = [];
+  for (const i of p.items) {
+    if (i.entered != null) { rows.push({ key: uid(), food_id: null, portion_id: null, food_name: i.food_name, entered: i.entered, grams: 0, qty: 1 }); continue; }
+    const f = foodById(i.food_id), pt = f?.portions.find(x => x.id === i.portion_id);
+    if (!pt) { gone.push(i.food_name); continue; }
+    rows.push({ ...i, key: uid(), food_name: f.name, portion_label: pt.label, base: pt.grams, photo: shownPhoto(pt) });
+  }
+  if (!rows.length) { toast(`None of ${p.name}'s foods are in the food list any more.`); return; }
+  S.plate = rows; S.plateTime = hhmm(); S.plan = { id: p.id, name: p.name, day: p.day, time: p.time };
+  syncPlate(); savePlate();
+  toast(gone.length ? `${p.name} is on the plate. Left out: ${gone.join(", ")} (no longer in the food list).` : `${p.name} is on the plate. Check each weight before saving.`);
+  if (location.hash.slice(1).split("/")[0] === (splitMode() ? "foods" : "plate")) renderPlate(); else location.hash = splitMode() ? "foods" : "plate";
+}
+// the log's 'Planned' list, on today only: the log can't go past today, so future plans are listed here
+const planList = d => d.day !== localDay() || !S.plans.length ? "" : `<div class="plans"><div class="glab"><span class="label">Planned</span><span class="meta">Not counted until saved to the log</span></div>
+  ${S.plans.map(p => `<button class="lrow plan ${p.id === S.log.selPlan ? "on" : ""}" data-plan="${p.id}">
+    <span class="tm">${clk(p.time)}</span><span class="it"><b>${esc(p.name)}</b><span>${p.day < localDay() ? `<span class="warn">Overdue</span> · ` : ""}${esc(cap(planWhen(p)))} · ${esc(p.foods)}</span></span>
+    <span class="c">${p.carbs}</span></button>`).join("")}</div>`;
+let confirmPlanDel = 0;
+function renderPlan(p) {
+  $("#mealDetail").innerHTML = `<div class="mdh"><b>${esc(p.name)}</b><span class="c planc">${p.carbs} <small>g carbs</small></span></div>
+    <p class="meta">Planned for ${esc(planWhen(p))}${p.day < localDay() ? `, <span class="warn">overdue</span>` : ""}. Not in the log or Nightscout's carbs until it's put on the plate and saved.</p>
+    <span class="meta">${p.items.map(i => `${esc(i.food_name)}, ${whole(planItemCarbs(i))} g carbs (${i.entered != null ? "entered by hand" : fmtG(i.grams)})`).join(" · ")}</span>
+    <div class="actions" style="padding-top:12px"><button class="btn primary" data-act="plan-use" data-pid="${p.id}">Put on the plate</button></div>
+    <div class="glab"><span class="label">Name and when</span></div>
+    <form class="planedit" id="planEdit"><input id="peName" maxlength="60" required value="${esc(p.name)}" aria-label="Plan name">
+      <input type="date" id="peDay" required value="${p.day}" min="${p.day < localDay() ? p.day : localDay()}" max="${shiftDay(localDay(), PLAN_DAYS)}" aria-label="Date">
+      <input type="time" id="peTime" required value="${p.time}" aria-label="Time"><button class="btn small">Save</button></form>
+    <div class="actions" style="padding-top:12px"><button class="btn quiet small" data-act="plan-del">Delete plan</button></div>`;
+}
+
 /* ---------- plate (okf/features/build-plate.md) ---------- */
 function savePlate() {
-  store.set("plate", S.plate); renderPlatebar();
+  if (!S.plate.length) S.plan = null;   // emptied: the plan stays as it was
+  store.set("plate", S.plate); store.set("planFrom", S.plan); renderPlatebar();
   if (splitMode() && $("#platePane").contains($("#plateView"))) renderPlate();
   refreshBadges();   // the 'On plate' badges follow the plate, quietly
 }
@@ -536,10 +618,10 @@ function unconfirmedHTML(x) {
 }
 function renderPlate() {
   const el = $("#plateView");
-  if (!S.plate.length) { el.innerHTML = scaleBar() + `<div class="empty"><h2>The plate is empty</h2><p>Tap a food to add it, then set its weight here.</p>${splitMode() ? "" : `<p><a class="btn" href="#foods">Go to foods</a></p>`}${handAdd()}</div>`; paintScale(); setTimeout(tryScale); return; }
+  if (!S.plate.length) { el.innerHTML = scaleBar() + `<div class="empty"><h2>The plate is empty</h2><p>Tap a food to add it, then set its weight here.</p>${splitMode() ? "" : `<p><a class="btn" href="#foods">Go to foods</a></p>`}${handAdd()}</div>${duePlans()}`; paintScale(); setTimeout(tryScale); return; }
   S.plateTime = S.plateTime || hhmm();
   syncPlate();
-  el.innerHTML = scaleBar() + S.plate.map(x => {
+  el.innerHTML = scaleBar() + (S.plan ? `<p class="planfrom">From the plan <b>${esc(S.plan.name)}</b>, ${esc(planWhen(S.plan))}. Saving it to the log replaces the plan.</p>` : "") + S.plate.map(x => {
     if (x.entered != null) return handRow(x);
     // drag to the weight actually served (okf/domain/plate.md); the mark is the portion's own weight
     const base = (x.base || x.grams) * stateFactor(x), hi = Math.max(Math.ceil(base * 3), Math.ceil(x.grams * 1.5), 30), step = hi > 80 ? 1 : 0.5;
@@ -568,8 +650,10 @@ function renderPlate() {
       <div class="right"><label class="timefield">Time <input type="time" id="plateTime" value="${S.plateTime}"></label>
       <button class="btn primary" data-act="save">Save to log</button></div></div>
     <p class="note">Save to log shows the meal summary first. Enter the total in the pump or meter as usual.
-      <span class="plinks"><button class="linkbtn" data-act="clear">Clear plate</button> · <button class="linkbtn" data-act="pin">Pin as favorite</button></span></p>
-    <form class="cmtform" id="pinPlate" hidden style="margin-top:8px"><input id="pinName" maxlength="60" value="${suggestName(S.plateTime)}" aria-label="Favorite name"><button class="btn small">Pin</button></form>`;
+      <span class="plinks"><button class="linkbtn" data-act="clear">Clear plate</button> · <button class="linkbtn" data-act="pin">Pin as favorite</button>
+        · <button class="linkbtn" data-act="plan-open">${S.plan ? "Update plan" : "Plan for later"}</button></span></p>
+    <form class="cmtform" id="pinPlate" hidden style="margin-top:8px"><input id="pinName" maxlength="60" value="${suggestName(S.plateTime)}" aria-label="Favorite name"><button class="btn small">Pin</button></form>
+    ${planForm()}`;
   paintScale(); setTimeout(tryScale);
 }
 
@@ -638,6 +722,8 @@ $("#plateView").addEventListener("click", async e => {
   else if (t.dataset.act === "wstate") { if (item.state !== t.dataset.s) setState(item, t.dataset.s); savePlate(); renderPlate(); }
   else if (t.dataset.act.startsWith("scale-") || t.dataset.act === "use-scale") scaleAction(t.dataset.act, t.closest("[data-key]"));
   else if (t.dataset.act === "pin") { $("#pinPlate").hidden = false; $("#pinName").select(); }
+  else if (t.dataset.act === "plan-open") { $("#planForm").hidden = false; $("#planName").select(); }
+  else if (t.dataset.act === "plan-use") usePlan(S.plans.find(p => p.id === +t.dataset.pid), t);
   else if (t.dataset.act === "hand-open") { t.hidden = true; $("#handForm").hidden = false; $("#hName").focus(); }
   else if (t.dataset.act === "hand-cancel") { renderPlate(); }
 });
@@ -650,6 +736,7 @@ $("#plateView").addEventListener("submit", async e => {
     S.plate.push({ key: uid(), food_id: null, portion_id: null, food_name: name, entered: carbs, grams: 0, qty: 1 });
     S.plateTime = S.plateTime || hhmm(); savePlate(); renderPlate(); toast(`Added ${name}, ${fmtG(carbs)} carbs`); return;
   }
+  if (e.target.id === "planForm") { e.preventDefault(); savePlan(e.target.querySelector("button")); return; }
   if (e.target.id !== "pinPlate") return; e.preventDefault();
   const name = $("#pinName").value.trim(); if (!name) return;
   const weighed = S.plate.filter(x => x.entered == null);   // carbs entered by hand have no food to keep (okf/domain/plate.md)
@@ -869,7 +956,7 @@ const detailSummary = m => [
   m.eat_min != null && `eaten in ${m.eat_min} min`].filter(Boolean).join(" · ");
 
 async function saveMeal(btn, extra = {}) {
-  const meal = { client_id: uid(), day: localDay(), time: S.plateTime || hhmm(), ...extra,
+  const meal = { client_id: uid(), day: localDay(), time: S.plateTime || hhmm(), ...extra, ...(S.plan ? { plan_id: S.plan.id } : {}),
     items: S.plate.map(x => x.entered != null ? { food_name: x.food_name, portion_label: "Carbs entered by hand", entered_carbs: x.entered } : ({ food_id: x.food_id, portion_id: x.portion_id, food_name: x.food_name, grams: x.grams, carbs_per_100g: x.carbs_per_100g, qty: x.qty,
       portion_label: (x.portion_label.slice(0, 40 - stateLabel(x).length) + stateLabel(x)) })) };   // the log keeps which weight it was (okf/rules/cooking-ratio-measured.md)
   btn.disabled = true;
@@ -880,6 +967,7 @@ async function saveMeal(btn, extra = {}) {
     toast("Saved on this tablet. It will sync when the server is back.");
   }
   S.plate = []; S.plateTime = null; savePlate();
+  if (meal.plan_id) S.plans = S.plans.filter(p => p.id !== meal.plan_id);   // the meal replaced it
   S.log.day = meal.day; S.log.sel = null; location.hash = "log";
 }
 
@@ -895,7 +983,7 @@ async function syncQueue() {
 /* ---------- log (okf/features/review-log.md, annotate-meal.md, glucose-*.md) ---------- */
 async function loadLog(day) {
   S.log.day = day;
-  try { S.log.data = await api("/api/log?day=" + day); setClock(S.log.data.clock_12h); }
+  try { [S.log.data] = await Promise.all([api("/api/log?day=" + day), day === localDay() && loadPlans()]); setClock(S.log.data.clock_12h); }
   catch (err) { $("#logList").innerHTML = `<div class="empty">${esc(err.message)}</div>`; $("#mealDetail").innerHTML = ""; return; }
   const meals = S.log.data.meals;
   if (S.log.selEntry && !S.log.data.entries.some(e => e.id === S.log.selEntry)) S.log.selEntry = null;
@@ -934,6 +1022,7 @@ function renderLog() {
       <span class="meta">${d.total} g</span><button data-day="1" aria-label="Next day" ${isToday ? "disabled" : ""}>›</button></div>
     ${strip}
     ${Object.keys(d.insulin || {}).length ? `<p class="meta insline">Insulin given: ${Object.entries(d.insulin).map(([k, u]) => `<b>${fmtU(u)}</b> ${KIND[k]}`).join(" · ")}</p>` : ""}
+    ${planList(d)}
     ${d.editable ? `<button class="btn small addentry ${S.log.adding ? "on" : ""}" data-act="add-entry">Add entry${isToday ? "" : ` to ${dayLabel(d.day)}`}: carbs, BG or insulin</button>` : ""}
     ${logRows(d)}
     ${deletedList(d)}
@@ -1111,6 +1200,7 @@ async function saveLogEdits(btn) {
 
 async function renderMeal() {
   if (S.log.adding) return renderEntryForm();
+  if (S.log.selPlan) { const p = S.plans.find(x => x.id === S.log.selPlan); if (p) { S.log.base = null; return renderPlan(p); } S.log.selPlan = null; }
   if (S.log.selEntry) return renderEntry(S.log.data.entries.find(e => e.id === S.log.selEntry));
   const el = $("#mealDetail"), d = S.log.data, m = d.meals.find(x => x.id === S.log.sel);
   if (!m) { el.innerHTML = `<div class="empty">${d.meals.length ? "Choose a meal." : "Meals you save from the plate appear here."}</div>`; return; }
@@ -1202,11 +1292,19 @@ function curveSvg(w) {
 let confirmDelete = 0;
 $("#v-log").addEventListener("click", async e => {
   if (e.target.closest("#mealDetail")) setTimeout(logDirty);   // after the switches below have moved
-  const t = e.target.closest("[data-day],[data-meal],[data-entry],[data-kind],[data-ekind],[data-eaten],[data-rate],[data-act],[data-period],[data-restore]"); if (!t) return;
+  const t = e.target.closest("[data-day],[data-meal],[data-entry],[data-plan],[data-kind],[data-ekind],[data-eaten],[data-rate],[data-act],[data-period],[data-restore]"); if (!t) return;
   const d = S.log.data;
-  if (t.matches("[data-day],[data-meal],[data-entry],[data-period],[data-restore],[data-act=add-entry]") && logDirty()) {
+  if (t.matches("[data-day],[data-meal],[data-entry],[data-plan],[data-period],[data-restore],[data-act=add-entry]") && logDirty()) {
     toast("Save or discard the changes first");   // nothing typed is lost without a choice
     const bar = $("#logSave"); bar.classList.remove("nudge"); void bar.offsetWidth; bar.classList.add("nudge"); return;
+  }
+  if (t.matches("[data-day],[data-meal],[data-entry],[data-restore],[data-act=add-entry]")) S.log.selPlan = null;
+  if (t.dataset.plan) { S.log.selPlan = +t.dataset.plan; S.log.adding = false; confirmPlanDel = 0; renderLog(); if (innerWidth <= 680) $("#mealDetail").scrollIntoView(); return; }
+  if (t.dataset.act === "plan-use") return usePlan(S.plans.find(p => p.id === +t.dataset.pid), t);
+  if (t.dataset.act === "plan-del") {
+    if (Date.now() - confirmPlanDel > 4000) { confirmPlanDel = Date.now(); t.textContent = "Tap again to delete the plan"; return; }
+    try { await api(`/api/plans/${S.log.selPlan}`, { method: "DELETE" }); toast("Plan deleted"); } catch (err) { toast(err.message); }
+    S.log.selPlan = null; return loadLog(d.day);
   }
   if (t.dataset.act === "log-save") return saveLogEdits(t);
   if (t.dataset.act === "log-discard") { S.log.base = null; return renderMeal(); }
@@ -1279,6 +1377,12 @@ $("#v-log").addEventListener("submit", async e => {
       toast("Saved on this tablet. It will sync when the server is back.");
     }
     S.log.adding = false; loadLog(body.day); return;
+  }
+  if (e.target.id === "planEdit") {
+    e.preventDefault();
+    const body = { name: $("#peName").value.trim(), day: $("#peDay").value, time: $("#peTime").value };
+    try { const p = await api(`/api/plans/${S.log.selPlan}`, { method: "PUT", body }); toast(`${p.name}: ${planWhen(p)}`); } catch (err) { toast(err.message); }
+    return loadLog(S.log.data.day);
   }
   if (e.target.id === "pinMeal") {
     e.preventDefault(); const name = $("#pinMealName").value.trim();
