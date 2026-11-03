@@ -129,3 +129,5 @@
 - 2026-11-02 — Insulin timing is counted from the meal's time: one 'min before the meal' box (0 = at the meal time) replaces the three switches; it starts at BG ÷ 10, or 0 under 80 mg/dL (domain/meal.md).
 - 2026-11-02 — Phone log: a meal, entry or plan opens as a card that slides in, a history step, so Back or a swipe right returns to the list (design/components/log-card.md).
 - 2026-11-02 — Calmer log: details read first with Edit to change and a ⋯ menu for rare actions; Export behind a button; stats and insulin in one line that opens (design/components/log-details.md, stats-strip.md).
+- 2026-11-03 — Settings save with the log's floating 'Unsaved changes' bar; the sections' own Save buttons are gone. Starting to send to Nightscout or Tidepool keeps its own button (design/components/settings-save.md).
+- 2026-11-03 — Fixes: the phone meal card no longer hides the 'Unsaved changes' bar inside itself; the parent PIN box fits phones narrower than 340 px (design/components/log-card.md).

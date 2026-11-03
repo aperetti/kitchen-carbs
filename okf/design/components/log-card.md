@@ -21,6 +21,8 @@ follow. Screens 680 px wide and under:
   that address opens it again.
 - Back lands on the list where it was scrolled. Nothing on the list moves.
 - Unsaved changes hold the card: Back stays on it and says 'Save or discard the changes first', as choosing another
-  meal does.
+  meal does. The 'Unsaved changes' bar with Save and Discard stays pinned to the bottom of the screen on the card,
+  never inside it where it would need scrolling to (3 Nov: the card moving with the finger had made the bar part of
+  the card); the card only moves while it's being dragged.
 - With reduced motion the card appears without sliding.
 - Tablets and computers keep the list and details side by side; nothing is added to history there.

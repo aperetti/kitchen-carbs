@@ -94,6 +94,10 @@ function renderStatus() {
 const VIEWS = ["foods", "plate", "log", "manage"];
 function route() {
   if (S.signedOut) return showSignIn();
+  if (!$("#v-manage").hidden && setDirty()) {   // leaving Settings with unsaved changes stays (okf/design/components/settings-save.md)
+    if (!location.hash.startsWith("#manage/settings")) { S.m.tab = "settings"; history.pushState({ m: { ...mSnap(), depth: history.state?.m?.depth ?? 0 } }, "", mHash(mSnap())); setHold(); }
+    return;
+  }
   let h = location.hash.slice(1).split("/")[0];
   if (h === "plate" && splitMode()) { history.replaceState(history.state, "", "#foods"); h = "foods"; }   // the plate is beside the foods
   const v = VIEWS.includes(h) ? h : "foods";
@@ -1114,7 +1118,8 @@ function cardSync() {   // the card's item gone (deleted, moved away): back to t
   }, { passive: true });
   const end = () => {
     if (!s) return;
-    const go = s.on && s.dx > innerWidth / 4; s = null;
+    const go = s.on && s.dx > innerWidth / 4, moved = s.on; s = null;
+    if (moved && !go) { v.classList.add("settle"); setTimeout(() => v.classList.remove("settle"), 250); }
     v.classList.remove("dragging"); v.style.removeProperty("--drag");
     if (go) cardBack();
   };
@@ -1995,6 +2000,7 @@ async function acceptPhoto(pid, action) {
 const mSubmit = async e => {
   e.preventDefault();
   const id = e.target.id;
+  if (SET_FORMS.includes(id) && !e.target.hasAttribute("data-untracked")) { saveSettings(); return; }   // Enter in a settings box
   if (id === "pinCreate") {
     const a = $("#pin1").value, b = $("#pin2").value;
     if (!/^\d{4,8}$/.test(a)) { $("#pinErr").textContent = "Use 4 to 8 digits."; return; }
@@ -2031,16 +2037,6 @@ const mSubmit = async e => {
   } else if (id === "approveDevice") {
     try { await api("/api/accounts/approve-device", { method: "POST", parent: true, body: { code: $("#devCode").value } }); e.target.reset(); S.accounts = null; renderAccounts(); toast("Approved. The other device signs in within a few seconds."); }
     catch (err) { toast(err.message); }
-  } else if (id === "accountsForm") {
-    try { S.accounts = await api("/api/accounts", { method: "PUT", parent: true, body: { emails: $("#accEmails").value.split(/[\s,;]+/).filter(Boolean) } });
-      renderAccounts(); toast("Family accounts saved"); } catch (err) { toast(err.message); }
-  } else if (id === "doseForm") {
-    try { const d = await api("/api/dose-settings", { method: "PUT", parent: true, body: doseCollect() });
-      S.doseEdit = d.settings; S.doseUpdated = d.updated; $("#doseBox").innerHTML = doseForm(); toast("Insulin settings saved"); }
-    catch (err) { toast(err.message); }
-  } else if (id === "offContact") {
-    try { S.settings = await api("/api/settings", { method: "PUT", parent: true, body: { off_contact: $("#offContactEmail").value.trim() } }); toast("Contact saved"); }
-    catch (err) { toast(err.message); }
   } else if (id === "scanForm") {
     await saveScanned();
   } else if (id === "refAdd") {
@@ -2070,12 +2066,6 @@ const mSubmit = async e => {
         carbs: $("#nsCarbs").checked, insulin: $("#nsIns").checked, bg: $("#nsBg").checked } });
       toast("Sending to Nightscout within a minute"); renderNsSend();
     } catch (err) { renderNsSend(err.message); }
-  } else if (id === "tgForm") {
-    try { await api("/api/targets", { method: "PUT", parent: true, body: { low: +$("#tgLow").value, high: +$("#tgHigh").value } }); toast("Target range saved"); S.session.targets = [+$("#tgLow").value, +$("#tgHigh").value]; }
-    catch (err) { toast(err.message); }
-  } else if (id === "pinChange") {
-    try { await api("/api/pin", { method: "POST", body: { pin: $("#newPin").value, old_pin: $("#oldPin").value } }); pinStore.set($("#newPin").value); toast("PIN changed"); e.target.reset(); }
-    catch (err) { toast(err.message); }
   }
 };
 
@@ -2083,6 +2073,9 @@ let confirmFood = 0;
 const mClick = async e => {
   const t = e.target.closest("[data-mtab],[data-mfood],[data-addtab],[data-lk],[data-pact],[data-act],[data-tact],[data-mult],[data-quality],[data-bact],[data-pushdel],[data-tpserver]"); if (!t) return;
   if (t.dataset.addtab || t.dataset.mfood || t.dataset.mtab) S.m.look.scanning = false;   // the camera closes when you move away
+  if (((t.dataset.mtab && t.dataset.mtab !== S.m.tab) || t.dataset.act === "lock") && setHold()) return;
+  if (t.dataset.act === "set-save") { saveSettings(); return; }
+  if (t.dataset.act === "set-discard") { renderSettings(); return; }
   if (t.dataset.mtab) { if (S.m.tab !== t.dataset.mtab) { S.m.tab = t.dataset.mtab; mNav(); } return; }
   if (t.dataset.lk) { const [src, ...id] = t.dataset.lk.split(":"); openLookup(src, id.join(":")); return; }
   if (t.dataset.addtab) {   // leaving a check screen for another tab starts that tab fresh
@@ -2229,18 +2222,6 @@ const mClick = async e => {
 
 const mChange = async e => {
   if (e.target.closest("#foodForm")) foodDirty = true;
-  if (e.target.id === "clock12") {   // okf/features/review-log.md
-    try { S.settings = await api("/api/settings/clock", { method: "PUT", parent: true, body: { h12: e.target.checked } });
-      setClock(S.settings.clock_12h); toast(S.clock12 ? "The log shows 12-hour times" : "The log shows 24-hour times"); }
-    catch (err) { e.target.checked = !e.target.checked; toast(err.message); }
-    return;
-  }
-  if (e.target.id === "pastEdits") {   // okf/rules/same-day-edits.md
-    try { S.settings = await api("/api/settings/past-edits", { method: "PUT", parent: true, body: { allowed: e.target.checked } });
-      toast(S.settings.past_edits ? "Earlier days can be changed" : "Earlier days are read-only"); }
-    catch (err) { e.target.checked = !e.target.checked; toast(err.message); }
-    return;
-  }
   if (e.target.matches("[data-labelfile]") && e.target.files[0]) { readLabel(e.target.files[0]); return; }
   if (e.target.matches("#sConfServ,#sConfCarb")) { scanConfirms(); return; }
   if (e.target.matches("#uConf")) { usdaConfirm(); return; }
@@ -2280,11 +2261,6 @@ const mChange = async e => {
     if (e.target.matches(".fibVal")) { r.fiber = e.target.value === "" ? null : +e.target.value; r.conf = false; }
     if (e.target.matches(".fibConf")) r.conf = e.target.checked;
     refreshFiber(); return;
-  }
-  if (e.target.id === "offCountry") {
-    try { S.settings = await api("/api/settings/country", { method: "PUT", parent: true, body: { country: e.target.value } });
-      S.m.look.res = null; toast(`Packaged search: ${S.settings.countries[e.target.value]}`); } catch (err) { toast(err.message); }
-    return;
   }
   if (e.target.matches(".pSizeRef")) {
     const f = foodById(S.m.food), p = f.portions.find(x => x.id === +e.target.closest("tr[data-pid]").dataset.pid);
@@ -2399,6 +2375,7 @@ async function dlgSaved(f) {   // the new food shows under the search the parent
 for (const el of [$("#v-manage"), $("#addDialog")]) {
   el.addEventListener("submit", mSubmit); el.addEventListener("click", mClick); el.addEventListener("change", mChange); el.addEventListener("input", mInput);
 }
+for (const ev of ["input", "change", "click"]) $("#v-manage").addEventListener(ev, e => { if (e.target.closest("#setBody")) setTimeout(setDirty); });   // after the click's own redraw
 
 /* ---------- look up a food (okf/features/food-lookup.md) ---------- */
 /* Add a food: three tabs in the middle panel; check screens (barcode, FatSecret, label photo) open inside Look up. */
@@ -2924,16 +2901,16 @@ async function renderNightscout() {
       <span>${s.readings} readings stored</span><span>Last sync ${ago(s.last_sync_ms)}</span></div>
       ${s.last_error ? `<p class="err">${esc(s.last_error)}</p>` : ""}</div>
       <div class="actions"><button class="btn quiet" data-act="ns-off">Disconnect</button></div>` : ""}
-    <form class="form" id="nsForm"><h3>${s.configured ? "Change connection" : "Connect"}</h3>
+    <form class="form" id="nsForm" ${s.configured ? "" : "data-untracked"}><h3>${s.configured ? "Change connection" : "Connect"}</h3>
       <label class="field"><span>Nightscout address</span><input id="nsUrl" type="url" required placeholder="https://yoursite.example.com" value="${esc(s.url || "")}"></label>
       <label class="field"><span>Access token with the "readable" role (Admin tools → Subjects). Not the API secret. To send the log too, the token also needs a role with api:treatments:*.</span><input id="nsToken" type="password" required autocomplete="off"></label>
-      <p class="err" id="nsErr"></p><div class="actions"><button class="btn primary">Test and save</button><button type="button" class="btn quiet" data-act="form-reset">Cancel</button></div></form>
+      <p class="err" id="nsErr"></p>${s.configured ? "" : `<div class="actions"><button class="btn primary">Test and connect</button></div>`}</form>
     <div id="nsSendBox" data-connected="${s.configured ? 1 : ""}"></div>
     <form class="form" id="tgForm"><h3>Target range (mg/dL)</h3><p class="meta">Used for time in range. Default 70–180; set it from your care team's advice.</p>
       <div class="fieldrow"><label class="field"><span>Low</span><input id="tgLow" type="number" min="54" max="120" value="${s.low}"></label>
-      <label class="field"><span>High</span><input id="tgHigh" type="number" min="120" max="300" value="${s.high}"></label></div>
-      <div class="actions"><button class="btn">Save range</button><button type="button" class="btn quiet" data-act="form-reset">Cancel</button></div></form>
+      <label class="field"><span>High</span><input id="tgHigh" type="number" min="120" max="300" value="${s.high}"></label></div></form>
   </section>`;
+  setBase("nsForm", "tgForm");
   renderNsSend();
 }
 
@@ -2944,7 +2921,7 @@ async function renderNsSend(msg = "") {
   if (!box.dataset.connected) { box.innerHTML = `<section class="form"><h3>Send to Nightscout</h3><p class="meta">Connect Nightscout above first. Then the log's carbs, insulin and meter BG can be sent to it, so OpenAPS can forecast with them.</p></section>`; return; }
   let t; try { t = await api("/api/nightscout/send", { parent: true }); } catch { return; }
   const k = t.kinds, off = t.available ? "" : "disabled";   // dev and QA show the options greyed out, so they can be seen but never send
-  box.innerHTML = `<form class="form" id="nsSendForm"><h3>Send to Nightscout</h3>
+  box.innerHTML = `<form class="form" id="nsSendForm" ${t.on && !off ? "" : "data-untracked"}><h3>Send to Nightscout</h3>
     ${off ? `<p class="warn">Only production sends, so test meals never reach the real record. The options below are shown for reference.</p>` : ""}
     <p class="meta">Sends the log's carbs, insulin and meter BG to Nightscout as treatments, so OpenAPS or another app can forecast with them.
       New, changed and deleted meals and entries follow within a minute. Only what Kitchen Carbs sent is ever changed.</p>
@@ -2961,9 +2938,10 @@ async function renderNsSend(msg = "") {
       <p class="meta">Switching a kind off removes what was sent of it.</p></fieldset>
     <p class="meta">The token needs a role with api:treatments:* (Admin tools → Roles), as well as 'readable'. Saving checks this first.</p>
     <p class="err" role="alert">${esc(msg)}</p>
-    ${off ? "" : `<div class="actions"><button class="btn primary">${t.on ? "Save" : "Check and send"}</button>
+    ${off ? "" : `<div class="actions">${t.on ? "" : `<button class="btn primary">Check and send</button>`}
       ${t.on ? `<button type="button" class="btn" data-act="nss-sync">Send now</button><button type="button" class="btn" data-act="nss-resend">Resend everything</button><button type="button" class="btn quiet" data-act="nss-off">Turn off</button>` : ""}
       ${t.sent ? `<button type="button" class="btn quiet" data-act="nss-remove">${Date.now() - confirmNsRemove < 4000 ? "Tap again to remove" : "Remove from Nightscout"}</button>` : ""}</div>`}</form>`;
+  setBase("nsSendForm");
 }
 
 /* Insulin settings by time of day (okf/domain/insulin-settings.md); used only by the meal summary */
@@ -2984,7 +2962,102 @@ function doseForm() {
         <button type="button" class="linkbtn" data-act="dose-add">+ Add a time</button></fieldset>`; }).join("")}
     <label class="field"><span>Round the dose down to, to match what the pump or pen can give</span><select id="doseRound">${DOSE_STEPS.map(s =>
       `<option value="${s}" ${(d.round_to ?? 0.05) === s ? "selected" : ""}>${s} u</option>`).join("")}</select></label>
-    <div class="actions"><button class="btn">Save insulin settings</button></div></form>`;
+</form>`;
+}
+/* One Save for every setting (okf/design/components/settings-save.md): the log's bar, floating up when anything differs */
+const setBar = `<div class="savebar" id="setSave" hidden role="region" aria-label="Unsaved changes">
+    <span class="sbtext">Unsaved changes</span><p class="err" id="setErr" role="alert"></p>
+    <div class="actions"><button type="button" class="btn primary" data-act="set-save">Save changes</button><button type="button" class="btn quiet" data-act="set-discard">Discard</button></div></div>`;
+const SET_FORMS = ["offContact", "accountsForm", "pinChange", "doseForm", "logSet", "nsForm", "tgForm", "nsSendForm", "tpForm"];   // page order
+const setEls = f => [...f.querySelectorAll("input, select, textarea, [data-tpserver]")];
+const setVals = f => setEls(f).map(i => i.matches("[data-tpserver]") ? i.classList.contains("on") : i.type === "checkbox" ? i.checked : i.value);
+function setBase(...ids) {   // what's saved, read from the boxes just drawn
+  S.setBase ||= {};
+  for (const id of ids) { const f = $("#" + id); if (f) S.setBase[id] = setVals(f); }
+  setDirty();
+}
+function setChanged(id) {
+  const f = $("#" + id), b = S.setBase?.[id];
+  return !!(f && b && !f.hasAttribute("data-untracked") && JSON.stringify(setVals(f)) !== JSON.stringify(b));
+}
+function setDirty() {   // marks what changed; true when anything did
+  const bar = $("#setSave"); if (!bar) return false;
+  let any = false;
+  for (const id of SET_FORMS) {
+    const f = $("#" + id); if (!f) continue;
+    f.classList.remove("dirty"); f.querySelectorAll(".dirty").forEach(x => x.classList.remove("dirty"));
+    if (!setChanged(id)) continue;
+    any = true;
+    const v = setVals(f), b = S.setBase[id], els = setEls(f);
+    if (v.length !== b.length) f.classList.add("dirty");   // a time added to or taken off the insulin settings
+    else v.forEach((x, i) => { if (x !== b[i]) els[i].closest(".seg, .doserow, .check, .field")?.classList.add("dirty"); });
+  }
+  if (bar.hidden === any) { bar.hidden = !any; if (!any) $("#setErr").textContent = ""; }
+  document.body.classList.toggle("unsaved", any);
+  return any;
+}
+function setHold() {   // true (and a nudge) when unsaved settings keep the parent here
+  if ($("#v-manage").hidden || !setDirty()) return false;
+  toast("Save or discard the changes first");
+  const bar = $("#setSave"); bar.classList.remove("nudge"); void bar.offsetWidth; bar.classList.add("nudge");
+  return true;
+}
+const SET_SAVE = {   // each throws with the reason it couldn't be saved; a returned line is said when all is saved
+  offContact: async () => {
+    if ($("#offContactEmail").value.trim() !== S.settings.off_contact)
+      S.settings = await api("/api/settings", { method: "PUT", parent: true, body: { off_contact: $("#offContactEmail").value.trim() } });
+    if ($("#offCountry").value !== S.settings.off_country) {
+      S.settings = await api("/api/settings/country", { method: "PUT", parent: true, body: { country: $("#offCountry").value } }); S.m.look.res = null;
+    }
+  },
+  accountsForm: async () => { S.accounts = await api("/api/accounts", { method: "PUT", parent: true, body: { emails: $("#accEmails").value.split(/[\s,;]+/).filter(Boolean) } }); },
+  pinChange: async f => {
+    const o = $("#oldPin").value, n = $("#newPin").value;
+    if (!o || !n) throw new Error("Type the current PIN and the new one.");
+    if (!/^\d{4,8}$/.test(n)) throw new Error("Use 4 to 8 digits for the new PIN.");
+    await api("/api/pin", { method: "POST", body: { pin: n, old_pin: o } }); pinStore.set(n); f.reset();
+    return "PIN changed.";
+  },
+  doseForm: async () => { const d = await api("/api/dose-settings", { method: "PUT", parent: true, body: doseCollect() }); S.doseEdit = d.settings; S.doseUpdated = d.updated; },
+  logSet: async () => {   // okf/rules/same-day-edits.md, okf/features/review-log.md
+    if ($("#pastEdits").checked !== S.settings.past_edits) S.settings = await api("/api/settings/past-edits", { method: "PUT", parent: true, body: { allowed: $("#pastEdits").checked } });
+    if ($("#clock12").checked !== S.settings.clock_12h) { S.settings = await api("/api/settings/clock", { method: "PUT", parent: true, body: { h12: $("#clock12").checked } }); setClock(S.settings.clock_12h); }
+  },
+  nsForm: async () => {   // still tested with Nightscout before it's kept
+    const r = await api("/api/nightscout", { method: "POST", parent: true, body: { url: $("#nsUrl").value.trim(), token: $("#nsToken").value.trim() } });
+    S.session.glucose = true;
+    return r.latest ? `Nightscout connected. Latest reading ${r.latest.sgv} mg/dL.` : "Nightscout connected.";
+  },
+  tgForm: async () => { await api("/api/targets", { method: "PUT", parent: true, body: { low: +$("#tgLow").value, high: +$("#tgHigh").value } }); S.session.targets = [+$("#tgLow").value, +$("#tgHigh").value]; },
+  nsSendForm: async () => {   // the token's permissions are checked with Nightscout before it's saved
+    await api("/api/nightscout/send", { method: "PUT", parent: true, body: { send_from: $("#nsFrom").value, carbs: $("#nsCarbs").checked, insulin: $("#nsIns").checked, bg: $("#nsBg").checked } });
+  },
+  tpForm: async () => {   // the login is checked with Tidepool before it's saved
+    await api("/api/tidepool", { method: "PUT", parent: true, body: { server: $("[data-tpserver].on")?.dataset.tpserver || "test",
+      email: $("#tpEmail").value.trim(), password: $("#tpPw").value, target: $("#tpTarget").value.trim(), send_from: $("#tpFrom").value,
+      carbs: $("#tpCarbs").checked, bg: $("#tpBg").checked, insulin: $("#tpIns").checked, basal_hours: +$("#tpHours").value || 24 } });
+  },
+};
+const SET_REDRAW = { accountsForm: renderAccounts, doseForm: () => { $("#doseBox").innerHTML = doseForm(); setBase("doseForm"); },
+  nsForm: renderNightscout, tgForm: renderNightscout, nsSendForm: renderNsSend, tpForm: renderTidepool };
+let setSaving = false;
+async function saveSettings() {   // each changed section in page order; a problem stops there and says which
+  const btn = $("[data-act=set-save]"), err = $("#setErr");
+  if (setSaving || !btn) return;
+  const ids = SET_FORMS.filter(setChanged), said = [];
+  setSaving = true; btn.disabled = true; err.textContent = "";
+  try {
+    for (const id of ids) {
+      const f = $("#" + id), name = f.querySelector("h2, h3")?.textContent || "Settings";
+      if (!f.checkValidity()) { f.reportValidity(); err.textContent = `${name}: check the highlighted box.`; return; }
+      try { const line = await SET_SAVE[id](f); if (line) said.push(line); setBase(id); }
+      catch (e) { err.textContent = `${name}: ${e.message}`; f.scrollIntoView({ block: "nearest" }); return; }
+    }
+    const redraw = new Set(ids.map(id => SET_REDRAW[id]).filter(Boolean));
+    if (redraw.has(renderNightscout)) redraw.delete(renderNsSend);   // it draws Send to Nightscout too
+    redraw.forEach(fn => fn());
+    toast(said.join(" ") || "Settings saved");
+  } finally { setSaving = false; btn.disabled = false; setDirty(); }
 }
 function doseCollect() {
   const out = { round_to: +($("#doseRound")?.value ?? 0.05) };
@@ -3005,19 +3078,18 @@ async function renderSettings() {
       <label class="field"><span>Region for packaged food search (barcodes always work for any country)</span><select id="offCountry">${Object.entries(st.countries).map(([k, l]) =>
         `<option value="${k}" ${st.off_country === k ? "selected" : ""}>${esc(l)}</option>`).join("")}</select></label>
       <p class="meta">Default: ${esc(st.off_contact_default)}. FatSecret is ${esc(st.fatsecret)}${st.fatsecret === "set up" ? "" : ": add FAT_SECRET_CLIENT_ID and FAT_SECRET_CLIENT_SECRET to .env"}.</p>
-      <div class="actions"><button class="btn">Save contact</button><button type="button" class="btn quiet" data-act="form-reset">Cancel</button></div></form>` : ""}
+</form>` : ""}
     <div id="accountsBox"></div>
     <form class="form" id="pinChange"><h2>Change parent PIN</h2>
-      <div class="fieldrow"><label class="field"><span>Current PIN</span><input id="oldPin" type="password" inputmode="numeric" required></label>
-      <label class="field"><span>New PIN (4 to 8 digits)</span><input id="newPin" type="password" inputmode="numeric" pattern="\\d{4,8}" required></label></div>
-      <div class="actions"><button class="btn">Change PIN</button><button type="button" class="btn quiet" data-act="form-reset">Cancel</button></div></form>
+      <div class="fieldrow"><label class="field"><span>Current PIN</span><input id="oldPin" type="password" inputmode="numeric" autocomplete="off"></label>
+      <label class="field"><span>New PIN (4 to 8 digits)</span><input id="newPin" type="password" inputmode="numeric" pattern="\\d{4,8}" autocomplete="new-password"></label></div></form>
     <div id="doseBox">${doseForm()}</div>
-    ${st ? `<section class="form"><h2>Log</h2>
+    ${st ? `<form class="form" id="logSet"><h2>Log</h2>
       <label class="check"><input type="checkbox" id="pastEdits" ${st.past_edits ? "checked" : ""}>Allow changes to earlier days</label>
       <p class="meta">On: meals and entries from earlier days can be changed, deleted or added, and each change is marked ✎ in the log and 'Changed later' in the export.
         Off: earlier days are read-only. Moving a meal or entry to another date and time works either way.</p>
       <label class="check"><input type="checkbox" id="clock12" ${st.clock_12h ? "checked" : ""}>Show times as 12-hour (6:30 PM)</label>
-      <p class="meta">For everyone in the family, in the log and the PDF export. Off: 24-hour (18:30). The CSV export stays 24-hour.</p></section>` : ""}
+      <p class="meta">For everyone in the family, in the log and the PDF export. Off: 24-hour (18:30). The CSV export stays 24-hour.</p></form>` : ""}
     <div id="nsBox"></div>
     <div id="tidepoolBox"></div>
     <div id="pushBox"></div>
@@ -3027,8 +3099,9 @@ async function renderSettings() {
         <div class="actions"><button type="button" class="btn" data-act="scale-raw">Open raw viewer</button></div><pre class="rawlog" id="rawLog" hidden></pre>`
       : `<p class="meta">This browser can't talk to Bluetooth devices. Safari on iPad and iPhone doesn't support it; use Chrome or Edge on Android,
         ChromeOS, Windows or a Mac.${window.isSecureContext ? "" : " It also needs the secure address (the https name, or localhost)."}</p>`}</section>
-    </div></div></div>`;
+    </div>${setBar}</div></div>`;
   setNav();   // the order the family asked for (okf/design/components/settings-nav.md)
+  S.setBase = {}; setBase("offContact", "pinChange", "doseForm", "logSet");
   S.accounts = null; renderAccounts(); renderPush(); renderTidepool(); renderNightscout();
 }
 
@@ -3073,7 +3146,7 @@ async function renderTidepool(msg = "") {
   let t; try { t = S.tp = await api("/api/tidepool", { parent: true }); } catch { return; }
   if (!t.available) { box.innerHTML = `<section class="form"><h2>Tidepool</h2><p class="meta">Tidepool is off in QA, so test meals never reach the real record.</p></section>`; return; }
   const k = t.kinds;
-  box.innerHTML = `<form class="form" id="tpForm"><h2>Tidepool</h2>
+  box.innerHTML = `<form class="form" id="tpForm" ${t.on ? "" : "data-untracked"}><h2>Tidepool</h2>
     <p class="meta">Sends the log to the family's Tidepool account and keeps it in step: new, changed and deleted meals and entries follow within a minute.
       Kitchen Carbs' records sit in their own data set, so the pump's and CGM's data are never changed.</p>
     ${t.on ? `<p>Sending to <b>${esc(t.server_name)}</b> as ${esc(t.email)}. ${t.last_sync ? `Last sent ${esc(movedLabel(t.last_sync))}` : "Not sent yet"} · ${t.sent} record${t.sent === 1 ? "" : "s"} in Tidepool.</p>`
@@ -3095,9 +3168,10 @@ async function renderTidepool(msg = "") {
       <p class="meta warn">Only send insulin if the pump's or pen's own data doesn't reach Tidepool, or Tidepool will count the same insulin twice.</p>
       <p class="meta">Switching a kind off removes what was sent of it.</p></fieldset>
     <p class="err" role="alert">${esc(msg)}</p>
-    <div class="actions"><button class="btn primary">${t.on ? "Save" : "Connect and send"}</button>
+    <div class="actions">${t.on ? "" : `<button class="btn primary">Connect and send</button>`}
       ${t.on ? `<button type="button" class="btn" data-act="tp-sync">Send now</button><button type="button" class="btn" data-act="tp-resend">Resend everything</button><button type="button" class="btn quiet" data-act="tp-off">Turn off</button>` : ""}
       ${t.sent || t.dataset ? `<button type="button" class="btn quiet" data-act="tp-remove">${Date.now() - confirmTpRemove < 4000 ? "Tap again to remove" : "Remove from Tidepool"}</button>` : ""}</div></form>`;
+  setBase("tpForm");
 }
 
 /* ---------- notifications (okf/features/notify-family.md, okf/architecture/web-push.md) ---------- */
@@ -3242,12 +3316,12 @@ async function renderAccounts() {
     <label class="field"><span>Google accounts allowed to use the app, one per line</span>
       <textarea id="accEmails" rows="4" spellcheck="false" autocapitalize="off">${esc(a.emails.join("\n"))}</textarea></label>
     <p class="meta">Taking an account off the list signs out its devices straight away.${Object.keys(a.devices).length ? " Signed-in devices: " + Object.entries(a.devices).map(([e, n]) => `${esc(e)} ${n}`).join(", ") + "." : ""}</p>
-    <div class="actions"><button class="btn">Save accounts</button><button type="button" class="btn quiet" data-act="form-reset">Cancel</button>
-      ${a.enabled ? `<button type="button" class="btn quiet" data-act="sign-out-others">Sign out all other devices</button>` : ""}</div></form>
+    ${a.enabled ? `<div class="actions"><button type="button" class="btn quiet" data-act="sign-out-others">Sign out all other devices</button></div>` : ""}</form>
     ${a.enabled ? `<form class="form" id="approveDevice"><h2>Sign in another device</h2>
       <p class="meta">On the kiosk or dashboard, choose 'Sign in with a code', then type the code it shows. It will be signed in as ${esc(a.me || "you")}.</p>
       <div class="fieldrow"><label class="field"><span>Code</span><input id="devCode" required maxlength="12" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="ABCD-EFGH"></label></div>
       <div class="actions"><button class="btn">Approve</button></div></form>` : ""}`;
+  setBase("accountsForm");
 }
 
 /* ---------- install on a phone (okf/features/install-app.md) ---------- */

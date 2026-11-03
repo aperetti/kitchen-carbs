@@ -2,6 +2,9 @@
 Each version is what went to the family's kitchen on that date (okf/architecture/releases.md).
 
 ## Unreleased
+- Settings now save the same way as the log: change anything and an "Unsaved changes" bar floats up with one Save and Discard. The separate Save buttons are gone. Connecting Nightscout or turning on sending to Nightscout or Tidepool still has its own button.
+- On a phone, the "Unsaved changes" bar on a meal stays at the bottom of the screen instead of hiding under the card.
+- The parent PIN screen fits narrow phones without scrolling sideways.
 - A calmer log:
   - A meal, entry or plan now opens as a plain summary. Tap Edit to change the date, time, BG, insulin or carbs; "How fast it rose", "How much was eaten" and comments can still be tapped straight away.
   - Rarely used actions (Change total carbs, Pin as favorite, Delete) are in a ⋯ menu next to Edit.
