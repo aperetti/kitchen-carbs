@@ -28,6 +28,8 @@ p { margin: 0; }
 .tabs a { color: var(--vein); font-weight: 500; text-decoration: none; display: flex; align-items: center; gap: 6px; border-bottom: 2px solid transparent; padding-top: 2px; min-width: 44px; }
 .tabs a[aria-current="page"] { color: var(--ink); border-bottom-color: var(--accent); }
 .tabs .parent-tab { color: var(--vein); }
+.toplock { flex: none; min-height: 44px; margin-left: 12px; padding: 0 4px; border: 0; background: none; font: inherit; font-weight: 500; color: var(--vein); cursor: pointer; }   /* while Manage is unlocked */
+.toplock:hover { color: var(--ink); }
 .status { padding: 8px 32px; font-size: 15px; color: var(--warn); border-bottom: 1px solid var(--line); }
 
 main { flex: 1; min-height: 0; display: flex; }

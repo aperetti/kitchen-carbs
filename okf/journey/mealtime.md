@@ -30,7 +30,7 @@ steps:
     phase: Set up (once)
     name: Set the photo style
     doing: "Photographs the empty plate, bowl and dressing container, adds size references (e.g. a filled 1-cup measure), and adjusts the style prompt."
-    screen: "Manage → Photo style (parent PIN)"
+    screen: "Manage → Settings → Photo style (parent PIN)"
     thinking: "I want every photo to look like our kitchen, in our dishes."
     risk: "A style prompt that invites Gemini to change the food."
     helps: "The 'keep the food and amount exactly' instruction is fixed and always sent; base photos keep containers consistent."

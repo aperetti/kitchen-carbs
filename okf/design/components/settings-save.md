@@ -17,7 +17,8 @@ for the log's save bar instead.
   section gets the warn-coloured border and the bar floats up: 'Unsaved changes', 'Save changes', 'Discard'. Putting
   everything back by hand hides it. On a phone it is pinned to the bottom of the screen; on a tablet it sticks to the
   bottom of the settings column.
-- Covered: Food lookup (contact email and region), Family accounts, Change parent PIN (current and new PIN both
+- Covered: Food lookup (contact email and region), Tags (renaming), Photo style (speed and the style description),
+  Family accounts, Change parent PIN (current and new PIN both
   typed), Insulin settings, Log (earlier days, 12-hour clock), Nightscout connection and target range, and the
   Send to Nightscout and Tidepool options once they're on.
 - Save changes saves each changed section in page order. A problem stops there and shows in the bar, named by its
@@ -27,7 +28,9 @@ for the log's save bar instead.
 - Starting to send stays its own button, never the bar: 'Connect' for a first Nightscout connection, 'Check and send'
   and 'Connect and send' while Send to Nightscout or Tidepool is off. A general Save never starts sending the child's
   data to another service.
-- Buttons that act at once rather than change a setting stay as they are: Approve (sign in another device), Send now,
+- Buttons that act at once rather than change a setting stay as they are: Add tag, Remove, a base photo's Add photo,
+  Replace and Remove, Add size reference, a size reference's Edit with its own Save (one card at a time), 'Reset to the
+  default' (fills the box; the bar saves it), Approve (sign in another device), Send now,
   Resend everything, Turn off, Remove, Disconnect, Sign out, Notify this device, Send a test, Open raw viewer.
 - While there are unsaved changes, leaving Settings (another Manage tab, another app tab, Back, Lock) is held back
   with 'Save or discard the changes first' and the bar gives a small shake, as in the log.

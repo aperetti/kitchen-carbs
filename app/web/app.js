@@ -33,8 +33,10 @@ const store = {
 };
 const pinStore = {
   get() { try { return sessionStorage.getItem("kc.pin") || ""; } catch { return ""; } },
-  set(v) { try { v ? sessionStorage.setItem("kc.pin", v) : sessionStorage.removeItem("kc.pin"); } catch { } },
+  set(v) { try { v ? sessionStorage.setItem("kc.pin", v) : sessionStorage.removeItem("kc.pin"); } catch { } lockShow(); },
 };
+// Lock sits in the top bar while Manage is unlocked (okf/design/components/settings-nav.md)
+const lockShow = () => { const b = document.getElementById("topLock"); if (b) b.hidden = !pinStore.get(); };
 
 const S = {
   session: null, foods: store.get("foods", []), offline: false,
@@ -94,6 +96,7 @@ function renderStatus() {
 const VIEWS = ["foods", "plate", "log", "manage"];
 function route() {
   if (S.signedOut) return showSignIn();
+  lockShow();
   if (!$("#v-manage").hidden && setDirty()) {   // leaving Settings with unsaved changes stays (okf/design/components/settings-save.md)
     if (!location.hash.startsWith("#manage/settings")) { S.m.tab = "settings"; history.pushState({ m: { ...mSnap(), depth: history.state?.m?.depth ?? 0 } }, "", mHash(mSnap())); setHold(); }
     return;
@@ -122,6 +125,11 @@ function route() {
   renderPlatebar(v);
 }
 addEventListener("hashchange", route);
+$("#topLock").addEventListener("click", () => {   // locks Manage from any screen; unsaved settings hold it like leaving does
+  if (setHold()) return;
+  pinStore.set(""); toast("Manage is locked");
+  if (!$("#v-manage").hidden) mNav({ replace: true });
+});
 
 /* ---------- foods ---------- */
 async function loadFoods() {
@@ -1534,7 +1542,8 @@ const mSnap = () => ({ tab: S.m.tab, food: S.m.food, addTab: S.m.addTab,
 const mHash = s => "#manage/" + [s.tab, s.tab === "foods" ? s.food : null, s.tab === "foods" && s.food === "add" ? s.addTab : null]
   .filter(Boolean).map(encodeURIComponent).join("/");
 function mApply(s) {
-  if (s.tab === "nightscout") { s = { ...s, tab: "settings" }; S.m.goto = "set-nightscout"; }   // Nightscout moved into Settings (okf/design/components/settings-nav.md)
+  const moved = { nightscout: "set-nightscout", style: "set-photo-style", tags: "set-tags" };   // these moved into Settings (okf/design/components/settings-nav.md)
+  if (moved[s.tab]) { S.m.goto = moved[s.tab]; s = { ...s, tab: "settings" }; }
   Object.assign(S.m, { tab: s.tab || "foods", food: s.food ?? null, addTab: ["new", "batch"].includes(s.addTab) ? s.addTab : "lookup", scan: s.scan || null, review: s.review || null, err: "" });
   S.m.look.scanning = false;
 }
@@ -1577,10 +1586,9 @@ function renderManage() {
       <p class="err" id="pinErr"></p><div class="actions"><button class="btn primary">Unlock</button><button type="button" class="btn quiet" data-act="pin-cancel">Cancel</button></div></form>`;
     return;
   }
-  el.innerHTML = `<div class="subtabs">${[["foods", "Foods and photos"], ["style", "Photo style"], ["tags", "Tags"], ["settings", "Settings"]].map(([k, l]) =>
-      `<button data-mtab="${k}" class="${S.m.tab === k ? "on" : ""}">${l}</button>`).join("")}
-      <button data-act="lock" style="margin-left:auto">Lock</button></div><div class="mbody" id="mbody"></div>`;
-  ({ foods: renderManageFoods, style: loadStyle, tags: renderTags, settings: renderSettings })[S.m.tab]();
+  el.innerHTML = `<div class="subtabs">${[["foods", "Foods and photos"], ["settings", "Settings"]].map(([k, l]) =>
+      `<button data-mtab="${k}" class="${S.m.tab === k ? "on" : ""}">${l}</button>`).join("")}</div><div class="mbody" id="mbody"></div>`;
+  ({ foods: renderManageFoods, settings: renderSettings })[S.m.tab]();
 }
 
 const $m = () => $("#mbody");
@@ -2072,9 +2080,6 @@ const mSubmit = async e => {
     try { S.style = await api(`/api/size-refs/${e.target.dataset.rid}`, { method: "PUT", parent: true, body: { name: $("#reName").value, measurement: $("#reMeas").value, container: $("#reDish").value || null } });
       S.sizeRefs = S.style.size_refs; S.editRef = null; renderStyle(); toast("Size reference saved"); }
     catch (err) { toast(err.message); }
-  } else if (id === "styleForm") {
-    try { S.style = await api("/api/style", { method: "PUT", parent: true, body: { prompt: $("#stylePrompt").value } }); renderStyle(); toast("Style saved"); }
-    catch (err) { toast(err.message); }
   } else if (id === "tagAdd") {
     try { S.tags = await api("/api/tags", { method: "POST", parent: true, body: { name: $("#tagNew").value } }); store.set("tags", S.tags); renderTags(); }
     catch (err) { $("#tagErr").textContent = err.message; }
@@ -2116,11 +2121,7 @@ const mClick = async e => {
   if (t.dataset.act === "fib-retry") { fiberLook([t.dataset.fid]); return; }
   if (t.dataset.act === "fib-type") { fib()[t.dataset.fid] = typeFiber(foodById(t.dataset.fid)); refreshFiber(); return; }
   if (t.dataset.act === "fib-save") { t.disabled = true; await fiberSave(); return; }
-  if (t.dataset.quality) {
-    try { S.style = await api("/api/style/quality", { method: "PUT", parent: true, body: { quality: t.dataset.quality } }); renderStyle(); toast("Photo speed saved"); }
-    catch (err) { toast(err.message); }
-    return;
-  }
+  if (t.dataset.quality) { pickQuality(t.dataset.quality); return; }   // saved with the bar
   if (t.dataset.act === "scan-again") { S.m.scan = null; mNav(); return; }
   if (t.dataset.act === "check-cancel") { mCancel(() => { S.m.scan = null; }); return; }
   if (t.dataset.act === "m-list") { S.m.food = null; S.m.scan = null; S.m.review = null; mNav(); return; }
@@ -2289,12 +2290,6 @@ const mChange = async e => {
   if (e.target.matches(".pSizeRef")) {
     const f = foodById(S.m.food), p = f.portions.find(x => x.id === +e.target.closest("tr[data-pid]").dataset.pid);
     parentCall(`/api/portions/${p.id}`, { method: "PUT", body: { label: p.label, grams: p.grams, sort: p.sort, container: p.container, size_ref_id: e.target.value ? +e.target.value : null } });
-    return;
-  }
-  if (e.target.matches(".tName")) {
-    const tid = +e.target.closest("[data-tid]").dataset.tid, name = e.target.value.trim(); if (!name) return;
-    try { S.tags = await api(`/api/tags/${tid}`, { method: "PUT", parent: true, body: { name } }); store.set("tags", S.tags); toast("Tag renamed"); }
-    catch (err) { toast(err.message); renderTags(); }
     return;
   }
   if (e.target.matches(".pNote")) {   // sent with every photo made for this portion (okf/domain/photo-style.md)
@@ -2857,18 +2852,23 @@ async function saveBatch() {   // saves the checked rows; returns what went wron
 
 /* ---------- photo style (okf/features/photo-style-setup.md) ---------- */
 const stillOn = tab => S.m.tab === tab && $m();   // a slow reply mustn't draw over a tab the parent has left
-async function loadStyle() {
-  try { S.style = await api("/api/style", { parent: true }); } catch (err) { if (stillOn("style")) $m().innerHTML = `<div class="empty">${esc(err.message)}</div>`; return; }
-  if (stillOn("style")) renderStyle();
+async function loadStyle() {   // a section of Settings (okf/design/components/settings-nav.md)
+  const box = $("#styleBox"); if (!box) return;
+  try { S.style = await api("/api/style", { parent: true }); } catch (err) { if (box.isConnected) box.innerHTML = `<section class="form"><h2>Photo style</h2><p class="err">${esc(err.message)}</p></section>`; return; }
+  renderStyle();
 }
+const QUALITY_NOTE = { sharp: "2400 px wide, for big high-resolution screens.", fast: "1200 px wide, sharp on the tablet and phones; a little soft on a large high-resolution monitor." };
 function renderStyle() {
+  const box = $("#styleBox"); if (!box?.isConnected || !S.style) return;
+  // a photo added or a reference saved redraws the section; the speed and description being changed stay as typed
+  const q = setChanged("qualityForm") ? $("#qualityForm [data-quality].on")?.dataset.quality : null, prompt = setChanged("styleForm") ? $("#stylePrompt").value : null;
   const s = S.style, names = { plate: "Plate", bowl: "Bowl", dressing: "Dressing container" };
-  $m().innerHTML = `<div class="pad"><div class="form">
+  box.innerHTML = `<section class="form">
     <h2>Photo style</h2>
     <p class="meta">Gemini restyles each of your portion photos using this description and photos of your own dishes. Existing photos don't change; use "Style with Gemini" on a portion to redo it.</p>
-    <fieldset class="field tagpick"><legend>Speed</legend><div class="seg neutral" role="radiogroup">${[["fast", "Fast · about 3 s"], ["sharp", "Sharp · about 15 s"]].map(([k, l]) =>
+    <form class="form" id="qualityForm"><fieldset class="field tagpick"><legend>Speed</legend><div class="seg neutral" role="radiogroup">${[["fast", "Fast · about 3 s"], ["sharp", "Sharp · about 15 s"]].map(([k, l]) =>
       `<button type="button" role="radio" aria-checked="${s.quality === k}" class="${s.quality === k ? "on" : ""}" data-quality="${k}">${l}</button>`).join("")}</div>
-      <p class="meta">${s.quality === "sharp" ? "2400 px wide, for big high-resolution screens." : "1200 px wide, sharp on the tablet and phones; a little soft on a large high-resolution monitor."}</p></fieldset>
+      <p class="meta" id="qualityNote">${QUALITY_NOTE[s.quality] || QUALITY_NOTE.fast}</p></fieldset></form>
     <div class="glab"><span class="label">Base photos</span><span class="meta">The empty dish on the counter, from your usual angle</span></div>
     <div class="bases">${Object.entries(names).map(([k, l]) => `<figure>
       ${s.bases[k] ? `<img ${sized(s.bases[k], "260px")} alt="${l}">` : `<span class="noimg">No photo yet</span>`}
@@ -2892,24 +2892,37 @@ function renderStyle() {
         ${dishPick("raDish", "")}</div>
       <label class="field"><span>Photo, on the counter from your usual angle</span><input id="raFile" type="file" accept="image/*" required></label>
       <p class="meta">Choose it on a portion under "Served in · size". One that goes with a dish is picked for you when a portion is served in that dish. It only guides how big the food looks; carbs always come from the grams you weighed.</p>
-      <div class="actions"><button class="btn">Add size reference</button><button type="button" class="btn quiet" data-act="form-reset">Cancel</button></div></form>
+      <div class="actions"><button class="btn">Add size reference</button></div></form>
     <form class="form" id="styleForm">
       <label class="field"><span>Style description</span><textarea id="stylePrompt" maxlength="2000" style="height:140px">${esc(s.prompt)}</textarea></label>
       <p class="meta">Always added, and can't be changed here: “${esc(s.guard)}”</p>
-      <div class="actions"><button class="btn">Save style</button><button type="button" class="btn quiet" data-act="form-reset">Cancel</button>
-        <button type="button" class="btn quiet" data-act="style-reset">Reset to the default</button></div>
-    </form></div></div>`;
+      <div class="actions"><button type="button" class="btn quiet" data-act="style-reset">Reset to the default</button></div>
+    </form></section>`;
+  setBase("qualityForm", "styleForm");
+  if (q) pickQuality(q);
+  if (prompt != null) $("#stylePrompt").value = prompt;
+  setDirty();
+}
+function pickQuality(k) {
+  document.querySelectorAll("#qualityForm [data-quality]").forEach(b => { b.classList.toggle("on", b.dataset.quality === k); b.setAttribute("aria-checked", b.dataset.quality === k); });
+  $("#qualityNote").textContent = QUALITY_NOTE[k];
 }
 
 let confirmTag = { id: null, at: 0 };
-function renderTags() {
-  $m().innerHTML = `<div class="pad"><div class="form">
+function renderTags() {   // a section of Settings; renames save with the bar, adding and removing happen at once
+  const box = $("#tagsBox"); if (!box) return;
+  const typed = {};   // renames not saved yet survive a tag being added or removed
+  if (setChanged("tagsForm")) document.querySelectorAll("#tagsForm [data-tid]").forEach(r => { typed[r.dataset.tid] = r.querySelector(".tName").value; });
+  box.innerHTML = `<section class="form">
     <h2>Tags</h2><p class="meta">Tags group foods in the Foods list. A food can have several. Favorites is separate: it holds pinned plates.</p>
-    <table class="portions"><thead><tr><th>Tag</th><th>Foods</th><th></th></tr></thead><tbody>${S.tags.map(t => `<tr data-tid="${t.id}">
+    <form id="tagsForm"><table class="portions"><thead><tr><th>Tag</th><th>Foods</th><th></th></tr></thead><tbody>${S.tags.map(t => `<tr data-tid="${t.id}">
       <td><input class="tName" value="${esc(t.name)}" maxlength="30" aria-label="Tag name"></td><td class="meta">${t.foods}</td>
-      <td><button class="btn small quiet" data-tact="del">${confirmTag.id === t.id ? "Tap again to remove" : "Remove"}</button></td></tr>`).join("")}</tbody></table>
-    <form class="actions" id="tagAdd" style="align-items:end"><label class="field"><span>New tag</span><input id="tagNew" maxlength="30" required placeholder="Snacks"></label><button class="btn">Add tag</button><button type="button" class="btn quiet" data-act="form-reset">Cancel</button></form>
-    <p class="err" id="tagErr"></p></div></div>`;
+      <td><button type="button" class="btn small quiet" data-tact="del">${confirmTag.id === t.id ? "Tap again to remove" : "Remove"}</button></td></tr>`).join("")}</tbody></table></form>
+    <form class="actions" id="tagAdd" style="align-items:end"><label class="field"><span>New tag</span><input id="tagNew" maxlength="30" required placeholder="Snacks"></label><button class="btn">Add tag</button></form>
+    <p class="err" id="tagErr"></p></section>`;
+  setBase("tagsForm");
+  for (const [tid, v] of Object.entries(typed)) { const i = $(`#tagsForm [data-tid="${tid}"] .tName`); if (i) i.value = v; }
+  setDirty();
 }
 
 async function renderNightscout() {
@@ -2992,9 +3005,9 @@ function doseForm() {
 const setBar = `<div class="savebar" id="setSave" hidden role="region" aria-label="Unsaved changes">
     <span class="sbtext">Unsaved changes</span><p class="err" id="setErr" role="alert"></p>
     <div class="actions"><button type="button" class="btn primary" data-act="set-save">Save changes</button><button type="button" class="btn quiet" data-act="set-discard">Discard</button></div></div>`;
-const SET_FORMS = ["offContact", "accountsForm", "pinChange", "doseForm", "logSet", "nsForm", "tgForm", "nsSendForm", "tpForm"];   // page order
-const setEls = f => [...f.querySelectorAll("input, select, textarea, [data-tpserver]")];
-const setVals = f => setEls(f).map(i => i.matches("[data-tpserver]") ? i.classList.contains("on") : i.type === "checkbox" ? i.checked : i.value);
+const SET_FORMS = ["offContact", "tagsForm", "qualityForm", "styleForm", "accountsForm", "pinChange", "doseForm", "logSet", "nsForm", "tgForm", "nsSendForm", "tpForm"];   // page order
+const setEls = f => [...f.querySelectorAll("input, select, textarea, [data-tpserver], [data-quality]")];
+const setVals = f => setEls(f).map(i => i.matches("[data-tpserver], [data-quality]") ? i.classList.contains("on") : i.type === "checkbox" ? i.checked : i.value);
 function setBase(...ids) {   // what's saved, read from the boxes just drawn
   S.setBase ||= {};
   for (const id of ids) { const f = $("#" + id); if (f) S.setBase[id] = setVals(f); }
@@ -3034,6 +3047,16 @@ const SET_SAVE = {   // each throws with the reason it couldn't be saved; a retu
       S.settings = await api("/api/settings/country", { method: "PUT", parent: true, body: { country: $("#offCountry").value } }); S.m.look.res = null;
     }
   },
+  tagsForm: async () => {
+    for (const r of document.querySelectorAll("#tagsForm [data-tid]")) {
+      const tid = +r.dataset.tid, name = r.querySelector(".tName").value.trim(), was = S.tags.find(t => t.id === tid)?.name;
+      if (name === was) continue;
+      if (!name) throw new Error("A tag needs a name. To take it away, use Remove.");
+      S.tags = await api(`/api/tags/${tid}`, { method: "PUT", parent: true, body: { name } }); store.set("tags", S.tags);
+    }
+  },
+  qualityForm: async () => { S.style = await api("/api/style/quality", { method: "PUT", parent: true, body: { quality: $("#qualityForm [data-quality].on").dataset.quality } }); },
+  styleForm: async () => { S.style = await api("/api/style", { method: "PUT", parent: true, body: { prompt: $("#stylePrompt").value } }); },
   accountsForm: async () => { S.accounts = await api("/api/accounts", { method: "PUT", parent: true, body: { emails: $("#accEmails").value.split(/[\s,;]+/).filter(Boolean) } }); },
   pinChange: async f => {
     const o = $("#oldPin").value, n = $("#newPin").value;
@@ -3062,7 +3085,7 @@ const SET_SAVE = {   // each throws with the reason it couldn't be saved; a retu
       carbs: $("#tpCarbs").checked, bg: $("#tpBg").checked, insulin: $("#tpIns").checked, basal_hours: +$("#tpHours").value || 24 } });
   },
 };
-const SET_REDRAW = { accountsForm: renderAccounts, doseForm: () => { $("#doseBox").innerHTML = doseForm(); setBase("doseForm"); },
+const SET_REDRAW = { tagsForm: renderTags, qualityForm: renderStyle, styleForm: renderStyle, accountsForm: renderAccounts, doseForm: () => { $("#doseBox").innerHTML = doseForm(); setBase("doseForm"); },
   nsForm: renderNightscout, tgForm: renderNightscout, nsSendForm: renderNsSend, tpForm: renderTidepool };
 let setSaving = false;
 async function saveSettings() {   // each changed section in page order; a problem stops there and says which
@@ -3103,6 +3126,8 @@ async function renderSettings() {
         `<option value="${k}" ${st.off_country === k ? "selected" : ""}>${esc(l)}</option>`).join("")}</select></label>
       <p class="meta">Default: ${esc(st.off_contact_default)}. FatSecret is ${esc(st.fatsecret)}${st.fatsecret === "set up" ? "" : ": add FAT_SECRET_CLIENT_ID and FAT_SECRET_CLIENT_SECRET to .env"}.</p>
 </form>` : ""}
+    <div id="tagsBox"></div>
+    <div id="styleBox"></div>
     <div id="accountsBox"></div>
     <form class="form" id="pinChange"><h2>Change parent PIN</h2>
       <div class="fieldrow"><label class="field"><span>Current PIN</span><input id="oldPin" type="password" inputmode="numeric" autocomplete="off"></label>
@@ -3126,6 +3151,7 @@ async function renderSettings() {
     </div>${setBar}</div></div>`;
   setNav();   // the order the family asked for (okf/design/components/settings-nav.md)
   S.setBase = {}; setBase("offContact", "pinChange", "doseForm", "logSet");
+  renderTags(); loadStyle();
   S.accounts = null; renderAccounts(); renderPush(); renderTidepool(); renderNightscout();
 }
 

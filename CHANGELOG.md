@@ -2,6 +2,7 @@
 Each version is what went to the family's kitchen on that date (okf/architecture/releases.md).
 
 ## Unreleased
+- Manage now has two tabs, Foods and photos and Settings. Photo style and Tags are sections in Settings, after Food lookup. Their changes save with the same "Unsaved changes" bar. Lock has moved to the top bar, at the right, and shows while Manage is unlocked.
 - Editing a meal in the log now shows its carbs ready to change and a Note box. A note is added to the meal's comments. Changing the carbs still asks why. "Change total carbs" is no longer in the ⋯ menu.
 
 ## v2026.11.03 · 3 Nov 2026

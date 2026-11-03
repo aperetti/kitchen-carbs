@@ -15,4 +15,5 @@ links:
 - Cancel = leave without saving: it goes back one step when the step came from this session, otherwise to the level above.
 - On a phone, a chosen food or Add a food is its own full screen with a '‹ Foods' back bar (okf/design/guidelines/phone-layout.md).
 - On a phone, a meal, entry or plan opened from the log is a card and a history step too (okf/design/components/log-card.md).
-- Unlock and Lock replace the current entry rather than adding one, so Back never re-opens a locked screen.
+- Unlock and Lock replace the current entry rather than adding one, so Back never re-opens a locked screen. Lock is in
+  the top bar at the right while unlocked (3 Nov).

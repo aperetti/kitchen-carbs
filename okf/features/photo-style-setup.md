@@ -10,4 +10,4 @@ links:
   constrained_by: [rules/original-photo-kept.md, rules/estimated-photo-label.md]
 ---
 # Photo style setup
-Manage → Photo style (parent PIN). Also: add size references (name, measurement, photo) and choose one per portion. Changing the style doesn't touch existing photos; use 'Try again' on a portion to restyle it.
+Manage → Settings → Photo style (parent PIN; its own tab until 3 Nov). Also: add size references (name, measurement, photo) and choose one per portion. Changing the style doesn't touch existing photos; use 'Try again' on a portion to restyle it.
