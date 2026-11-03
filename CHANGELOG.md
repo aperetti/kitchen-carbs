@@ -2,6 +2,12 @@
 Each version is what went to the family's kitchen on that date (okf/architecture/releases.md).
 
 ## Unreleased
+- A calmer log:
+  - A meal, entry or plan now opens as a plain summary. Tap Edit to change the date, time, BG, insulin or carbs; "How fast it rose", "How much was eaten" and comments can still be tapped straight away.
+  - Rarely used actions (Change total carbs, Pin as favorite, Delete) are in a ⋯ menu next to Edit.
+  - Each row keeps every food's carbs, with one short line under it: BG → 2 h and insulin.
+  - Insulin and the day's glucose are one line under the date; tap it for the full stats and the 7 and 14 day views.
+  - Export is a single button until you need it.
 - On a phone, tapping a meal, entry or plan in the log opens it as its own screen that slides in, instead of scrolling down below the list. The phone's Back gesture, the "‹ Log" button or a swipe to the right takes you back to the list where you were.
 - Insulin timing is now counted from the meal's time: one box, "Given N min before the meal" (0 means at the meal time), with the clock time shown beside it. It starts at the BG divided by 10 (BG 150: 15 min), or at the meal time when the BG is under 80 or not known, and follows the BG until you type the minutes. The Before eating / At the start / After starting buttons are gone; older meals logged as "after starting" keep that.
 - Plan a meal ahead: build a plate, tap Plan for later and pick a date and time. Plans wait in today's log under Planned and on the empty plate, and aren't counted until you put one on the plate and save it. Nightscout shows a plan as a note with no carbs, so forecasts only count what was eaten.

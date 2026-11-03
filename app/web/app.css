@@ -839,3 +839,24 @@ p.moved { margin: 6px 0 0; }
   #v-log.focus .mdh > b:first-child { display: none; }   /* the card's bar already says it */
   #v-log:not(.focus) .lrow.on { background: none; }      /* nothing is "chosen" while only the list shows */
 }
+
+/* Log details read first: Edit and a ⋯ menu beside the heading (okf/design/components/log-details.md) */
+.mdh { flex-wrap: wrap; justify-content: flex-start; }
+.mdh .c { margin-left: auto; }
+.mtools { display: flex; align-items: center; gap: 8px; align-self: center; }
+.mtools > .meta { color: var(--warn); }
+@media (max-width: 680px) { #v-log.focus .mdh .c { margin-left: 0; } #v-log.focus .mdh .mtools { margin-left: auto; } }
+.more { position: relative; }
+.more > summary { list-style: none; min-width: 44px; justify-content: center; }
+.more > summary::-webkit-details-marker { display: none; }
+.more .menu { position: absolute; right: 0; top: calc(100% + 6px); z-index: 5; display: grid; min-width: 220px; padding: 6px;
+  background: var(--paper); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 8px 24px rgb(0 0 0 / .12); }
+.more .menu button { text-align: left; background: none; border: 0; border-radius: 8px; padding: 12px; font-size: 16px; color: var(--ink); cursor: pointer; min-height: 44px; }
+.more .menu button:hover { background: var(--sunk); }
+.more .menu [data-act$="del"], .more .menu [data-act^="del-"] { color: var(--warn); }
+/* one line of insulin and glucose under the day; it opens the full stats (okf/design/components/stats-strip.md) */
+.statline { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; width: 100%; padding: 10px 0; margin: 0; background: none; border: 0;
+  border-bottom: 1px solid var(--line); color: var(--vein); font-size: 15px; text-align: left; }
+button.statline { cursor: pointer; min-height: 44px; }
+.statline b { color: var(--ink); font-weight: 500; }
+.statline .chev { margin-left: auto; color: var(--ink); }

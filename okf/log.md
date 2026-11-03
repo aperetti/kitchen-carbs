@@ -128,3 +128,4 @@
 - 2026-11-02 — Planned meals: a plate saved for a date and time, shown in the log as 'Planned' and not counted; put back on the plate at mealtime and saved as usual. Nightscout gets only a Note until it's eaten (features/plan-meal.md).
 - 2026-11-02 — Insulin timing is counted from the meal's time: one 'min before the meal' box (0 = at the meal time) replaces the three switches; it starts at BG ÷ 10, or 0 under 80 mg/dL (domain/meal.md).
 - 2026-11-02 — Phone log: a meal, entry or plan opens as a card that slides in, a history step, so Back or a swipe right returns to the list (design/components/log-card.md).
+- 2026-11-02 — Calmer log: details read first with Edit to change and a ⋯ menu for rare actions; Export behind a button; stats and insulin in one line that opens (design/components/log-details.md, stats-strip.md).

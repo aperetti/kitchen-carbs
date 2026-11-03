@@ -26,5 +26,6 @@ app's own Kitchen Sans), so it downloads as a file on the tablet and phones alik
 - Lows stay in the warn colour; nothing is graded or advised (okf/rules/descriptive-stats-only.md). Insulin is only
   what was recorded; no calculated dose appears (okf/rules/no-dosing.md). Deleted rows are left out.
 - Footer on every page: page numbers and 'Values as logged in Kitchen Carbs. Doses are what was recorded, not advice.'
-- In the Log under the day: 'Export' with the date range and two buttons, 'CSV' and 'PDF'. Up to 92 days.
+- In the Log under the day: an 'Export' button (decided 2 Nov: tucked away to calm the log) that opens the date range
+  and two buttons, 'CSV' and 'PDF'. Up to 92 days.
 - The PDF's times follow the log's 12-hour setting (okf/features/review-log.md); the CSV keeps 24-hour times for spreadsheets.

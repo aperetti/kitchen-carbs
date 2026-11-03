@@ -12,3 +12,7 @@ links:
 # Stats strip
 Mocked in the review page's Log screen (screen 3), today so far.
 Bar uses three neutral tones with warn for below range; labels carry the numbers so colour is not needed to read it.
+
+- Compact (decided 2 Nov, the log was too much to take in): under the day header one line, e.g.
+  'Insulin 6 u bolus · 90% in range · avg 117 · 2 lows ›'. Tapping it opens the Day / 7 days / 14 days switch and
+  the full strip below it; tapping again closes it. Without sensor data the line shows only the insulin, and doesn't open.

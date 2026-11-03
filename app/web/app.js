@@ -44,7 +44,7 @@ const S = {
   plate: store.get("plate", []).map(x => x.qty === 1 && x.base ? x   // older plates kept a ×quantity: fold it into the grams
     : { ...x, grams: Math.round(x.grams * (x.qty ?? 1) * 10) / 10, base: x.base ?? x.grams, qty: 1 }), queue: store.get("queue", []), plateTime: null,
   plans: store.get("plans", []), plan: store.get("planFrom", null),   // planned meals, and the one the plate came from (okf/features/plan-meal.md)
-  log: { day: localDay(), data: null, sel: null, selEntry: null, selPlan: null, adding: false, period: "day", stats: null, glucose: {} },
+  log: { day: localDay(), data: null, sel: null, selEntry: null, selPlan: null, adding: false, edit: null, statsOpen: false, exportOpen: false, period: "day", stats: null, glucose: {} },
   m: { tab: "foods", food: null, addTab: "lookup", busy: {}, err: "", scan: null, look: { q: "", res: null, busy: false } },
 };
 
@@ -110,7 +110,7 @@ function route() {
   if (v === "log") {   // Back from a card with unsaved changes stays on it (okf/design/components/log-card.md)
     const was = S.log.card, card = logFromHash();
     if (was && !card && logDirty()) { history.pushState({ logCard: true }, "", cardHash()); toast("Save or discard the changes first"); return; }
-    S.log.card = card; if (!card && was) { S.log.adding = false; S.log.selPlan = null; }
+    S.log.card = card; if (!card && was) { S.log.adding = false; S.log.selPlan = null; S.log.edit = null; }
     cardView(false);
   } else if (S.log.card) { S.log.card = false; cardView(false); }
   ({ foods: () => { renderFoods(); if (splitMode()) renderPlate(); }, plate: renderPlate, log: () => loadLog(S.log.day), manage: renderManage })[v]();
@@ -467,17 +467,24 @@ const planList = d => d.day !== localDay() || !S.plans.length ? "" : `<div class
   ${S.plans.map(p => `<button class="lrow plan ${p.id === S.log.selPlan ? "on" : ""}" data-plan="${p.id}">
     <span class="tm">${clk(p.time)}</span><span class="it"><b>${esc(p.name)}</b><span>${p.day < localDay() ? `<span class="warn">Overdue</span> · ` : ""}${esc(cap(planWhen(p)))} · ${esc(p.foods)}</span></span>
     <span class="c">${p.carbs}</span></button>`).join("")}</div>`;
+/* Details read first; Edit shows the forms, ⋯ holds rare actions (okf/design/components/log-details.md) */
+const editKey = () => S.log.selPlan ? `p${S.log.selPlan}` : S.log.selEntry ? `e${S.log.selEntry}` : `m${S.log.sel}`;
+const editing = () => S.log.edit === editKey();
+const detailTools = more => editing()
+  ? `<div class="mtools"><span class="meta">Editing</span><button type="button" class="btn small" data-act="edit-done">Done</button></div>`
+  : `<div class="mtools"><button type="button" class="btn small" data-act="edit">Edit</button>${more.length ? `<details class="more"><summary class="btn small quiet" aria-label="More actions">⋯</summary>
+      <div class="menu">${more.join("")}</div></details>` : ""}</div>`;
+const modNote = x => x.moved_from || x.edited_at ? `<p class="meta moved"><span aria-hidden="true">✎</span> Modified</p>` : "";
 let confirmPlanDel = 0;
 function renderPlan(p) {
-  $("#mealDetail").innerHTML = `${cardHead(p.name)}<div class="mdh"><b>${esc(p.name)}</b><span class="c planc">${p.carbs} <small>g carbs</small></span></div>
+  $("#mealDetail").innerHTML = `${cardHead(p.name)}<div class="mdh"><b>${esc(p.name)}</b><span class="c planc">${p.carbs} <small>g carbs</small></span>${detailTools([`<button type="button" data-act="plan-del">Delete plan</button>`])}</div>
     <p class="meta">Planned for ${esc(planWhen(p))}${p.day < localDay() ? `, <span class="warn">overdue</span>` : ""}. Not in the log or Nightscout's carbs until it's put on the plate and saved.</p>
     <span class="meta">${p.items.map(i => `${esc(i.food_name)}, ${whole(planItemCarbs(i))} g carbs (${i.entered != null ? "entered by hand" : fmtG(i.grams)})`).join(" · ")}</span>
-    <div class="actions" style="padding-top:12px"><button class="btn primary" data-act="plan-use" data-pid="${p.id}">Put on the plate</button></div>
-    <div class="glab"><span class="label">Name and when</span></div>
+    ${editing() ? `<div class="glab"><span class="label">Name and when</span></div>
     <form class="planedit" id="planEdit"><input id="peName" maxlength="60" required value="${esc(p.name)}" aria-label="Plan name">
       <input type="date" id="peDay" required value="${p.day}" min="${p.day < localDay() ? p.day : localDay()}" max="${shiftDay(localDay(), PLAN_DAYS)}" aria-label="Date">
-      <input type="time" id="peTime" required value="${p.time}" aria-label="Time"><button class="btn small">Save</button></form>
-    <div class="actions" style="padding-top:12px"><button class="btn quiet small" data-act="plan-del">Delete plan</button></div>`;
+      <input type="time" id="peTime" required value="${p.time}" aria-label="Time"><button class="btn small">Save</button></form>`
+    : `<div class="actions" style="padding-top:12px"><button class="btn primary" data-act="plan-use" data-pid="${p.id}">Put on the plate</button></div>`}`;
 }
 
 /* ---------- plate (okf/features/build-plate.md) ---------- */
@@ -1033,7 +1040,7 @@ function renderLog() {
   const d = S.log.data, isToday = d.day === localDay();
   const period = S.log.period;
   let strip = "";
-  if (S.session?.glucose) {
+  if (S.session?.glucose && S.log.statsOpen) {
     const g = period === "day" ? d.glucose : S.log.stats?.glucose;
     const label = period === "day" ? (isToday ? "Today so far" : "This day") : `${period} days`;
     strip = `<div class="periods" role="group" aria-label="Statistics period">${[["day", "Day"], [7, "7 days"], [14, "14 days"]].map(([k, l]) =>
@@ -1043,17 +1050,18 @@ function renderLog() {
   $("#logList").innerHTML = `
     <div class="daynav"><button data-day="-1" aria-label="Previous day">‹</button><b>${isToday ? "Today, " : ""}${dayLabel(d.day)}</b>
       <span class="meta">${d.total} g</span><button data-day="1" aria-label="Next day" ${isToday ? "disabled" : ""}>›</button></div>
+    ${statLine(d)}
     ${strip}
-    ${Object.keys(d.insulin || {}).length ? `<p class="meta insline">Insulin given: ${Object.entries(d.insulin).map(([k, u]) => `<b>${fmtU(u)}</b> ${KIND[k]}`).join(" · ")}</p>` : ""}
     ${planList(d)}
     ${d.editable ? `<button class="btn small addentry ${S.log.adding ? "on" : ""}" data-act="add-entry">Add entry${isToday ? "" : ` to ${dayLabel(d.day)}`}: carbs, BG or insulin</button>` : ""}
     ${logRows(d)}
     ${deletedList(d)}
     <div class="dayfoot">
       ${isToday ? "" : `<p class="meta">${d.editable ? "Changes to an earlier day are marked ✎ Modified." : "Earlier days are read-only. A parent can allow changes in Manage → Settings."} <button class="linkbtn" data-day="today">Go to today</button></p>`}
-      <div class="exportrow"><span class="meta">Export</span>
+      ${S.log.exportOpen ? `<div class="exportrow"><span class="meta">Export</span>
         <input type="date" id="exFrom" value="${shiftDay(d.day, -13)}" aria-label="From"><input type="date" id="exTo" value="${d.day}" aria-label="To">
-        <button class="btn small" data-act="export" data-fmt="pdf">PDF</button><button class="btn small quiet" data-act="export" data-fmt="csv">CSV</button></div>
+        <button class="btn small" data-act="export" data-fmt="pdf">PDF</button><button class="btn small quiet" data-act="export" data-fmt="csv">CSV</button></div>`
+        : `<button class="btn small quiet" data-act="export-open">Export</button>`}
     </div>`;
   renderMeal();
   cardSync();
@@ -1113,6 +1121,14 @@ function cardSync() {   // the card's item gone (deleted, moved away): back to t
   el.addEventListener("touchend", end); el.addEventListener("touchcancel", end);
 })();
 const cap = s => s[0].toUpperCase() + s.slice(1);
+// one line under the day: insulin and the day's glucose; it opens the full stats (okf/design/components/stats-strip.md)
+function statLine(d) {
+  const g = S.session?.glucose && d.glucose?.count ? d.glucose : null, open = S.log.statsOpen;
+  const parts = [Object.keys(d.insulin || {}).length && `Insulin ${Object.entries(d.insulin).map(([k, u]) => `<b>${fmtU(u)}</b> ${KIND[k]}`).join(" + ")}`,
+    g && `<b>${Math.round(g.in_range)}%</b> in range`, g && `avg <b>${g.mean}</b>`, g && g.lows && `<span class="warn">${g.lows} low${g.lows === 1 ? "" : "s"}</span>`].filter(Boolean);
+  if (!S.session?.glucose) return parts.length ? `<p class="statline">${parts.join(" · ")}</p>` : "";
+  return `<button class="statline" data-act="stats" aria-expanded="${open}">${parts.join(" · ") || "Glucose stats"} <span class="chev" aria-hidden="true">${open ? "▴" : "›"}</span></button>`;
+}
 const KIND = { rapid: "rapid-acting", long: "long-acting", bolus: "bolus", basal: "basal" };
 const fmtU = u => `${(+u).toFixed(2).replace(/0$/, "")} u`;           // 2.5 -> "2.50" -> "2.5 u"; 0.05 stays
 const entrySummary = e => [e.bg != null && `BG ${e.bg}`, e.insulin != null && `${fmtU(e.insulin)} ${KIND[e.insulin_kind]}`,
@@ -1138,13 +1154,17 @@ const deletedList = d => !d.deleted?.length ? "" : `<details class="deleted"><su
 // a meal's fiber, for reference only: never taken off the carbs (okf/domain/meal.md)
 const fiberLine = m => m.fiber == null ? "" : m.fiber_unknown.length === m.items.length ? "Fiber not known for these foods"
   : `Including ${m.fiber} g fiber${m.fiber_unknown.length ? `; not known for ${m.fiber_unknown.join(", ")}` : ""}`;
+// a row's one short line: BG and 2 h, insulin, a hand-changed total; eaten and fiber are in the meal (okf/design/components/entry-row.md)
+const rowFacts = m => { const f = [m.bg != null || m.two_h != null ? [m.bg != null && `BG&nbsp;${m.bg}`, m.two_h != null && `2&nbsp;h&nbsp;${m.two_h}`].filter(Boolean).join(" → ") : "",
+    m.insulin != null && `${fmtU(m.insulin)} ${m.insulin_kind}`, m.carbs_corrected != null && `<i class="moved">Carbs edited</i>`].filter(Boolean);
+  return f.length ? `<span>${f.join(" · ")}</span>` : ""; };
 function logRows(d) {
   const rows = [...d.meals.map(m => ({ t: m.time, m })), ...d.entries.map(e => ({ t: e.time, e }))].sort((a, b) => a.t.localeCompare(b.t));
   if (!rows.length) return `<div class="empty">Nothing logged${d.day === localDay() ? " yet today" : " this day"}.</div>`;
   return rows.map(({ m, e }) => m
     ? `<button class="lrow ${m.id === S.log.sel && !S.log.selEntry && !S.log.adding ? "on" : ""}" data-meal="${m.id}">
       <span class="tm">${clk(m.time)}${modMark(m)}</span><span class="it"><b>${esc(m.items.map(i => `${i.food_name} ${i.carbs} g carbs${i.entered_carbs != null ? " (by hand)" : ""}`).join(" · "))}</b>
-      <span>Eaten: ${m.eaten ? cap(m.eaten) : "not set"}${m.bg != null ? ` · BG&nbsp;${m.bg}` : ""}${m.insulin != null ? ` · ${fmtU(m.insulin)} ${m.insulin_kind}` : ""}${m.two_h != null ? ` · 2&nbsp;h&nbsp;${m.two_h}` : ""}${m.fiber != null && m.fiber_unknown.length < m.items.length ? ` · Fiber&nbsp;${m.fiber}&nbsp;g` : ""}${m.carbs_corrected != null ? ` · <i class="moved">Carbs edited</i>` : ""}</span>
+      ${rowFacts(m)}
       ${m.comments.length ? `<span class="lcmt">${esc(m.comments.map(c => c.text).join(" · "))}</span>` : ""}</span>
       <span class="c">${m.total}</span></button>`
     : `<button class="lrow entry ${e.id === S.log.selEntry ? "on" : ""}" data-entry="${e.id}">
@@ -1182,10 +1202,10 @@ function entryPreview() {
 }
 let confirmEntry = 0;
 function renderEntry(e) {
-  const ed = S.log.data.editable;
+  const ed = S.log.data.editable, edit = editing();
   const val = v => v ?? "";
-  $("#mealDetail").innerHTML = `${cardHead(`Entry at ${clk(e.time)}`)}<div class="mdh"><b>${clk(e.time)}</b>${e.carbs != null ? `<span class="c">${+e.carbs} <small>g carbs</small></span>` : ""}</div>
-    ${ed ? `<form class="form entval" id="entValForm">
+  $("#mealDetail").innerHTML = `${cardHead(`Entry at ${clk(e.time)}`)}<div class="mdh"><b>${clk(e.time)}</b>${e.carbs != null ? `<span class="c">${+e.carbs} <small>g carbs</small></span>` : ""}${detailTools(ed ? [`<button type="button" data-act="del-entry">Delete entry</button>`] : [])}</div>
+    ${ed && edit ? `<form class="form entval" id="entValForm">
       <div class="fieldrow">
         <label class="field"><span>BG from the meter, mg/dL</span><input id="evBg" type="number" inputmode="numeric" min="20" max="600" step="1" value="${val(e.bg)}"></label>
         <label class="field"><span>Carbs, g (not from the food list)</span><input id="evCarbs" type="number" inputmode="decimal" min="0" max="500" step="0.5" value="${e.carbs != null ? +e.carbs : ""}"></label></div>
@@ -1198,8 +1218,7 @@ function renderEntry(e) {
     : `<div class="entryfacts">${e.bg != null ? `<div><span class="label">BG (meter)</span><b>${e.bg}</b> mg/dL</div>` : ""}
       ${e.insulin != null ? `<div><span class="label">Insulin given</span><b>${fmtU(e.insulin)}</b> ${KIND[e.insulin_kind]}</div>` : ""}</div>
     ${e.note ? `<p class="notes">${esc(e.note)}</p>` : ""}`}
-    ${whenBox(e, "entries")}
-    ${ed ? `<div class="actions"><button class="btn quiet small" data-act="del-entry">Delete entry</button></div>` : `<p class="meta">Read-only, except the date and time</p>`}
+    ${edit ? whenBox(e, "entries") + (ed ? "" : `<p class="meta">Read-only, except the date and time</p>`) : modNote(e)}
     ${saveBar}`;
   logBaseline();
 }
@@ -1231,7 +1250,7 @@ async function saveLogEdits(btn) {
   const steps = [];
   err.textContent = "";
   try {   // everything is checked before anything is saved
-    if (!n.day || !n.time) throw new Error("Choose a date and a time.");
+    if ($("#whenForm") && (!n.day || !n.time)) throw new Error("Choose a date and a time.");
     if (n.day > localDay()) throw new Error("It can't be moved to a future day.");
     if (!entry && n.det !== b.det) {
       const m = S.log.data.meals.find(x => x.id === id), bg = $("#mdBg").value.trim(), body = readDetails($("#mdetForm"));
@@ -1271,9 +1290,9 @@ async function saveLogEdits(btn) {
     try { await run(); S.log.done.add(k); }
     catch (e) { err.textContent = (S.log.done.size ? "Some changes were saved. " : "") + e.message; btn.disabled = false; return; }
   }
-  toast("Changes saved");
+  toast("Changes saved"); S.log.edit = null;
   if (entry) S.log.selEntry = id; else { S.log.sel = id; S.log.selEntry = null; }
-  S.log.base = null; loadLog(n.day);   // follow it to its day
+  S.log.base = null; loadLog(n.day || S.log.data.day);   // follow it to its day; the read view has no date box
 }
 
 async function renderMeal() {
@@ -1282,22 +1301,22 @@ async function renderMeal() {
   if (S.log.selEntry) return renderEntry(S.log.data.entries.find(e => e.id === S.log.selEntry));
   const el = $("#mealDetail"), d = S.log.data, m = d.meals.find(x => x.id === S.log.sel);
   if (!m) { el.innerHTML = `${cardHead("Log")}<div class="empty">${d.meals.length ? "Choose a meal." : "Meals you save from the plate appear here."}</div>`; return; }
-  const ed = d.editable;
+  const ed = d.editable, edit = editing();
   el.innerHTML = `${cardHead(`Meal at ${clk(m.time)}`)}
-    <div class="mdh"><b>${clk(m.time)}</b><span class="c">${m.total} <small>g carbs</small></span></div>
+    <div class="mdh"><b>${clk(m.time)}</b><span class="c">${m.total} <small>g carbs</small></span>${detailTools([ed && `<button type="button" data-act="fix-carbs-menu">Change total carbs</button>`,
+      `<button type="button" data-act="pin-meal">Pin as favorite</button>`, ed && `<button type="button" data-act="del-meal">Delete meal</button>`].filter(Boolean))}</div>
     ${m.carbs_corrected != null ? `<p class="meta moved">Corrected from ${m.items_total} g, the foods' own total. The reason is in the comments.</p>` : ""}
-    ${ed ? `<button class="linkbtn fixlink" data-act="fix-carbs">Change total carbs</button>
+    ${ed && edit ? `<button class="linkbtn fixlink" data-act="fix-carbs">Change total carbs</button>
       <form id="carbsFix" class="carbsfix" hidden><p class="meta">For a discrepancy found later. The foods keep their saved carbs; the meal's total, the day's totals and the export use the new number.</p>
         <label class="field"><span>Total carbs</span><span class="unitin"><input id="cfTotal" type="number" inputmode="decimal" min="0" max="1000" step="any" required value="${m.total}"> g</span></label>
         <label class="field"><span>Why it changed (required)</span><input id="cfReason" maxlength="400" minlength="3" placeholder="e.g. only ate half the pasta, label was wrong" autocomplete="off"></label>
         <button type="button" class="linkbtn" data-act="fix-cancel">Keep the total as it was</button></form>` : ""}
     <span class="meta">${m.items.map(i => `${esc(i.food_name)}, ${i.carbs} g carbs (${i.entered_carbs != null ? "entered by hand" : fmtG(itemG(i))})`).join(" · ")}</span>
     <span class="meta">${esc(fiberLine(m))}</span>
-    ${whenBox(m, "meals")}
+    ${!edit ? `<p class="${detailSummary(m) ? "" : "meta"}">${esc(detailSummary(m)) || "No BG or insulin added"}</p>${modNote(m)}` : whenBox(m, "meals") + (!ed ? "" : `
     <div class="glab"><span class="label">BG, insulin and time to eat</span></div>
-    ${ed ? `<form id="mdetForm" class="mdetform"><label class="field"><span>Blood glucose (mg/dL)${m.bg != null && m.bg_source === "cgm" ? " · from the CGM" : ""}</span><input id="mdBg" type="number" inputmode="numeric" min="20" max="600" step="1" value="${m.bg ?? ""}" placeholder="Meter reading"></label>
-        ${detailFields(m, m.bg, m.time)}</form>`
-      : `<p class="${detailSummary(m) ? "" : "meta"}">${esc(detailSummary(m)) || "None added"}</p>`}
+    <form id="mdetForm" class="mdetform"><label class="field"><span>Blood glucose (mg/dL)${m.bg != null && m.bg_source === "cgm" ? " · from the CGM" : ""}</span><input id="mdBg" type="number" inputmode="numeric" min="20" max="600" step="1" value="${m.bg ?? ""}" placeholder="Meter reading"></label>
+        ${detailFields(m, m.bg, m.time)}</form>`)}
     ${S.session?.glucose ? `<div class="glab"><span class="label">Glucose · mg/dL</span><span class="meta" id="gUpdated"></span></div><div id="gBox"><p class="meta">Loading glucose…</p></div>` : ""}
     <div class="glab"><span class="label">How fast it rose</span><span class="meta">Your own judgement, to spot patterns</span></div>
     <div class="seg neutral rateseg" id="rateBox" role="group" aria-label="How fast glucose rose">
@@ -1308,8 +1327,6 @@ async function renderMeal() {
     <div class="glab"><span class="label">Comments</span></div>
     <div class="cmt">${m.comments.map(c => `<div><span class="tm">${c.time.length > 5 ? movedLabel(c.time) : clk(c.time)}</span>${esc(c.text)}</div>`).join("") || (ed ? "" : `<span class="meta">None</span>`)}
       ${ed ? `<form class="cmtform" id="cmtForm"><input id="cmtText" maxlength="500" placeholder="Add a comment" aria-label="Add a comment" autocomplete="off"></form>` : ""}</div>
-    <div class="actions" style="padding-top:12px"><button class="btn quiet small" data-act="pin-meal">Pin as favorite</button>
-      ${ed ? `<button class="btn quiet small" data-act="del-meal">Delete meal</button>` : ""}</div>
     <form class="cmtform" id="pinMeal" hidden><input id="pinMealName" maxlength="60" value="${suggestName(m.time)}" aria-label="Favorite name"><button class="btn small">Pin</button></form>
     ${saveBar}`;
   logBaseline();
@@ -1377,6 +1394,7 @@ $("#v-log").addEventListener("click", async e => {
     const bar = $("#logSave"); bar.classList.remove("nudge"); void bar.offsetWidth; bar.classList.add("nudge"); return;
   }
   if (t.matches("[data-day],[data-meal],[data-entry],[data-restore],[data-act=add-entry]")) S.log.selPlan = null;
+  if (t.matches("[data-day],[data-meal],[data-entry],[data-plan],[data-restore],[data-act=add-entry]")) S.log.edit = null;
   if (t.dataset.plan) { S.log.selPlan = +t.dataset.plan; S.log.adding = false; confirmPlanDel = 0; renderLog(); openCard(); return; }
   if (t.dataset.act === "plan-use") return usePlan(S.plans.find(p => p.id === +t.dataset.pid), t);
   if (t.dataset.act === "plan-del") {
@@ -1385,7 +1403,20 @@ $("#v-log").addEventListener("click", async e => {
     S.log.selPlan = null; return loadLog(d.day);
   }
   if (t.dataset.act === "log-save") return saveLogEdits(t);
-  if (t.dataset.act === "log-discard") { S.log.base = null; return renderMeal(); }
+  if (t.dataset.act === "log-discard") { S.log.base = null; S.log.edit = null; return renderMeal(); }
+  if (t.dataset.act === "edit" || t.dataset.act === "fix-carbs-menu") {
+    if (logDirty()) { toast("Save or discard the changes first"); return; }
+    S.log.edit = editKey(); renderMeal();
+    if (t.dataset.act === "fix-carbs-menu") { $(".fixlink").hidden = true; $("#carbsFix").hidden = false; $("#cfTotal").select(); }
+    else $("#mealDetail").querySelector("#whDay, #peName")?.scrollIntoView({ block: "nearest" });
+    return;
+  }
+  if (t.dataset.act === "edit-done") {
+    if (logDirty()) { toast("Save or discard the changes first"); const bar = $("#logSave"); bar.classList.remove("nudge"); void bar.offsetWidth; bar.classList.add("nudge"); return; }
+    S.log.edit = null; return renderMeal();
+  }
+  if (t.dataset.act === "stats") { S.log.statsOpen = !S.log.statsOpen; if (S.log.statsOpen && S.log.period !== "day") await loadPeriod(); return renderLog(); }
+  if (t.dataset.act === "export-open") { S.log.exportOpen = true; renderLog(); $("#exFrom")?.focus(); return; }
   if (t.dataset.restore) {
     const [kind, id] = t.dataset.restore.split(":");
     try {
@@ -1420,7 +1451,7 @@ $("#v-log").addEventListener("click", async e => {
     t.parentElement.querySelectorAll("button").forEach(b => { b.classList.toggle("on", on && b === t); b.setAttribute("aria-pressed", on && b === t); });
     logDirty();
   }
-  else if (t.dataset.act === "pin-meal") { $("#pinMeal").hidden = false; $("#pinMealName").select(); }
+  else if (t.dataset.act === "pin-meal") { t.closest("details")?.removeAttribute("open"); $("#pinMeal").hidden = false; $("#pinMealName").select(); }
   else if (t.dataset.act === "del-meal") {
     if (Date.now() - confirmDelete > 4000) { confirmDelete = Date.now(); t.textContent = "Tap again to delete"; return; }
     try { await api(`/api/meals/${S.log.sel}`, { method: "DELETE" }); toast("Meal deleted. It can be restored from Deleted, below the day."); S.log.sel = null; loadLog(d.day); } catch (err) { toast(err.message); }
@@ -1456,7 +1487,7 @@ $("#v-log").addEventListener("submit", async e => {
   if (e.target.id === "planEdit") {
     e.preventDefault();
     const body = { name: $("#peName").value.trim(), day: $("#peDay").value, time: $("#peTime").value };
-    try { const p = await api(`/api/plans/${S.log.selPlan}`, { method: "PUT", body }); toast(`${p.name}: ${planWhen(p)}`); } catch (err) { toast(err.message); }
+    try { const p = await api(`/api/plans/${S.log.selPlan}`, { method: "PUT", body }); toast(`${p.name}: ${planWhen(p)}`); S.log.edit = null; } catch (err) { toast(err.message); }
     return loadLog(S.log.data.day);
   }
   if (e.target.id === "pinMeal") {
