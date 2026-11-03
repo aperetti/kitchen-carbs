@@ -207,7 +207,7 @@ class MealDetails(BaseModel):
     bg_source: Literal["cgm", "meter"] | None = None
     insulin: float | None = Field(default=None, gt=0, le=100)                 # units given
     insulin_kind: Literal["bolus", "basal"] | None = None
-    insulin_offset_min: int | None = Field(default=None, ge=-120, le=120)     # given this long before eating; negative = after
+    insulin_offset_min: int | None = Field(default=None, ge=-120, le=120)     # given this long before the meal; negative = after (saved before 2 Nov)
     eat_min: int | None = Field(default=None, ge=1, le=240)
 
     @model_validator(mode="after")

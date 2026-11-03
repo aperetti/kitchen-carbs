@@ -828,7 +828,7 @@ function openSummary() {
       <label class="field sumbg"><span>Blood glucose (mg/dL)</span>
         <input id="sumBg" type="number" inputmode="numeric" min="20" max="600" step="1" placeholder="Meter reading"></label>
       <div id="sumCalc" aria-live="polite"><p class="meta">Working it out…</p></div>
-      <div class="sumgiven"><span class="label">What was given · optional</span>${detailFields()}</div>
+      <div class="sumgiven"><span class="label">What was given · optional</span>${detailFields({}, null, S.sum.at)}</div>
       <div class="actions sumacts"><button class="btn primary" data-sum="save">Save to log</button><button class="btn quiet" data-sum="close">Back to plate</button></div>
     </div>`;
   doseDlg.showModal(); loadDose();
@@ -844,6 +844,7 @@ async function loadDose() {
   catch (err) { s.data = null; s.err = err.status === 422 ? "Blood glucose must be between 20 and 600 mg/dL." : err.message || "Couldn't reach the server."; }
   if (S.sum !== s) return;
   if (!s.typed) $("#sumBg").value = s.data?.bg_source === "cgm" ? s.data.cgm.sgv : "";   // filled in only from a fresh reading
+  minFollow(doseDlg.querySelector(".mdet"), $("#sumBg").value.trim(), s.at);
   drawDose();
 }
 function bgNote(d) {
@@ -917,15 +918,20 @@ doseDlg.addEventListener("close", () => { S.sum = null; clearTimeout(doseTimer);
 
 /* Optional BG, insulin and timings that go with a meal (okf/domain/meal.md). Insulin is only what was typed, never the
    worked-out dose (okf/rules/no-dosing.md). Used in the meal summary and when editing a meal in the log. */
-function detailFields(d = {}) {
-  const off = d.insulin != null ? d.insulin_offset_min : 15, when = !off ? "start" : off > 0 ? "before" : "after";   // new: the usual 15 min pre-bolus
+/* Insulin timing is counted from the meal's time (okf/domain/meal.md): minutes before it, 0 = at the meal time.
+   A new entry starts at the family's rule, BG ÷ 10, or at the meal time under 80 mg/dL or without a BG. */
+const preMin = bg => bg == null || bg === "" || +bg < 80 ? 0 : Math.min(120, Math.round(+bg / 10));
+const minusMin = (at, n) => { const m = ((+at.slice(0, 2) * 60 + +at.slice(3, 5) - n) % 1440 + 1440) % 1440; return `${pad2(Math.floor(m / 60))}:${pad2(m % 60)}`; };
+const minNote = (n, at) => n === 0 ? "At the meal time" : at ? `At ${clk(minusMin(at, n))}` : "";
+function detailFields(d = {}, bg = null, at = "") {
+  const saved = d.insulin != null, off = saved ? d.insulin_offset_min ?? 0 : preMin(bg), legacy = saved && off < 0;
   return `<div class="mdet">
     <div class="mrow"><label class="field"><span>Insulin given</span><span class="unitin"><input class="dIns" type="number" inputmode="decimal" min="0.05" max="100" step="0.05" value="${d.insulin ?? ""}" placeholder="Units"> u</span></label>
       <div class="seg neutral" role="group" aria-label="Insulin type">${["bolus", "basal"].map(k =>
         `<button type="button" data-dkind="${k}" class="${(d.insulin_kind || "bolus") === k ? "on" : ""}" aria-pressed="${(d.insulin_kind || "bolus") === k}">${cap(k)}</button>`).join("")}</div></div>
-    <div class="mrow"><span class="mlab">Given</span><div class="seg neutral" role="group" aria-label="When the insulin was given">${[["before", "Before eating"], ["start", "At the start"], ["after", "After starting"]].map(([k, l]) =>
-        `<button type="button" data-dwhen="${k}" class="${when === k ? "on" : ""}" aria-pressed="${when === k}">${l}</button>`).join("")}</div>
-      <span class="unitin dMinWrap" ${when === "start" ? "hidden" : ""}><input class="dMin" type="number" inputmode="numeric" min="1" max="120" step="1" value="${off ? Math.abs(off) : ""}" aria-label="Minutes"> min</span></div>
+    <div class="mrow"><label class="field"><span>Given</span><span class="unitin"><input class="dMin" type="number" inputmode="numeric" min="0" max="120" step="1"
+        value="${legacy ? "" : off}" placeholder="0" data-at="${at}" ${saved ? "" : "data-auto=\"1\""} ${legacy ? `data-legacy="${off}"` : ""} aria-label="Minutes before the meal"> min before the meal</span></label>
+      <span class="meta dMinNote">${legacy ? `Saved as ${-off} min after starting. Type the minutes to change it.` : minNote(off, at)}</span></div>
     <div class="mrow"><label class="field"><span>Time to eat the meal</span><span class="unitin"><input class="dEat" type="number" inputmode="numeric" min="1" max="240" step="1" value="${d.eat_min ?? ""}" placeholder="Minutes"> min</span></label></div>
   </div>`;
 }
@@ -935,9 +941,9 @@ function readDetails(root) {
   if (v(".dIns") !== "") {
     const u = +v(".dIns");
     if (!(u > 0 && u <= 100) || Math.abs(u * 20 - Math.round(u * 20)) > 1e-6) throw new Error("Insulin is between 0.05 and 100 units, in steps of 0.05.");
-    const when = on("[data-dwhen]").dwhen, min = v(".dMin");
-    if (when !== "start" && !(Number.isInteger(+min) && +min >= 1 && +min <= 120)) throw new Error(`Enter how many minutes ${when === "before" ? "before" : "after"} eating it was given (1 to 120).`);
-    Object.assign(out, { insulin: u, insulin_kind: on("[data-dkind]").dkind, insulin_offset_min: when === "start" ? 0 : when === "before" ? +min : -min });
+    const min = v(".dMin"), legacy = root.querySelector(".dMin").dataset.legacy;   // a saved 'after starting' stays until changed
+    if (!(Number.isInteger(+min) && +min >= 0 && +min <= 120)) throw new Error("Enter how many minutes before the meal the insulin was given, 0 to 120 (0 = at the meal time).");
+    Object.assign(out, { insulin: u, insulin_kind: on("[data-dkind]").dkind, insulin_offset_min: min === "" && legacy ? +legacy : +min });
   }
   if (v(".dEat") !== "") {
     if (!(Number.isInteger(+v(".dEat")) && +v(".dEat") >= 1 && +v(".dEat") <= 240)) throw new Error("Time to eat is between 1 and 240 minutes.");
@@ -945,14 +951,24 @@ function readDetails(root) {
   }
   return out;
 }
-document.addEventListener("click", e => {   // the Bolus / Basal and before / after switches
-  const b = e.target.closest(".mdet [data-dkind], .mdet [data-dwhen]"); if (!b) return;
+document.addEventListener("click", e => {   // the Bolus / Basal switch
+  const b = e.target.closest(".mdet [data-dkind]"); if (!b) return;
   b.parentElement.querySelectorAll("button").forEach(x => { x.classList.toggle("on", x === b); x.setAttribute("aria-pressed", x === b); });
-  if (b.dataset.dwhen) { const w = b.closest(".mrow").querySelector(".dMinWrap"); w.hidden = b.dataset.dwhen === "start"; if (!w.hidden) w.querySelector("input").focus(); }
+});
+// The minutes follow the BG box until they're typed; the note says the clock time
+function minFollow(root, bg, at) {
+  const i = root?.querySelector(".dMin"); if (!i) return;
+  if (at != null) i.dataset.at = at;
+  if (bg !== undefined && i.dataset.auto) i.value = preMin(bg);
+  if (!i.dataset.legacy) root.querySelector(".dMinNote").textContent = i.value === "" ? "" : minNote(+i.value, i.dataset.at);
+}
+document.addEventListener("input", e => {
+  if (e.target.matches(".mdet .dMin")) { delete e.target.dataset.auto; delete e.target.dataset.legacy; minFollow(e.target.closest(".mdet")); }
+  else if (e.target.id === "mdBg") minFollow($("#mdetForm .mdet"), e.target.value.trim());
 });
 const detailSummary = m => [
   m.bg != null && `BG ${m.bg}${m.bg_source === "cgm" ? " (CGM)" : " (meter)"}`,
-  m.insulin != null && `${fmtU(m.insulin)} ${m.insulin_kind}${!m.insulin_offset_min ? " at the start" : m.insulin_offset_min > 0 ? `, ${m.insulin_offset_min} min before eating` : `, ${-m.insulin_offset_min} min after starting`}`,
+  m.insulin != null && `${fmtU(m.insulin)} ${m.insulin_kind}${!m.insulin_offset_min ? " at the meal time" : m.insulin_offset_min > 0 ? `, ${m.insulin_offset_min} min before the meal` : `, ${-m.insulin_offset_min} min after starting`}`,
   m.eat_min != null && `eaten in ${m.eat_min} min`].filter(Boolean).join(" · ");
 
 async function saveMeal(btn, extra = {}) {
@@ -1135,7 +1151,7 @@ function logSnap() {
   const v = id => $(id)?.value ?? null, f = $("#mdetForm");
   const ev = $("#entValForm");
   return { day: v("#whDay"), time: v("#whTime"), ent: ev ? JSON.stringify([v("#evBg"), v("#evCarbs"), v("#evIns"), ev.querySelector("[data-ekind].on")?.dataset.ekind ?? "", v("#evNote").trim()]) : null, eaten: $(".eatseg .on")?.dataset.eaten ?? "", rate: $(".rateseg .on")?.dataset.rate ?? "", total: v("#cfTotal"), cmt: (v("#cmtText") || "").trim(),
-    det: f ? JSON.stringify([...f.querySelectorAll("input")].map(i => i.value).concat([...f.querySelectorAll("button.on")].map(b => b.dataset.dkind || b.dataset.dwhen))) : null };
+    det: f ? JSON.stringify([...f.querySelectorAll("input")].map(i => i.value).concat([...f.querySelectorAll("button.on")].map(b => b.dataset.dkind))) : null };
 }
 function logBaseline() { S.log.base = logSnap(); S.log.done = new Set(); document.body.classList.remove("unsaved"); logDirty(); }
 function logDirty() {
@@ -1218,7 +1234,7 @@ async function renderMeal() {
     ${whenBox(m, "meals")}
     <div class="glab"><span class="label">BG, insulin and time to eat</span></div>
     ${ed ? `<form id="mdetForm" class="mdetform"><label class="field"><span>Blood glucose (mg/dL)${m.bg != null && m.bg_source === "cgm" ? " · from the CGM" : ""}</span><input id="mdBg" type="number" inputmode="numeric" min="20" max="600" step="1" value="${m.bg ?? ""}" placeholder="Meter reading"></label>
-        ${detailFields(m)}</form>`
+        ${detailFields(m, m.bg, m.time)}</form>`
       : `<p class="${detailSummary(m) ? "" : "meta"}">${esc(detailSummary(m)) || "None added"}</p>`}
     ${S.session?.glucose ? `<div class="glab"><span class="label">Glucose · mg/dL</span><span class="meta" id="gUpdated"></span></div><div id="gBox"><p class="meta">Loading glucose…</p></div>` : ""}
     <div class="glab"><span class="label">How fast it rose</span><span class="meta">Your own judgement, to spot patterns</span></div>

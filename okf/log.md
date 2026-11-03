@@ -126,3 +126,4 @@
 - 2026-11-02 — The meal summary's dose rounds down to a step set with the insulin settings: 0.05, 0.1, 0.5 or 1 u (domain/insulin-settings.md, rules/no-dosing.md).
 - 2026-11-02 — The log can show 12-hour times with AM/PM, set once for the family in Settings → Log; the PDF follows it, the CSV stays 24-hour (features/review-log.md).
 - 2026-11-02 — Planned meals: a plate saved for a date and time, shown in the log as 'Planned' and not counted; put back on the plate at mealtime and saved as usual. Nightscout gets only a Note until it's eaten (features/plan-meal.md).
+- 2026-11-02 — Insulin timing is counted from the meal's time: one 'min before the meal' box (0 = at the meal time) replaces the three switches; it starts at BG ÷ 10, or 0 under 80 mg/dL (domain/meal.md).

@@ -32,8 +32,12 @@ is filled in (okf/features/fill-in-fiber.md); one that has fiber keeps it.
 Optional details that go with the meal (decided 29 Oct), each left empty unless someone enters it:
 - BG at the meal, in mg/dL, and where it came from: the CGM (under 15 minutes old) or a meter.
 - Insulin given for the meal: units (to 0.05 u) and Bolus or Basal. Only what a person typed (okf/rules/no-dosing.md).
-- When the insulin was given: at the start of the meal, or a number of minutes before or after starting to eat (0–120).
-  A new entry starts on **Before eating, 15 min** (decided 29 Oct: the usual pre-bolus); a saved one shows what was saved.
+- When the insulin was given, counted from the meal's time (decided 2 Nov, replacing the Before eating / At the start /
+  After starting switches): one box, 'Bolus given N min before the meal', 0 to 120, where 0 means at the meal time.
+  It can't be after the meal. A new entry starts at the BG ÷ 10, rounded (BG 150: 15 min), or 0 when the BG is under
+  80 mg/dL or not known, and follows the BG box until the minutes are typed; a saved one shows what was saved. A
+  meal saved before 2 Nov with insulin after starting keeps it and says so, until the minutes are changed.
+  This is the family's own timing rule as a starting value, not advice; the box can always be changed.
 - How long the meal took to eat, in minutes (1–240).
 They are entered in the meal summary when saving, and can be added or changed from the log, on earlier days too
 while the setting allows it (okf/rules/same-day-edits.md). The day's insulin totals include meal insulin; insulin and a meter BG show on the meal's

@@ -25,7 +25,8 @@ Decided 29 Oct. 'Save to log' on the plate opens a modal before anything is save
 - No BG: carbs only, and it says no correction was added. No settings: the summary shows the meal, says the ratios
   aren't set up, and links to Manage → Settings.
 - 'What was given (optional)', under the steps (decided 29 Oct): insulin given (empty, never filled in from the dose),
-  Bolus or Basal, when it was given (before, at the start, after, with minutes), and how long the meal took to eat.
+  Bolus or Basal, how many minutes before the meal's time it was given (0 = at the meal time; starts at BG ÷ 10, or 0
+  under 80 mg/dL, see okf/domain/meal.md), and how long the meal took to eat.
   The BG in the box is saved with the meal as its BG, marked CGM or meter.
 - When (decided 31 Oct): a date and a time under the meal list, starting at today and the plate's time, so a meal
   saved late (after the bolus, or the next morning) goes in at the right moment. The date can't be in the future.

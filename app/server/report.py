@@ -274,7 +274,7 @@ def rows(pdf: Report, d: dict):
                 ins = "" if x["insulin"] is None else f"{units(x['insulin'])} u {x['insulin_kind']}"
                 off = x["insulin_offset_min"]
                 if ins and off is not None:
-                    ins += "\nat the start" if off == 0 else f"\n{off} min before" if off > 0 else f"\n{-off} min after"
+                    ins += "\nat the meal time" if off == 0 else f"\n{off} min before" if off > 0 else f"\n{-off} min after"
                 r.cell(ins)
                 notes = [f"Eaten: {x['eaten']}" if x["eaten"] else "", f"Ate in {x['eat_min']} min" if x["eat_min"] else ""]
                 notes += [f"{x['rise'].capitalize()} rise" if x.get("rise") else ""]
