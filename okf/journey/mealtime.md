@@ -123,7 +123,7 @@ steps:
     screen: "Meal summary (modal over the plate)"
     thinking: "Does this match what the pump says?"
     risk: "Wrong ratios, an old CGM reading, or insulin still on board being missed; trusting the number without checking."
-    helps: "Every step is shown; the CGM reading is used only if under 15 minutes old; IOB from Nightscout comes off the correction, or it says none was found; rounded down to the step in the insulin settings (0.05 u unless changed); check against the pump."
+    helps: "Every step is shown; the CGM reading is used only if under 15 minutes old; IOB from Nightscout comes off the correction, or it says none was found; rounded down to the step in the insulin settings (0.05 u unless changed); check against the pump. A bolus with a BG under 70 mg/dL is warned about."
     features: [features/meal-dose-summary.md, features/build-plate.md]
   - id: record
     phase: Mealtime
@@ -132,7 +132,7 @@ steps:
     screen: "Log → Add entry"
     thinking: "I want the care team to see what I actually gave."
     risk: "Reading the app's totals as advice, or a typo in units (25 instead of 2.5)."
-    helps: "Insulin in the log is only ever what was typed, never the summary's number; units shown with one decimal place and 'u' everywhere."
+    helps: "Insulin in the log is only ever what was typed, never the summary's number; units shown with one decimal place and 'u' everywhere; a bolus typed with a BG under 70 mg/dL gets a warning to treat the low first."
     features: [features/manual-log.md]
   - id: save
     phase: Mealtime

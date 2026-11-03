@@ -716,6 +716,8 @@ p.moved { margin: 6px 0 0; }
 .sumdose .n { font-size: 56px; font-weight: 500; line-height: 1; color: var(--accent); font-variant-numeric: tabular-nums; }
 .sumdose .u { font-size: 22px; color: var(--accent); }
 .sumlow { color: var(--warn); font-weight: 500; }
+.lowwarn { margin: 0; padding: 12px 14px; border: 2px solid var(--warn); border-radius: var(--r); color: var(--warn); font-weight: 500; background: var(--paper); }   /* okf/rules/low-bg-bolus-warning.md */
+.sumgiven .lowwarn { margin-top: 12px; }
 .sumnone a { color: var(--accent); }
 .dosedlg .sumacts { position: sticky; bottom: -20px; z-index: 2; background: var(--surface); padding: 12px 0; border-top: 1px solid var(--line); }
 @media (max-width: 680px) { .dosedlg { width: 100vw; max-width: 100vw; } }

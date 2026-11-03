@@ -2,6 +2,7 @@
 Each version is what went to the family's kitchen on that date (okf/architecture/releases.md).
 
 ## Unreleased
+- If a bolus is typed while the BG is under 70 mg/dL, the meal summary and Add entry now show a warning to treat the low first and follow the care team's plan. It uses the meter reading, or a CGM reading under 15 minutes old. Saving still works, so the log shows what was actually given.
 - Settings now save the same way as the log: change anything and an "Unsaved changes" bar floats up with one Save and Discard. The separate Save buttons are gone. Connecting Nightscout or turning on sending to Nightscout or Tidepool still has its own button.
 - On a phone, the "Unsaved changes" bar on a meal stays at the bottom of the screen instead of hiding under the card.
 - The parent PIN screen fits narrow phones without scrolling sideways.

@@ -14,6 +14,8 @@ Until 29 Oct the app never calculated insulin. On 29 Oct the parent decided the 
 - Only the meal summary calculates. The log, stats, food cards and manual entries never suggest, check or pre-fill a dose;
   insulin in the log is still only what a parent typed (okf/domain/manual-entry.md, okf/domain/meal.md). The insulin box
   in the meal summary starts empty and is never filled in from the calculated dose.
+- A warning when a bolus is typed with a BG under 70 mg/dL (okf/rules/low-bg-bolus-warning.md, decided 3 Nov) is not a
+  dose check: it says nothing about the amount and never blocks saving.
 - Inputs are the parent's own settings, set behind the parent PIN (okf/domain/insulin-settings.md). No settings, no number.
 - Every step is on screen: carbs ÷ carb ratio, (BG − target) ÷ correction factor, insulin on board, the total.
 - Rounded **down** to the step set with the insulin settings (0.05, 0.1, 0.5 or 1 u, matching the pump or pen; 0.05 u

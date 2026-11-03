@@ -846,7 +846,7 @@ function openSummary() {
       <label class="field sumbg"><span>Blood glucose (mg/dL)</span>
         <input id="sumBg" type="number" inputmode="numeric" min="20" max="600" step="1" placeholder="Meter reading"></label>
       <div id="sumCalc" aria-live="polite"><p class="meta">Working it out…</p></div>
-      <div class="sumgiven"><span class="label">What was given · optional</span>${detailFields({}, null, S.sum.at)}</div>
+      <div class="sumgiven"><span class="label">What was given · optional</span>${detailFields({}, null, S.sum.at)}<p class="lowwarn" id="sumLow" role="alert" hidden></p></div>
       <div class="actions sumacts"><button class="btn primary" data-sum="save">Save to log</button><button class="btn quiet" data-sum="close">Back to plate</button></div>
     </div>`;
   doseDlg.showModal(); loadDose();
@@ -863,7 +863,22 @@ async function loadDose() {
   if (S.sum !== s) return;
   if (!s.typed) $("#sumBg").value = s.data?.bg_source === "cgm" ? s.data.cgm.sgv : "";   // filled in only from a fresh reading
   minFollow(doseDlg.querySelector(".mdet"), $("#sumBg").value.trim(), s.at);
-  drawDose();
+  drawDose(); sumLow();
+}
+/* A bolus typed while the BG is under 70 gets a warning (okf/rules/low-bg-bolus-warning.md). It never blocks saving
+   and says nothing about the amount. */
+const LOW_BG = 70;
+function lowBolus(el, bg, cgm, bolus) {   // cgm: the reading used when no BG was typed
+  if (!el) return;
+  const on = bolus && bg != null && bg !== "" && +bg >= 20 && +bg < LOW_BG;
+  el.hidden = !on;
+  if (on) el.textContent = `${cgm ? `The CGM shows ${cgm.sgv} mg/dL, ${agoMin(cgm.age_min)}` : `BG is ${+bg} mg/dL (meter)`}, under ${LOW_BG}. `
+    + "Treat the low first and follow the care team's plan before giving a bolus.";
+}
+function sumLow() {
+  const s = S.sum; if (!s) return;
+  const ins = doseDlg.querySelector(".mdet .dIns")?.value.trim(), kind = doseDlg.querySelector(".mdet [data-dkind].on")?.dataset.dkind;
+  lowBolus($("#sumLow"), $("#sumBg").value.trim(), !s.typed && s.data?.bg_source === "cgm" ? s.data.cgm : null, !!ins && kind !== "basal");
 }
 function bgNote(d) {
   const c = d.cgm, cgm = c ? `${c.sgv} mg/dL ${ARROWS[c.direction] || ""}` : "";
@@ -887,7 +902,7 @@ function drawDose() {
     : k.correction_u == null ? `${u2(i.units)} u (${esc(i.source)}, ${agoMin(i.age_min)}). No correction to take it off.`
     : !k.iob_used ? `${u2(i.units)} u (${esc(i.source)}, ${agoMin(i.age_min)}). Not used: BG is at or below target.`
     : `${u2(i.units)} u (${esc(i.source)}, ${agoMin(i.age_min)}): <b>−${u2(k.iob_off)} u</b> off the correction${k.iob_off < i.units ? ", which can't go below zero" : ""}.`;
-  el.innerHTML = note + (k.bg != null && k.bg < 70 ? `<p class="sumlow">BG is low: ${k.bg} mg/dL.</p>` : "") + `
+  el.innerHTML = note + (k.bg != null && k.bg < LOW_BG ? `<p class="sumlow">BG is low: ${k.bg} mg/dL.${k.dose > 0 ? " Treat the low first and follow the care team's plan before giving a bolus." : ""}</p>` : "") + `
     <div class="sumdose"><span class="label">Insulin for this meal</span><span class="n">${u2(k.dose)}</span> <span class="u">u</span></div>
     <span class="label">How it's worked out</span>
     <dl class="sumcalc">
@@ -906,6 +921,8 @@ doseDlg.addEventListener("change", e => {   // date or time of the meal: heading
   Object.assign(S.sum, { day, at }); S.plateTime = at; savePlate();
   $("#sumHead").textContent = sumHead(); loadDose();
 });
+doseDlg.addEventListener("input", () => setTimeout(sumLow));   // after the BG box and the Bolus / Basal switch have moved
+doseDlg.addEventListener("click", e => { if (e.target.closest("[data-dkind]")) setTimeout(sumLow); });
 doseDlg.addEventListener("input", e => {
   if (e.target.id !== "sumBg" || !S.sum) return;
   S.sum.typed = true; S.sum.bg = e.target.value.trim();
@@ -1189,11 +1206,13 @@ function renderEntryForm() {
       <label class="field"><span>Insulin given, units</span><input id="enIns" type="number" inputmode="decimal" min="0.05" max="100" step="0.05"></label>
       <fieldset class="field tagpick"><legend>Insulin type</legend><div class="seg neutral" role="radiogroup">
         <button type="button" data-kind="rapid">Rapid-acting</button><button type="button" data-kind="long">Long-acting</button></div></fieldset></div>
+    <p class="lowwarn" id="enLow" role="alert" hidden></p>
     <label class="field"><span>Note</span><input id="enNote" maxlength="500" placeholder="e.g. juice for a low, pump site change"></label>
     <p class="err" id="enErr"></p>
     <div class="actions"><button class="btn primary" id="enSave" disabled>Save</button><button type="button" class="btn quiet" data-act="entry-cancel">Cancel</button></div>
     <p class="note">The app records what you enter. It doesn't calculate or check insulin amounts.</p></form>`;
-  S.log.kind = null; entryPreview();
+  S.log.kind = null; S.log.cgmNow = null; entryPreview();
+  api("/api/nightscout").then(r => { S.log.cgmNow = r.latest; if ($("#enLow")) entryPreview(); }).catch(() => { });   // for the low BG warning
 }
 function entryPreview() {
   const v = id => $(id).value.trim(), e = { bg: v("#enBg") ? +v("#enBg") : null, carbs: v("#enCarbs") ? +v("#enCarbs") : null,
@@ -1204,6 +1223,11 @@ function entryPreview() {
   // The button repeats exactly what will be saved, so a typo like 25 for 2.5 is visible before saving.
   $("#enSave").textContent = !any ? "Save" : needKind ? "Choose the insulin type" : `Save: ${entrySummary(e)}`;
   document.querySelectorAll("#entryForm [data-kind]").forEach(b => b.classList.toggle("on", b.dataset.kind === S.log.kind));
+  // no BG typed: the newest CGM reading counts if it's under 15 minutes old and the entry is for about now
+  const c = S.log.cgmNow, age = c ? Math.max(0, Math.round((Date.now() - c.date_ms) / 60000)) : null, toMin = t => +t.slice(0, 2) * 60 + +t.slice(3, 5);
+  const now = S.log.data.day === localDay() && /^\d\d:\d\d/.test(v("#enTime")) && Math.abs(toMin(v("#enTime")) - toMin(hhmm())) <= 15;
+  const cgm = e.bg == null && c && age <= 15 && now ? { sgv: c.sgv, age_min: age } : null;
+  lowBolus($("#enLow"), e.bg ?? cgm?.sgv, cgm, e.insulin != null && S.log.kind !== "long");
 }
 let confirmEntry = 0;
 function renderEntry(e) {
