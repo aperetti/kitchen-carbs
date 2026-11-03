@@ -1413,6 +1413,23 @@ def test_edit_entry_values(app, monkeypatch):
     assert client.put("/api/entries/9999", json={"bg": 99}).status_code == 404
 
 
+def test_12_hour_clock(app):
+    """okf/features/review-log.md: one family setting; the log says which, the PDF follows it, the CSV stays 24-hour."""
+    from server import report
+    client, _ = app
+    client.post("/api/meals", json=meal())
+    assert client.get("/api/settings").json()["clock_12h"] is False and client.get("/api/log").json()["clock_12h"] is False
+    assert client.put("/api/settings/clock", json={"h12": True}, headers={"X-Parent-Pin": "0000"}).status_code == 401
+    assert client.put("/api/settings/clock", json={"h12": True}).json()["clock_12h"] is True
+    assert client.get("/api/log").json()["clock_12h"] is True
+    assert client.get("/api/export.pdf?start=2026-10-27&end=2026-10-27").status_code == 200
+    assert "2026-10-27,18:05,meal" in client.get("/api/export.csv?start=2026-10-27&end=2026-10-27").text
+    assert [report.clock(t, True) for t in ("00:05", "09:30", "12:00", "18:30", "23:59")] == \
+        ["12:05 AM", "9:30 AM", "12:00 PM", "6:30 PM", "11:59 PM"]
+    assert report.clock("18:30", False) == "18:30"
+    client.put("/api/settings/clock", json={"h12": False})
+
+
 def test_export_pdf(app):
     """okf/features/export-log.md: the same range as the CSV, as a PDF file; up to 92 days."""
     client, _ = app

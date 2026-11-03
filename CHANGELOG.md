@@ -2,6 +2,7 @@
 Each version is what went to the family's kitchen on that date (okf/architecture/releases.md).
 
 ## Unreleased
+- The log can show times as 12-hour with AM/PM (6:30 PM) instead of 24-hour. Turn it on under Manage → Settings → Log; it applies for the whole family and to the PDF export.
 - The meal summary's insulin can now round down to 0.05, 0.1, 0.5 or 1 unit, to match the pump or pen. Set it under Manage → Settings → Insulin settings; it stays at 0.05 until you change it.
 
 ## v2026.11.02.2 · 2 Nov 2026

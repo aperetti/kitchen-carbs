@@ -175,7 +175,8 @@ input[type="time"], input[type="date"], .field input, .field select, .field text
 .periods button.on { color: var(--ink); border-bottom-color: var(--ink); }
 .lrow { display: grid; grid-template-columns: 56px 1fr 48px; gap: 12px; padding: 12px 10px; margin: 0 -10px; border: 0; border-bottom: 1px solid var(--line); align-items: start; background: none; text-align: left; cursor: pointer; width: calc(100% + 20px); }
 .lrow.on { background: var(--sunk); }
-.lrow .tm { color: var(--vein); font-variant-numeric: tabular-nums; }
+.lrow .tm { color: var(--vein); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.h12 .lrow { grid-template-columns: 76px 1fr 48px; }   /* "12:30 PM" on one line */
 .lrow .it { display: grid; font-size: 16px; min-width: 0; }
 .lrow .it b { font-weight: 500; }
 .lrow .it span { font-size: 14px; color: var(--vein); }
@@ -765,7 +766,7 @@ p.moved { margin: 6px 0 0; }
 .deleted { margin: 12px 0; border-top: 1px solid var(--line); padding-top: 8px; }
 .deleted summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; color: var(--vein); font-size: 15px; }
 .delrow { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 4px 12px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--line); }
-.delrow .tm { color: var(--vein); font-variant-numeric: tabular-nums; }
+.delrow .tm { color: var(--vein); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .delrow .it { display: grid; min-width: 0; overflow-wrap: anywhere; }
 .delrow .it b { font-weight: 500; color: var(--vein); }
 .delrow .it span { font-size: 14px; color: var(--vein); }

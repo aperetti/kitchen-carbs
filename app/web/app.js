@@ -14,6 +14,10 @@ const SOURCE = { fatsecret: "FatSecret", usda: "USDA FoodData Central", label: "
 const pad2 = n => String(n).padStart(2, "0");
 const localDay = (d = new Date()) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
 const hhmm = (d = new Date()) => `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+// The log's times: "18:30", or "6:30 PM" with Settings → Log → 12-hour (okf/features/review-log.md); short drops ":00" for chart hours
+const clk = (t, short) => { if (!S.clock12) return t; const h = +t.slice(0, 2), m = t.slice(3, 5);
+  return `${(h + 11) % 12 + 1}${short && m === "00" ? "" : ":" + m} ${h < 12 ? "AM" : "PM"}`; };
+const setClock = on => { S.clock12 = !!on; document.body.classList.toggle("h12", S.clock12); };   // .h12 widens the log's time column
 const dayLabel = iso => new Date(iso + "T12:00").toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" });
 const shiftDay = (iso, n) => { const d = new Date(iso + "T12:00"); d.setDate(d.getDate() + n); return localDay(d); };
 const photoUrl = p => p ? "/photos/" + p : "";
@@ -891,7 +895,7 @@ async function syncQueue() {
 /* ---------- log (okf/features/review-log.md, annotate-meal.md, glucose-*.md) ---------- */
 async function loadLog(day) {
   S.log.day = day;
-  try { S.log.data = await api("/api/log?day=" + day); }
+  try { S.log.data = await api("/api/log?day=" + day); setClock(S.log.data.clock_12h); }
   catch (err) { $("#logList").innerHTML = `<div class="empty">${esc(err.message)}</div>`; $("#mealDetail").innerHTML = ""; return; }
   const meals = S.log.data.meals;
   if (S.log.selEntry && !S.log.data.entries.some(e => e.id === S.log.selEntry)) S.log.selEntry = null;
@@ -949,7 +953,7 @@ const entrySummary = e => [e.bg != null && `BG ${e.bg}`, e.insulin != null && `$
 
 /* Date and time can change on any day; the log only marks that it changed, the export keeps when (okf/rules/same-day-edits.md) */
 const modMark = x => x.moved_from || x.edited_at ? `<i class="modmark" title="Modified" aria-label="Modified">✎</i>` : "";
-const movedLabel = s => `${dayLabel(s.slice(0, 10))}, ${s.slice(11)}`;
+const movedLabel = s => `${dayLabel(s.slice(0, 10))}, ${clk(s.slice(11, 16))}`;
 const whenBox = (x, kind) => `<div class="glab"><span class="label">When</span></div>
     <form class="whenform" id="whenForm" data-what="${kind}" data-id="${x.id}">
       <input type="date" id="whDay" value="${x.day}" max="${localDay()}" required aria-label="Date">
@@ -958,7 +962,7 @@ const whenBox = (x, kind) => `<div class="glab"><span class="label">When</span><
 
 /* Deleted meals and entries stay listed on their day and can be restored (okf/domain/meal-log.md) */
 const deletedList = d => !d.deleted?.length ? "" : `<details class="deleted"><summary>Deleted (${d.deleted.length})</summary>
-  ${d.deleted.map(x => `<div class="delrow"><span class="tm">${x.time}</span>
+  ${d.deleted.map(x => `<div class="delrow"><span class="tm">${clk(x.time)}</span>
     <span class="it"><b>${esc(x.kind === "meal" ? x.what || "Meal" : entrySummary(x.what))}</b><span>${x.carbs != null ? `${whole(x.carbs)} g carbs · ` : ""}deleted ${movedLabel(x.deleted_at)}</span></span>
     ${d.editable ? `<button class="btn small" data-restore="${x.kind}:${x.id}">Restore</button>` : ""}</div>`).join("")}
   ${d.editable ? "" : `<p class="meta">Earlier days are read-only, so these can't be restored unless a parent allows changes in Manage → Settings.</p>`}</details>`;
@@ -972,12 +976,12 @@ function logRows(d) {
   if (!rows.length) return `<div class="empty">Nothing logged${d.day === localDay() ? " yet today" : " this day"}.</div>`;
   return rows.map(({ m, e }) => m
     ? `<button class="lrow ${m.id === S.log.sel && !S.log.selEntry && !S.log.adding ? "on" : ""}" data-meal="${m.id}">
-      <span class="tm">${m.time}${modMark(m)}</span><span class="it"><b>${esc(m.items.map(i => `${i.food_name} ${i.carbs} g carbs${i.entered_carbs != null ? " (by hand)" : ""}`).join(" · "))}</b>
+      <span class="tm">${clk(m.time)}${modMark(m)}</span><span class="it"><b>${esc(m.items.map(i => `${i.food_name} ${i.carbs} g carbs${i.entered_carbs != null ? " (by hand)" : ""}`).join(" · "))}</b>
       <span>Eaten: ${m.eaten ? cap(m.eaten) : "not set"}${m.bg != null ? ` · BG&nbsp;${m.bg}` : ""}${m.insulin != null ? ` · ${fmtU(m.insulin)} ${m.insulin_kind}` : ""}${m.two_h != null ? ` · 2&nbsp;h&nbsp;${m.two_h}` : ""}${m.fiber != null && m.fiber_unknown.length < m.items.length ? ` · Fiber&nbsp;${m.fiber}&nbsp;g` : ""}${m.carbs_corrected != null ? ` · <i class="moved">Carbs edited</i>` : ""}</span>
       ${m.comments.length ? `<span class="lcmt">${esc(m.comments.map(c => c.text).join(" · "))}</span>` : ""}</span>
       <span class="c">${m.total}</span></button>`
     : `<button class="lrow entry ${e.id === S.log.selEntry ? "on" : ""}" data-entry="${e.id}">
-      <span class="tm">${e.time}${modMark(e)}</span><span class="it"><b>${esc(entrySummary(e))}</b>${e.note ? `<span>${esc(e.note)}</span>` : ""}</span>
+      <span class="tm">${clk(e.time)}${modMark(e)}</span><span class="it"><b>${esc(entrySummary(e))}</b>${e.note ? `<span>${esc(e.note)}</span>` : ""}</span>
       <span class="c">${e.carbs != null ? whole(e.carbs) : ""}</span></button>`).join("");
 }
 
@@ -1013,7 +1017,7 @@ let confirmEntry = 0;
 function renderEntry(e) {
   const ed = S.log.data.editable;
   const val = v => v ?? "";
-  $("#mealDetail").innerHTML = `<div class="mdh"><b>${e.time}</b>${e.carbs != null ? `<span class="c">${+e.carbs} <small>g carbs</small></span>` : ""}</div>
+  $("#mealDetail").innerHTML = `<div class="mdh"><b>${clk(e.time)}</b>${e.carbs != null ? `<span class="c">${+e.carbs} <small>g carbs</small></span>` : ""}</div>
     ${ed ? `<form class="form entval" id="entValForm">
       <div class="fieldrow">
         <label class="field"><span>BG from the meter, mg/dL</span><input id="evBg" type="number" inputmode="numeric" min="20" max="600" step="1" value="${val(e.bg)}"></label>
@@ -1112,7 +1116,7 @@ async function renderMeal() {
   if (!m) { el.innerHTML = `<div class="empty">${d.meals.length ? "Choose a meal." : "Meals you save from the plate appear here."}</div>`; return; }
   const ed = d.editable;
   el.innerHTML = `
-    <div class="mdh"><b>${m.time}</b><span class="c">${m.total} <small>g carbs</small></span></div>
+    <div class="mdh"><b>${clk(m.time)}</b><span class="c">${m.total} <small>g carbs</small></span></div>
     ${m.carbs_corrected != null ? `<p class="meta moved">Corrected from ${m.items_total} g, the foods' own total. The reason is in the comments.</p>` : ""}
     ${ed ? `<button class="linkbtn fixlink" data-act="fix-carbs">Change total carbs</button>
       <form id="carbsFix" class="carbsfix" hidden><p class="meta">For a discrepancy found later. The foods keep their saved carbs; the meal's total, the day's totals and the export use the new number.</p>
@@ -1134,7 +1138,7 @@ async function renderMeal() {
     ${ed ? `<div class="seg neutral eatseg" role="group" aria-label="How much was eaten">${EATEN.map(x => `<button type="button" data-eaten="${x}" class="${m.eaten === x ? "on" : ""}" aria-pressed="${m.eaten === x}">${cap(x)}</button>`).join("")}</div>
       <p class="note">This is a note. Carbs stay as served.</p>` : `<p>${m.eaten ? cap(m.eaten) : "Not set"}</p>`}
     <div class="glab"><span class="label">Comments</span></div>
-    <div class="cmt">${m.comments.map(c => `<div><span class="tm">${c.time.length > 5 ? movedLabel(c.time) : c.time}</span>${esc(c.text)}</div>`).join("") || (ed ? "" : `<span class="meta">None</span>`)}
+    <div class="cmt">${m.comments.map(c => `<div><span class="tm">${c.time.length > 5 ? movedLabel(c.time) : clk(c.time)}</span>${esc(c.text)}</div>`).join("") || (ed ? "" : `<span class="meta">None</span>`)}
       ${ed ? `<form class="cmtform" id="cmtForm"><input id="cmtText" maxlength="500" placeholder="Add a comment" aria-label="Add a comment" autocomplete="off"></form>` : ""}</div>
     <div class="actions" style="padding-top:12px"><button class="btn quiet small" data-act="pin-meal">Pin as favorite</button>
       ${ed ? `<button class="btn quiet small" data-act="del-meal">Delete meal</button>` : ""}</div>
@@ -1150,11 +1154,11 @@ async function loadCurve(m) {
   if (S.log.sel !== m.id || !$("#gBox")) return;
   $("#gBox").innerHTML = curveSvg(w) + `<div class="gvals">
     <span>At meal <b>${w.at_meal ?? "–"}</b></span>
-    <span>Peak <b>${w.peak ? w.peak.sgv : "–"}</b>${w.peak ? ` at ${hhmm(new Date(w.peak.ms))}` : ""}</span>
+    <span>Peak <b>${w.peak ? w.peak.sgv : "–"}</b>${w.peak ? ` at ${clk(hhmm(new Date(w.peak.ms)))}` : ""}</span>
     <span>2 h <b>${w.two_h ?? "–"}</b></span>
     ${w.rise_1h != null ? `<span>Rose <b>${w.rise_1h > 0 ? "+" : ""}${w.rise_1h}</b> in 1 h</span>` : ""}
     ${w.to_peak_min != null ? `<span>Peak at <b>${w.to_peak_min}</b> min</span>` : ""}
-    ${w.lowest && w.lowest.sgv < w.low ? `<span class="warn">Lowest <b class="warn">${w.lowest.sgv}</b> at ${hhmm(new Date(w.lowest.ms))}</span>` : ""}
+    ${w.lowest && w.lowest.sgv < w.low ? `<span class="warn">Lowest <b class="warn">${w.lowest.sgv}</b> at ${clk(hhmm(new Date(w.lowest.ms)))}</span>` : ""}
     <span class="${w.coverage < 0.7 ? "warn" : ""}">Sensor ${Math.round(w.coverage * 100)}%</span>
     ${w.in_progress ? `<span>In progress</span>` : ""}</div>
     ${w.overlapping_meals.length ? `<p class="note">Another meal falls in this window, so the curve shows both.</p>` : ""}
@@ -1172,9 +1176,9 @@ function curveSvg(w) {
   for (const v of [w.low, w.high, 250]) o.push(`<text x="${L - 6}" y="${Y(v) + 4}" text-anchor="end" class="ax">${v}</text>`);
   o.push(`<line x1="${L}" x2="${W - R}" y1="${Y(250)}" y2="${Y(250)}" stroke="var(--line)" stroke-dasharray="2 3"/>`);
   const h0 = new Date(w.start_ms); h0.setMinutes(0, 0, 0);
-  for (let t = h0.getTime() + 3600e3; t <= w.end_ms; t += 3600e3) if (X(t) < W - R - 18) o.push(`<text x="${X(t)}" y="${H - 8}" text-anchor="middle" class="ax">${hhmm(new Date(t))}</text>`);
-  for (const om of w.overlapping_meals) o.push(`<line x1="${X(om)}" x2="${X(om)}" y1="${T}" y2="${H - B}" stroke="var(--vein)" stroke-dasharray="1 3"/><text x="${X(om) + 4}" y="${T + 24}" class="ax">meal ${hhmm(new Date(om))}</text>`);
-  o.push(`<line x1="${X(w.meal_ms)}" x2="${X(w.meal_ms)}" y1="${T}" y2="${H - B}" stroke="var(--accent)"/><text x="${X(w.meal_ms) + 5}" y="${T + 10}" class="ax" fill="var(--accent)">meal ${hhmm(new Date(w.meal_ms))}</text>`);
+  for (let t = h0.getTime() + 3600e3; t <= w.end_ms; t += 3600e3) if (X(t) < W - R - 18) o.push(`<text x="${X(t)}" y="${H - 8}" text-anchor="middle" class="ax">${clk(hhmm(new Date(t)), true)}</text>`);
+  for (const om of w.overlapping_meals) o.push(`<line x1="${X(om)}" x2="${X(om)}" y1="${T}" y2="${H - B}" stroke="var(--vein)" stroke-dasharray="1 3"/><text x="${X(om) + 4}" y="${T + 24}" class="ax">meal ${clk(hhmm(new Date(om)))}</text>`);
+  o.push(`<line x1="${X(w.meal_ms)}" x2="${X(w.meal_ms)}" y1="${T}" y2="${H - B}" stroke="var(--accent)"/><text x="${X(w.meal_ms) + 5}" y="${T + 10}" class="ax" fill="var(--accent)">meal ${clk(hhmm(new Date(w.meal_ms)))}</text>`);
   const t2 = w.meal_ms + 120 * 60e3;
   o.push(`<line x1="${X(t2)}" x2="${X(t2)}" y1="${T}" y2="${H - B}" stroke="var(--vein)" stroke-dasharray="3 3"/><text x="${X(t2) + 5}" y="${T + 10}" class="ax">2 h</text>`);
   // Gaps over 10 minutes break the line (okf/domain/glucose-reading.md: gaps stay gaps).
@@ -2015,6 +2019,12 @@ const mClick = async e => {
 
 const mChange = async e => {
   if (e.target.closest("#foodForm")) foodDirty = true;
+  if (e.target.id === "clock12") {   // okf/features/review-log.md
+    try { S.settings = await api("/api/settings/clock", { method: "PUT", parent: true, body: { h12: e.target.checked } });
+      setClock(S.settings.clock_12h); toast(S.clock12 ? "The log shows 12-hour times" : "The log shows 24-hour times"); }
+    catch (err) { e.target.checked = !e.target.checked; toast(err.message); }
+    return;
+  }
   if (e.target.id === "pastEdits") {   // okf/rules/same-day-edits.md
     try { S.settings = await api("/api/settings/past-edits", { method: "PUT", parent: true, body: { allowed: e.target.checked } });
       toast(S.settings.past_edits ? "Earlier days can be changed" : "Earlier days are read-only"); }
@@ -2775,7 +2785,7 @@ function doseCollect() {
 }
 
 async function renderSettings() {
-  try { S.settings = await api("/api/settings", { parent: true }); } catch { S.settings = null; }
+  try { S.settings = await api("/api/settings", { parent: true }); setClock(S.settings.clock_12h); } catch { S.settings = null; }
   try { const d = await api("/api/dose-settings"); S.doseEdit = d.settings || { carb_ratio: [], isf: [], target: [] }; S.doseUpdated = d.updated; } catch { S.doseEdit = null; }
   if (!stillOn("settings")) return;
   const st = S.settings;
@@ -2796,7 +2806,9 @@ async function renderSettings() {
     ${st ? `<section class="form"><h2>Log</h2>
       <label class="check"><input type="checkbox" id="pastEdits" ${st.past_edits ? "checked" : ""}>Allow changes to earlier days</label>
       <p class="meta">On: meals and entries from earlier days can be changed, deleted or added, and each change is marked ✎ in the log and 'Changed later' in the export.
-        Off: earlier days are read-only. Moving a meal or entry to another date and time works either way.</p></section>` : ""}
+        Off: earlier days are read-only. Moving a meal or entry to another date and time works either way.</p>
+      <label class="check"><input type="checkbox" id="clock12" ${st.clock_12h ? "checked" : ""}>Show times as 12-hour (6:30 PM)</label>
+      <p class="meta">For everyone in the family, in the log and the PDF export. Off: 24-hour (18:30). The CSV export stays 24-hour.</p></section>` : ""}
     <div id="nsBox"></div>
     <div id="tidepoolBox"></div>
     <div id="pushBox"></div>

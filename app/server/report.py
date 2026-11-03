@@ -35,6 +35,14 @@ def day_label(d: str, year=False) -> str:
     return x.strftime("%a, %b %-d" + (", %Y" if year else ""))
 
 
+def clock(hhmm: str, h12: bool) -> str:
+    """18:30, or 6:30 PM with the log's 12-hour setting (okf/features/review-log.md)."""
+    if not h12:
+        return hhmm
+    h, m = int(hhmm[:2]), int(hhmm[3:5])
+    return f"{(h - 1) % 12 + 1}:{m:02d} {'AM' if h < 12 else 'PM'}"
+
+
 def units(u) -> str:
     return f"{u:.2f}".rstrip("0").rstrip(".") if u % 1 else f"{u:.0f}"
 
@@ -44,9 +52,10 @@ def insulin_text(totals: dict) -> str:
 
 
 class Report(FPDF):
-    def __init__(self, title_range: str):
+    def __init__(self, title_range: str, h12: bool = False):
         super().__init__(format="Letter", unit="pt")
         self.title_range = title_range
+        self.h12 = h12
         self.add_font("Sans", "", REGULAR)
         self.add_font("Sans", "B", BOLD)
         self.set_margins(48, 54, 48)
@@ -134,7 +143,7 @@ class Report(FPDF):
             self.cell(22, 8, str(v), align="R")
         for hr in range(0, 25, 3):
             self.set_xy(X(start_ms + hr * 3_600_000) - 12, y0 + h + 2)
-            self.cell(24, 8, f"{hr % 24:02d}:00" if hr < 24 else "", align="C")
+            self.cell(24, 8, ("" if hr == 24 else f"{(hr - 1) % 12 + 1} {'AM' if hr < 12 else 'PM'}" if self.h12 else f"{hr:02d}:00"), align="C")
         self.set_draw_color(*ACCENT)   # meals: thin dashed lines with a small mark at the foot
         self.set_line_width(0.5)
         self.set_dash_pattern(dash=2, gap=2)
@@ -169,10 +178,10 @@ class Report(FPDF):
         self.ln(4)
 
 
-def build(first: str, last: str, days: list[dict], overview: dict, low: int, high: int, made: datetime) -> bytes:
+def build(first: str, last: str, days: list[dict], overview: dict, low: int, high: int, made: datetime, h12: bool = False) -> bytes:
     """days: [{day, meals, entries, carbs, fiber, fiber_unknown, insulin, glucose, points, start_ms}] for days with anything logged."""
     rng = day_label(first, True) if first == last else f"{day_label(first)} – {day_label(last, True)}"
-    pdf = Report(rng)
+    pdf = Report(rng, h12)
     pdf.add_page()
     pdf.set_font("Sans", "B", 20)
     pdf.set_text_color(*INK)
@@ -181,7 +190,7 @@ def build(first: str, last: str, days: list[dict], overview: dict, low: int, hig
     pdf.set_text_color(*VEIN)
     pdf.cell(0, 16, safe(f"Kitchen Carbs · {rng}"), new_x="LMARGIN", new_y="NEXT")
     pdf.set_font("Sans", "", 8.5)
-    pdf.cell(0, 14, f"Made {made.strftime('%b %-d, %Y at %H:%M')}", new_x="LMARGIN", new_y="NEXT")
+    pdf.cell(0, 14, f"Made {made.strftime('%b %-d, %Y')} at {clock(made.strftime('%H:%M'), h12)}", new_x="LMARGIN", new_y="NEXT")
     pdf.ln(12)
 
     o = overview
@@ -244,7 +253,7 @@ def rows(pdf: Report, d: dict):
     pdf.set_text_color(*INK)
     pdf.set_draw_color(*LINE)
     pdf.set_fill_color(255, 255, 255)
-    with pdf.table(cell_fill_mode="NONE", col_widths=(40, 190, 44, 40, 70, 132), text_align=("LEFT", "LEFT", "RIGHT", "RIGHT", "LEFT", "LEFT"),
+    with pdf.table(cell_fill_mode="NONE", col_widths=(54, 190, 44, 40, 70, 118) if pdf.h12 else (40, 190, 44, 40, 70, 132), text_align=("LEFT", "LEFT", "RIGHT", "RIGHT", "LEFT", "LEFT"),
                    headings_style=head, borders_layout="HORIZONTAL_LINES", line_height=12, padding=(4, 4),
                    first_row_as_headings=True, repeat_headings=1) as t:
         r = t.row()
@@ -253,7 +262,7 @@ def rows(pdf: Report, d: dict):
         for kind, x in items:
             r = t.row()
             edited = bool(x.get("moved_from") or x.get("edited_at"))
-            r.cell(x["time"] + ("\nedited" if edited else ""), style=FontFace(color=INK))
+            r.cell(clock(x["time"], pdf.h12) + ("\nedited" if edited else ""), style=FontFace(color=INK))
             if kind == "meal":
                 r.cell(safe("\n".join(f"{i['food_name']}, {i['carbs']} g" + (" (by hand)" if i["entered_carbs"] is not None else "")
                                       for i in x["items"])))

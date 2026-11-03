@@ -27,3 +27,4 @@ app's own Kitchen Sans), so it downloads as a file on the tablet and phones alik
   what was recorded; no calculated dose appears (okf/rules/no-dosing.md). Deleted rows are left out.
 - Footer on every page: page numbers and 'Values as logged in Kitchen Carbs. Doses are what was recorded, not advice.'
 - In the Log under the day: 'Export' with the date range and two buttons, 'CSV' and 'PDF'. Up to 92 days.
+- The PDF's times follow the log's 12-hour setting (okf/features/review-log.md); the CSV keeps 24-hour times for spreadsheets.

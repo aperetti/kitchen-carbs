@@ -409,6 +409,11 @@ def past_edits(c) -> bool:
     return db.get_setting(c, "past_edits", "on") != "off"
 
 
+def clock_12h(c) -> bool:
+    """The log's times as 6:30 PM instead of 18:30, one setting for the family (okf/features/review-log.md)."""
+    return db.get_setting(c, "clock") == "12h"
+
+
 def require_editable(c, row):
     if row["day"] != today() and not past_edits(c):
         fail(409, "Earlier days are read-only. A parent can allow changes in Manage → Settings.")
@@ -1264,7 +1269,8 @@ class CountryIn(BaseModel):
 def get_settings(c=Depends(con)):
     return {"off_contact": off_contact(c), "off_contact_default": default_contact(c),
             "off_country": off_country(c), "countries": lookup.COUNTRIES,
-            "fatsecret": "set up" if lookup.fatsecret_ready() else "not set up", "past_edits": past_edits(c)}
+            "fatsecret": "set up" if lookup.fatsecret_ready() else "not set up", "past_edits": past_edits(c),
+            "clock_12h": clock_12h(c)}
 
 
 @app.put("/api/settings", dependencies=[Depends(parent)])
@@ -1283,6 +1289,18 @@ def set_past_edits(body: PastEditsIn, c=Depends(con)):
     """okf/rules/same-day-edits.md"""
     with c:
         db.set_setting(c, "past_edits", "on" if body.allowed else "off")
+    return get_settings(c)
+
+
+class ClockIn(BaseModel):
+    h12: bool
+
+
+@app.put("/api/settings/clock", dependencies=[Depends(parent)])
+def set_clock(body: ClockIn, c=Depends(con)):
+    """okf/features/review-log.md"""
+    with c:
+        db.set_setting(c, "clock", "12h" if body.h12 else "24h")
     return get_settings(c)
 
 
@@ -1920,7 +1938,7 @@ def get_log(day: str | None = None, c=Depends(con)):
             two = core._nearest([r for r in rs if r[0] > ms], ms + 120 * 60 * 1000)
             m["two_h"] = two and two[1]
     entries = entries_for_days(c, day, day)
-    return {"day": day, "editable": day == today() or (day < today() and past_edits(c)), "meals": meals, "entries": entries, "glucose": glucose,
+    return {"day": day, "editable": day == today() or (day < today() and past_edits(c)), "clock_12h": clock_12h(c), "meals": meals, "entries": entries, "glucose": glucose,
             "deleted": deleted_for_day(c, day),
             "insulin": insulin_totals([*entries, *meals]),
             "total": core.total_carbs([*(m["total_exact"] for m in meals), *(e["carbs"] or 0 for e in entries)])}
@@ -2048,7 +2066,7 @@ def export_pdf(start: str, end: str, c=Depends(con)):
     overview = {"days": n, "logged_days": len(days), "meals": len(meals), "entries": len(entries),
                 "carbs_per_day": core.whole_grams(carbs_all / n), "insulin": insulin_totals(entries + meals),
                 "glucose": core.glucose_stats(readings(c, s0, e0), low, high, s0, e0) if glucose else None}
-    pdf = report.build(first.isoformat(), last.isoformat(), days, overview, low, high, now())
+    pdf = report.build(first.isoformat(), last.isoformat(), days, overview, low, high, now(), clock_12h(c))
     return Response(pdf, media_type="application/pdf",
                     headers={"Content-Disposition": f'attachment; filename="kitchen-carbs_{first}_{last}.pdf"'})
 

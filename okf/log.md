@@ -124,3 +124,4 @@
 - 2026-11-02 — Meal fiber: logged items keep their food's fiber; the log shows each meal's fiber and the PDF each day's total (domain/meal.md).
 - 2026-11-02 — Fill in fiber lists every food without fiber, with a typed box for foods with no source to read again; filling a food's fiber fills it on logged meals that had none.
 - 2026-11-02 — The meal summary's dose rounds down to a step set with the insulin settings: 0.05, 0.1, 0.5 or 1 u (domain/insulin-settings.md, rules/no-dosing.md).
+- 2026-11-02 — The log can show 12-hour times with AM/PM, set once for the family in Settings → Log; the PDF follows it, the CSV stays 24-hour (features/review-log.md).

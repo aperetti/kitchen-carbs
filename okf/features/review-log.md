@@ -26,3 +26,6 @@ Day view; previous/next day.
   the details, eaten, carbs and comment, and the date and time last, and follows the meal to its day.
 - While there are unsaved changes, choosing another meal, entry or day, or adding an entry, is held back with
   'Save or discard the changes first', so nothing typed is lost without a choice.
+- Times (decided 2 Nov): 24-hour (18:30) unless 'Show times as 12-hour' is on in Manage → Settings → Log, then 6:30 PM.
+  One setting for the family. It covers the log rows, meal and entry details, comments and the glucose chart; time
+  boxes keep the device's own time picker.
