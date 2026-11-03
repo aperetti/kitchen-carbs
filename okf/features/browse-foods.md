@@ -3,7 +3,7 @@ type: Feature
 title: "Browse foods"
 description: "Find foods in a grid of cards with photos, portions and carbs; search and filter by tag or Favorites."
 tags: [feature]
-timestamp: 2026-10-30
+timestamp: 2026-11-03
 status: draft
 links:
   uses: [domain/food.md, domain/portion.md, domain/photo.md, domain/tag.md, domain/nutrition-source.md]
@@ -23,10 +23,11 @@ links:
   plate still comes off with a tap.
 - No automatic Free snacks tab (decided 28 Oct, replacing the same day's carb-limit tab): a family that wants one
   makes a 'Free snacks' tag in Manage and puts foods in it by hand, like any tag.
-- Search across categories (decided 31 Oct): with a tag or Favorites chosen, a search lists that category's matches
-  first, then, under a full-width heading 'In other categories', the matching foods outside it. If the category has
-  none, it says so ('Nothing in Breakfast matches') and the other matches still show. 'Look up “…” and add it' appears
-  only when no food anywhere matches. With All chosen there is one list, as before.
+- Search covers every food (decided 3 Nov, replacing 31 Oct's category-first list, where 'Nothing in Breakfast
+  matches' showed above matches further down and read as no results): while a search is typed, the grid lists every
+  matching food as with All, whatever tag or Favorites was chosen, and the All button is lit. Clearing the search goes
+  back to the chosen filter. Tapping a filter while a search is typed clears the search and shows that filter.
+  'Look up “…” and add it' appears when no food matches.
 - Searching for several foods in a row (decided 29 Oct): tapping a card while a search is typed adds it, then clears the
   search and puts the cursor back in the search box, so the next name can be typed straight away.
 - Added-to-plate feedback (decided 29 Oct): the tapped card's photo flies to the plate count ('Plate (3)' on a phone,

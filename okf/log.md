@@ -134,3 +134,4 @@
 - 2026-11-03 — A bolus typed while the BG is under 70 mg/dL gets a warning to treat the low first, in the meal summary and Add entry; saving is never blocked (rules/low-bg-bolus-warning.md).
 - 2026-11-03 — A meal's Edit shows its carbs ready to change and a Note box that goes into its comments; 'Change total carbs' left the ⋯ menu (design/components/log-details.md).
 - 2026-11-03 — Photo style and Tags moved into Settings, after Food lookup; Lock moved to the top bar at the right. Their settings save with the bar (design/components/settings-nav.md, settings-save.md).
+- 2026-11-03 — A food search now looks through every food, whatever tag or Favorites is chosen, so matches are never hidden below 'Nothing in … matches' (features/browse-foods.md).

@@ -156,26 +156,15 @@ const shownPhoto = p => p.photo.styled || p.photo.original;
 const carbRange = f => f.range ? (f.range[0] === f.range[1] ? `${f.range[0]} g carbs` : `${f.range[0]}–${f.range[1]} g carbs`) : "No portions yet";
 function renderFoods() {
   if (!["all", "fav"].includes(S.filter) && !S.tags.some(t => t.id === S.filter)) S.filter = "all";
+  const q = S.q.trim().toLowerCase(), shown = q ? "all" : S.filter;   // a search looks through every food (okf/features/browse-foods.md)
   const filters = [["fav", "Favorites"], ["all", "All"], ...S.tags.map(t => [t.id, t.name])];
-  $("#cats").innerHTML = filters.map(([k, l]) => `<button data-filter="${k}" class="${k === S.filter ? "on" : ""}">${esc(l)}</button>`).join("");
-  if (S.filter === "fav") return renderFavorites();
-  const q = S.q.trim().toLowerCase();
-  const list = S.foods.filter(f => (S.filter === "all" || f.tags.includes(S.filter)) && (!q || f.name.toLowerCase().includes(q)));
-  const more = otherMatches(list);
-  $("#foodList").innerHTML = list.length ? list.map(foodCard).join("") + more
-    : more ? `<div class="empty"><p>Nothing in ${esc(filterName())} matches.</p></div>${more}`
+  $("#cats").innerHTML = filters.map(([k, l]) => `<button data-filter="${k}" class="${k === shown ? "on" : ""}">${esc(l)}</button>`).join("");
+  if (shown === "fav") return renderFavorites();
+  const list = S.foods.filter(f => (shown === "all" || f.tags.includes(shown)) && (!q || f.name.toLowerCase().includes(q)));
+  $("#foodList").innerHTML = list.length ? list.map(foodCard).join("")
     : `<div class="empty">${!S.foods.length ? "No foods yet. A parent can add them in Manage."
         : `<p>No foods match.</p>${S.q.trim().length >= 2 && S.session ? `<p><button class="btn" data-act="add-search">Look up “${esc(S.q.trim())}” and add it</button></p>
            <p class="meta">A parent checks the numbers first.</p>` : ""}`}</div>`;
-}
-/* A search inside a tag or Favorites also finds foods outside it, listed after (okf/features/browse-foods.md) */
-const filterName = () => S.filter === "fav" ? "Favorites" : S.tags.find(t => t.id === S.filter)?.name || "this category";
-function otherMatches(shown) {
-  const q = S.q.trim().toLowerCase();
-  if (!q || S.filter === "all") return "";
-  const ids = new Set(shown.map(f => f.id));
-  const rest = S.foods.filter(f => !ids.has(f.id) && f.name.toLowerCase().includes(q));
-  return rest.length ? `<h3 class="morehead">In other categories</h3>${rest.map(foodCard).join("")}` : "";
 }
 /* Fiber, for reference only: never taken off the carbs (okf/domain/food.md) */
 const fiberIn = (f, g) => Math.round(g * f.fiber_per_100g / 10) / 10;
@@ -219,9 +208,7 @@ const favSummary = f => f.items.map(i => `${i.food_name} ${i.grams ? fmtG(itemG(
 const orphaned = f => f.items.every(i => i.missing);   // no foods left (okf/domain/favorite-plate.md)
 let confirmOrphans = 0, confirmDrop = 0;
 function renderFavorites() {
-  const q = S.q.trim().toLowerCase();
-  const list = S.favs.filter(f => !q || f.name.toLowerCase().includes(q) || favSummary(f).toLowerCase().includes(q));
-  const n = S.favs.filter(orphaned).length;
+  const list = S.favs, n = S.favs.filter(orphaned).length;
   $("#foodList").innerHTML = (n ? `<p class="orphanbar">${n} favorite${n > 1 ? "s have" : " has"} no foods left.
       <button class="linkbtn" data-act="fav-orphans">${Date.now() - confirmOrphans < 4000 ? `Tap again to remove ${n > 1 ? "them" : "it"}` : `Remove ${n > 1 ? "them" : "it"}`}</button></p>` : "")
     + (list.length ? list.map(f => {
@@ -241,8 +228,7 @@ function renderFavorites() {
             <button type="button" class="linkbtn" data-act="fav-drop">${Date.now() - confirmDrop < 4000 ? "Tap again to remove them" : `Remove the missing item${f.missing > 1 ? "s" : ""}`}</button>` : ""}
           <button type="button" class="linkbtn" data-act="fav-unpin">${confirmUnpin && Date.now() - confirmUnpin < 4000 ? "Tap again to unpin" : "Unpin this favorite"}</button></div>` : ""}</div>
     </article>`;
-  }).join("") : `<div class="empty">${S.favs.length ? "No favorites match." : "No favorite plates yet. Build a plate, then tap Pin as favorite. You can also pin a meal from the log."}</div>`)
-    + otherMatches([]);
+  }).join("") : `<div class="empty">No favorite plates yet. Build a plate, then tap Pin as favorite. You can also pin a meal from the log.</div>`);
 }
 let confirmUnpin = 0;
 function useFavorite(f) {
@@ -321,7 +307,7 @@ $("#v-foods").addEventListener("click", async e => {
   if (e.target.closest("[data-stay]") && !e.target.closest("[data-act]")) return;   // reading or renaming in the details
   const t = e.target.closest("[data-filter],[data-info],[data-favinfo],[data-act],[data-addcard],[data-favuse]"); if (!t) return;
   if (t.dataset.act === "add-search") { openAddDialog(S.q.trim()); return; }
-  if (t.dataset.filter) { const k = t.dataset.filter; S.filter = ["fav", "all"].includes(k) ? k : +k; store.set("filter", S.filter); renderFoods(); }
+  if (t.dataset.filter) { const k = t.dataset.filter; S.filter = ["fav", "all"].includes(k) ? k : +k; store.set("filter", S.filter); S.q = ""; $("#q").value = ""; renderFoods(); }
   else if (t.dataset.addcard) {
     const f = foodById(t.dataset.addcard);
     if (S.plate.some(x => x.food_id === f.id)) {   // a second tap takes it off the plate again
