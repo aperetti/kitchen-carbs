@@ -455,7 +455,7 @@ function usePlan(p, btn) {
     rows.push({ ...i, key: uid(), food_name: f.name, portion_label: pt.label, base: pt.grams, photo: shownPhoto(pt) });
   }
   if (!rows.length) { toast(`None of ${p.name}'s foods are in the food list any more.`); return; }
-  S.plate = rows; S.plateTime = hhmm(); S.plan = { id: p.id, name: p.name, day: p.day, time: p.time };
+  S.plate = rows; S.plateTime = null; startPlateTime(); S.plan = { id: p.id, name: p.name, day: p.day, time: p.time };
   syncPlate(); savePlate();
   toast(gone.length ? `${p.name} is on the plate. Left out: ${gone.join(", ")} (no longer in the food list).` : `${p.name} is on the plate. Check each weight before saving.`);
   if (location.hash.slice(1).split("/")[0] === (splitMode() ? "foods" : "plate")) renderPlate(); else location.hash = splitMode() ? "foods" : "plate";
@@ -631,7 +631,7 @@ function unconfirmedHTML(x) {
 function renderPlate() {
   const el = $("#plateView");
   if (!S.plate.length) { el.innerHTML = scaleBar() + `<div class="empty"><h2>The plate is empty</h2><p>Tap a food to add it, then set its weight here.</p>${splitMode() ? "" : `<p><a class="btn" href="#foods">Go to foods</a></p>`}${handAdd()}</div>${duePlans()}`; paintScale(); setTimeout(tryScale); return; }
-  S.plateTime = S.plateTime || hhmm();
+  startPlateTime();
   syncPlate();
   el.innerHTML = scaleBar() + (S.plan ? `<p class="planfrom">From the plan <b>${esc(S.plan.name)}</b>, ${esc(planWhen(S.plan))}. Saving it to the log replaces the plan.</p>` : "") + S.plate.map(x => {
     if (x.entered != null) return handRow(x);
@@ -746,7 +746,7 @@ $("#plateView").addEventListener("submit", async e => {
     if (!name) { toast("Say what it was, so the log shows it."); return; }
     if (!(carbs >= 0.5 && carbs <= 300)) { toast("Carbs entered by hand are between 0.5 and 300 g."); return; }
     S.plate.push({ key: uid(), food_id: null, portion_id: null, food_name: name, entered: carbs, grams: 0, qty: 1 });
-    S.plateTime = S.plateTime || hhmm(); savePlate(); renderPlate(); toast(`Added ${name}, ${fmtG(carbs)} carbs`); return;
+    startPlateTime(); savePlate(); renderPlate(); toast(`Added ${name}, ${fmtG(carbs)} carbs`); return;
   }
   if (e.target.id === "planForm") { e.preventDefault(); savePlan(e.target.querySelector("button")); return; }
   if (e.target.id !== "pinPlate") return; e.preventDefault();
@@ -759,7 +759,7 @@ $("#plateView").addEventListener("submit", async e => {
   }
 });
 $("#plateView").addEventListener("change", e => {
-  if (e.target.id === "plateTime") S.plateTime = e.target.value;
+  if (e.target.id === "plateTime") { S.plateTime = e.target.value; S.plateAuto = false; }
   if (e.target.matches(".hName,.hCarbs")) {   // a hand-entered row changed: kept only when it still makes sense
     const x = S.plate.find(i => i.key === e.target.closest("[data-key]").dataset.key), v = e.target.value.trim();
     if (e.target.matches(".hName")) { if (v) x.food_name = v; else toast("Say what it was, so the log shows it."); }
@@ -828,6 +828,7 @@ const ARROWS = { DoubleUp: "⇈", SingleUp: "↑", FortyFiveUp: "↗", Flat: "�
 const u2 = x => (+x).toFixed(2);
 const agoMin = m => m < 1 ? "just now" : m < 120 ? `${m} min ago` : m < 2880 ? `${Math.round(m / 60)} hours ago` : `${Math.round(m / 1440)} days ago`;
 function openSummary() {
+  if (S.plateAuto) S.plateTime = eatAt(null);   // worked out again from now; loadDose moves it to the BG
   S.sum = { carbs: whole(plateExact()), day: localDay(), at: S.plateTime || hhmm(), bg: "", typed: false, data: null, err: null };
   doseDlg.innerHTML = `<div class="dlghead"><b id="sumHead">${sumHead()}</b><button class="rm" data-sum="close" aria-label="Back to plate">×</button></div>
     <div class="dlgbody">
@@ -847,8 +848,9 @@ function openSummary() {
 }
 let doseTimer = null;
 const sumHead = () => `Meal summary · ${S.sum.day === localDay() ? "" : dayLabel(S.sum.day) + ", "}${S.sum.at}`;
-/* A meal set away from now can't take the CGM's current reading as its BG (okf/features/meal-dose-summary.md) */
-const sumAway = () => Math.abs(Date.now() - new Date(`${S.sum.day}T${S.sum.at}`).getTime()) > 15 * 60e3;
+/* A meal set away from now can't take the CGM's current reading as its BG (okf/features/meal-dose-summary.md).
+   Up to 120 min ahead it can: that is the BG at the bolus, before eating. */
+const sumAway = () => { const d = new Date(`${S.sum.day}T${S.sum.at}`).getTime() - Date.now(); return d < -15 * 60e3 || d > 120 * 60e3; };
 async function loadDose() {
   const s = S.sum; if (!s) return;
   const bg = s.typed && s.bg !== "" ? `&bg=${encodeURIComponent(s.bg)}` : s.typed || sumAway() ? "&use_cgm=false" : "";
@@ -856,6 +858,10 @@ async function loadDose() {
   catch (err) { s.data = null; s.err = err.status === 422 ? "Blood glucose must be between 20 and 600 mg/dL." : err.message || "Couldn't reach the server."; }
   if (S.sum !== s) return;
   if (!s.typed) $("#sumBg").value = s.data?.bg_source === "cgm" ? s.data.cgm.sgv : "";   // filled in only from a fresh reading
+  if (S.plateAuto && s.day === localDay()) {   // the eat time follows the BG until it's changed by hand
+    const at = eatAt($("#sumBg").value.trim());
+    if (at !== s.at) { s.at = S.plateTime = $("#sumAt").value = at; if ($("#plateTime")) $("#plateTime").value = at; $("#sumHead").textContent = sumHead(); return loadDose(); }
+  }
   minFollow(doseDlg.querySelector(".mdet"), $("#sumBg").value.trim(), s.at);
   drawDose(); sumLow();
 }
@@ -912,7 +918,7 @@ doseDlg.addEventListener("change", e => {   // date or time of the meal: heading
   if (!["sumDay", "sumAt"].includes(e.target.id) || !S.sum) return;
   const day = $("#sumDay").value, at = $("#sumAt").value;
   if (!day || !at || day > localDay()) return;
-  Object.assign(S.sum, { day, at }); S.plateTime = at; savePlate();
+  Object.assign(S.sum, { day, at }); S.plateTime = at; S.plateAuto = false; savePlate();
   $("#sumHead").textContent = sumHead(); loadDose();
 });
 doseDlg.addEventListener("input", () => setTimeout(sumLow));   // after the BG box and the Bolus / Basal switch have moved
@@ -949,7 +955,17 @@ doseDlg.addEventListener("close", () => { S.sum = null; clearTimeout(doseTimer);
    worked-out dose (okf/rules/no-dosing.md). Used in the meal summary and when editing a meal in the log. */
 /* Insulin timing is counted from the meal's time (okf/domain/meal.md): minutes before it, 0 = at the meal time.
    A new entry starts at the family's rule, BG ÷ 10, or at the meal time under 80 mg/dL or without a BG. */
-const preMin = bg => bg == null || bg === "" || +bg < 80 ? 0 : Math.min(120, Math.round(+bg / 10));
+const preMin = bg => bg == null || bg === "" ? 15 : +bg < 80 ? 0 : Math.min(120, Math.round(+bg / 10));
+/* The estimated eat time: now plus that wait, kept on today (okf/features/meal-dose-summary.md) */
+const eatAt = bg => { const d = new Date(Date.now() + preMin(bg) * 60e3); return localDay(d) === localDay() ? hhmm(d) : hhmm(); };
+function startPlateTime() {   // a new plate: 15 min ahead until a fresh CGM reading says otherwise, and until the time is changed
+  if (S.plateTime) return;
+  S.plateTime = eatAt(null); S.plateAuto = true;
+  api("/api/nightscout").then(r => {
+    const c = r.latest; if (!S.plateAuto || !S.plateTime || !c || Date.now() - c.date_ms > 15 * 60e3) return;
+    S.plateTime = eatAt(c.sgv); if ($("#plateTime")) $("#plateTime").value = S.plateTime;
+  }).catch(() => { });
+}
 const minusMin = (at, n) => { const m = ((+at.slice(0, 2) * 60 + +at.slice(3, 5) - n) % 1440 + 1440) % 1440; return `${pad2(Math.floor(m / 60))}:${pad2(m % 60)}`; };
 const minNote = (n, at) => n === 0 ? "At the meal time" : at ? `At ${clk(minusMin(at, n))}` : "";
 function detailFields(d = {}, bg = null, at = "") {

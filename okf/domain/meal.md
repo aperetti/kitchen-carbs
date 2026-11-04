@@ -34,8 +34,8 @@ Optional details that go with the meal (decided 29 Oct), each left empty unless 
 - Insulin given for the meal: units (to 0.05 u) and Bolus or Basal. Only what a person typed (okf/rules/no-dosing.md).
 - When the insulin was given, counted from the meal's time (decided 2 Nov, replacing the Before eating / At the start /
   After starting switches): one box, 'Bolus given N min before the meal', 0 to 120, where 0 means at the meal time.
-  It can't be after the meal. A new entry starts at the BG ÷ 10, rounded (BG 150: 15 min), or 0 when the BG is under
-  80 mg/dL or not known, and follows the BG box until the minutes are typed; a saved one shows what was saved. A
+  It can't be after the meal. A new entry starts at the BG ÷ 10, rounded (BG 150: 15 min), 0 when the BG is under
+  80 mg/dL, or 15 when the BG isn't known (decided 4 Nov, was 0), and follows the BG box until the minutes are typed; a saved one shows what was saved. A
   meal saved before 2 Nov with insulin after starting keeps it and says so, until the minutes are changed.
   This is the family's own timing rule as a starting value, not advice; the box can always be changed.
 - How long the meal took to eat, in minutes (1–240).

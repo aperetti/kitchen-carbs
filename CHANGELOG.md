@@ -2,6 +2,7 @@
 Each version is what went to the family's kitchen on that date (okf/architecture/releases.md).
 
 ## Unreleased
+- A new meal's time is now the time he'll likely start eating: now plus the wait from his BG (BG ÷ 10 minutes, none under 80), or 15 minutes when there's no BG. It updates if a different BG is typed in the summary, and stays put once you change the time yourself.
 - Searching foods now looks through every food, even when a tag like Breakfast or Favorites is chosen, so it never says "nothing matches" while the food is further down. Tapping a tag clears the search.
 - Manage now has two tabs, Foods and photos and Settings. Photo style and Tags are sections in Settings, after Food lookup. Their changes save with the same "Unsaved changes" bar. Lock has moved to the top bar, at the right, and shows while Manage is unlocked.
 - Editing a meal in the log now shows its carbs ready to change and a Note box. A note is added to the meal's comments. Changing the carbs still asks why. "Change total carbs" is no longer in the ⋯ menu.

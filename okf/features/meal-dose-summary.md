@@ -3,7 +3,7 @@ type: Feature
 title: "Meal summary and dose"
 description: "Tapping 'Save to log' opens a summary of the plate with the insulin worked out from the parent's ratios, the BG and insulin on board, step by step."
 tags: [feature, safety]
-timestamp: 2026-10-29
+timestamp: 2026-11-04
 status: draft
 links:
   uses: [domain/plate.md, domain/insulin-settings.md, domain/glucose-reading.md]
@@ -25,13 +25,19 @@ Decided 29 Oct. 'Save to log' on the plate opens a modal before anything is save
 - No BG: carbs only, and it says no correction was added. No settings: the summary shows the meal, says the ratios
   aren't set up, and links to Manage → Settings.
 - 'What was given (optional)', under the steps (decided 29 Oct): insulin given (empty, never filled in from the dose),
-  Bolus or Basal, how many minutes before the meal's time it was given (0 = at the meal time; starts at BG ÷ 10, or 0
-  under 80 mg/dL, see okf/domain/meal.md), and how long the meal took to eat.
+  Bolus or Basal, how many minutes before the meal's time it was given (0 = at the meal time; starts at BG ÷ 10, 0
+  under 80 mg/dL, 15 with no BG, see okf/domain/meal.md), and how long the meal took to eat.
   The BG in the box is saved with the meal as its BG, marked CGM or meter.
+- Eat time estimated from the BG (decided 4 Nov): a new plate's time isn't just the moment the first food goes on.
+  It is now plus the same wait the insulin box starts at (okf/domain/meal.md): BG ÷ 10 minutes, none under 80 mg/dL,
+  and 15 minutes when there is no BG (no CGM reading under 15 minutes old). When the summary opens, the time is worked
+  out again from that moment, and it follows the BG box (CGM or typed) until someone changes the time, on the plate or
+  in the summary; after that it stays as set. A wait that would cross midnight leaves the time at now.
+  A meal set up to 120 minutes ahead still takes the CGM's current reading as its BG: it is the BG at the bolus.
 - When (decided 31 Oct): a date and a time under the meal list, starting at today and the plate's time, so a meal
   saved late (after the bolus, or the next morning) goes in at the right moment. The date can't be in the future.
   Changing the time works the dose out again with that time's ratios, keeps the plate's time in step, and shows in the
-  heading. When the meal is set more than 15 minutes from now, the BG box isn't filled in from the CGM (that reading
+  heading. When the meal is set more than 15 minutes before now (or more than 120 after), the BG box isn't filled in from the CGM (that reading
   is from now, not the meal) and a line says so: type the meter reading from then. Insulin on board is still now's.
   A meal saved to an earlier day is marked ✎ like an entry added to an earlier day (okf/rules/same-day-edits.md).
 - Buttons: 'Save to log' saves the meal with these details; 'Back to plate' closes the modal. The dose isn't saved or sent anywhere.
