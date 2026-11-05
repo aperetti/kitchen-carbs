@@ -2,6 +2,8 @@
 Each version is what went to the family's kitchen on that date (okf/architecture/releases.md).
 
 ## Unreleased
+
+## v2026.11.04 · 4 Nov 2026
 - When the sensor misses readings for 10 to 60 minutes, the glucose charts now fill the gap with a dashed estimate (the same AR2 method Nightscout uses for its forecast, run from both sides of the gap). The numbers under the charts still come only from real readings, and longer gaps stay blank.
 - New "After meals" page, from the Log: every meal's glucose for the 3 hours after eating, lined up at mealtime, with how much it rose, when it peaked, whether it was back in range by 2 or 3 hours, and the insulin and its timing. Foods eaten 2 or more times are grouped so you can compare them ("Pizza, 4 meals: average rise +110 mg/dL"). It shows patterns only, for you and the care team; it never suggests doses or ratio changes.
 - A new meal's time is now the time he'll likely start eating: now plus the wait from his BG (BG ÷ 10 minutes, none under 80), or 15 minutes when there's no BG. It updates if a different BG is typed in the summary, and stays put once you change the time yourself.
