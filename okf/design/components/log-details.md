@@ -12,7 +12,7 @@ links:
 # Log details: read first, Edit to change
 Decided 2 Nov: every meal opened with about ten sections, all of them forms, which was too much for the family.
 - Read view (how it opens): the time and carbs, the foods and fiber, one line of what was recorded ('BG 180 (meter) ·
-  2 u bolus, 10 min before the meal · eaten in 20 min', or 'No BG or insulin added'), the glucose chart, then the
+  2 u bolus @ 5:50 PM, 10 min before the meal · eaten in 20 min', or 'No BG or insulin added'), the glucose chart, then the
   quick notes that are tapped after a meal: how fast it rose, how much was eaten, and comments. These still save
   through the 'Unsaved changes' bar.
 - Beside the heading: 'Edit' and a '⋯' menu.

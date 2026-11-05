@@ -3,6 +3,7 @@ Each version is what went to the family's kitchen on that date (okf/architecture
 
 ## Unreleased
 
+- The log now shows when a meal's insulin was given, e.g. "2.5 u bolus @ 5:50 PM", in the list and in the meal's details.
 ## v2026.11.04 · 4 Nov 2026
 - When the sensor misses readings for 10 to 60 minutes, the glucose charts now fill the gap with a dashed estimate (the same AR2 method Nightscout uses for its forecast, run from both sides of the gap). The numbers under the charts still come only from real readings, and longer gaps stay blank.
 - New "After meals" page, from the Log: every meal's glucose for the 3 hours after eating, lined up at mealtime, with how much it rose, when it peaked, whether it was back in range by 2 or 3 hours, and the insulin and its timing. Foods eaten 2 or more times are grouped so you can compare them ("Pizza, 4 meals: average rise +110 mg/dL"). It shows patterns only, for you and the care team; it never suggests doses or ratio changes.

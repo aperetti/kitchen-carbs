@@ -1012,9 +1012,10 @@ document.addEventListener("input", e => {
   if (e.target.matches(".mdet .dMin")) { delete e.target.dataset.auto; delete e.target.dataset.legacy; minFollow(e.target.closest(".mdet")); }
   else if (e.target.id === "mdBg") minFollow($("#mdetForm .mdet"), e.target.value.trim());
 });
+const givenAt = m => clk(minusMin(m.time, m.insulin_offset_min || 0));   // the clock time the meal's insulin was given
 const detailSummary = m => [
   m.bg != null && `BG ${m.bg}${m.bg_source === "cgm" ? " (CGM)" : " (meter)"}`,
-  m.insulin != null && `${fmtU(m.insulin)} ${m.insulin_kind}${!m.insulin_offset_min ? " at the meal time" : m.insulin_offset_min > 0 ? `, ${m.insulin_offset_min} min before the meal` : `, ${-m.insulin_offset_min} min after starting`}`,
+  m.insulin != null && `${fmtU(m.insulin)} ${m.insulin_kind} @ ${givenAt(m)}${!m.insulin_offset_min ? " at the meal time" : m.insulin_offset_min > 0 ? `, ${m.insulin_offset_min} min before the meal` : `, ${-m.insulin_offset_min} min after starting`}`,
   m.eat_min != null && `eaten in ${m.eat_min} min`].filter(Boolean).join(" · ");
 
 async function saveMeal(btn, extra = {}) {
@@ -1190,7 +1191,7 @@ const fiberLine = m => m.fiber == null ? "" : m.fiber_unknown.length === m.items
   : `Including ${m.fiber} g fiber${m.fiber_unknown.length ? `; not known for ${m.fiber_unknown.join(", ")}` : ""}`;
 // a row's one short line: BG and 2 h, insulin, a hand-changed total; eaten and fiber are in the meal (okf/design/components/entry-row.md)
 const rowFacts = m => { const f = [m.bg != null || m.two_h != null ? [m.bg != null && `BG&nbsp;${m.bg}`, m.two_h != null && `2&nbsp;h&nbsp;${m.two_h}`].filter(Boolean).join(" → ") : "",
-    m.insulin != null && `${fmtU(m.insulin)} ${m.insulin_kind}`, m.carbs_corrected != null && `<i class="moved">Carbs edited</i>`].filter(Boolean);
+    m.insulin != null && `${fmtU(m.insulin)} ${m.insulin_kind} @ ${givenAt(m)}`, m.carbs_corrected != null && `<i class="moved">Carbs edited</i>`].filter(Boolean);
   return f.length ? `<span>${f.join(" · ")}</span>` : ""; };
 function logRows(d) {
   const rows = [...d.meals.map(m => ({ t: m.time, m })), ...d.entries.map(e => ({ t: e.time, e }))].sort((a, b) => a.t.localeCompare(b.t));

@@ -20,6 +20,7 @@ Insulin and BG are graphite text, never accent, so they can't be confused with c
 - A meal row shows its comments' text, newest last, instead of a comment count, so the reason for a carbs edit is
   visible without opening the meal. Long comments are cut to two lines.
 - A meal row's second line is short (decided 2 Nov, the log was too busy): the BG saved with the meal and the sensor
-  two hours later, then insulin: 'BG 182 → 2 h 169 · 2.5 u bolus'. 'Eaten' and fiber are only in the meal's details.
+  two hours later, then insulin with the clock time it was given (decided 4 Nov: the meal's time less its minutes
+  before the meal): 'BG 182 → 2 h 169 · 2.5 u bolus @ 5:50 PM'. 'Eaten' and fiber are only in the meal's details.
   The foods keep their carbs on the first line, which the family finds handy at a glance. 'BG' is the reading typed or taken from the CGM at mealtime; '2 h'
   is the sensor two hours later.
