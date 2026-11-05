@@ -5,7 +5,7 @@ The token stays here on the server.
 import logging
 import threading
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 
 import requests
 
@@ -132,10 +132,43 @@ def sync_once(now_ms: int | None = None) -> int:
                                       (int(e["date"]), int(e["sgv"]), e.get("direction")))
                     added += cur.rowcount
         since = until
+    try:   # boluses are extra: a failure here never stops the glucose
+        sync_insulin(con, url, token, now_ms)
+    except NightscoutError as e:
+        log.warning("nightscout insulin sync failed: %s", e)
     with con:
         db.set_setting(con, "ns_last_sync", now_ms)
         db.set_setting(con, "ns_last_error", None)
     return added
+
+
+def _iso(ms: int) -> str:
+    return datetime.fromtimestamp(ms / 1000, tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000Z")
+
+
+def sync_insulin(con, url: str, token: str, now_ms: int):
+    """Boluses from Nightscout treatments into ns_insulin (okf/architecture/nightscout-client.md). The last 24 hours
+    are read again and replaced each time, so edits and deletions in Nightscout follow; the first sync goes back 90
+    days. Kitchen Carbs' own treatments are skipped: the log has them."""
+    last = db.get_setting(con, "ns_insulin_sync")
+    since = max(int(last) - 86_400_000, now_ms - BACKFILL_DAYS * 86_400_000) if last else now_ms - BACKFILL_DAYS * 86_400_000
+    while since < now_ms:
+        until = min(since + CHUNK_MS, now_ms + 60_000)
+        rows = _get(url, token, "/api/v1/treatments.json",
+                    {"find[created_at][$gte]": _iso(since), "find[created_at][$lt]": _iso(until), "count": 1000})
+        with con:
+            con.execute("DELETE FROM ns_insulin WHERE date_ms >= ? AND date_ms < ?", (since, until))
+            for t in rows if isinstance(rows, list) else []:
+                u, ms = t.get("insulin"), _ms(t.get("date") or t.get("mills") or t.get("created_at"))
+                if not isinstance(u, (int, float)) or not 0 < u <= 100 or not ms or not t.get("_id"):
+                    continue
+                if t.get("enteredBy") == "Kitchen Carbs" or t.get("app") == "kitchen-carbs":
+                    continue
+                con.execute("INSERT OR REPLACE INTO ns_insulin(id, date_ms, units, event_type, entered_by) VALUES (?, ?, ?, ?, ?)",
+                            (str(t["_id"]), ms, round(float(u), 2), t.get("eventType"), t.get("enteredBy")))
+        since = until
+    with con:
+        db.set_setting(con, "ns_insulin_sync", now_ms)
 
 
 def _loop():

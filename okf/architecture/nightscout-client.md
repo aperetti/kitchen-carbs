@@ -7,7 +7,7 @@ timestamp: 2026-10-27
 status: draft
 links:
   serves: [features/connect-nightscout.md, features/nightscout-send.md, features/meal-glucose-view.md, features/glucose-stats-view.md]
-  stores: [domain/glucose-reading.md]
+  stores: [domain/glucose-reading.md, domain/insulin-effect.md]
   depends_on: [architecture/storage.md]
 ---
 # Nightscout client
@@ -19,6 +19,13 @@ links:
   newest `/api/v1/devicestatus.json` (`loop.iob.iob`, `openaps.iob.iob`, `pump.iob.bolusiob` / `pump.iob.iob`).
   IOB older than 15 minutes counts as missing.
 - Profile (targets): `GET {site}/api/v1/profile.json`.
+- Insulin treatments (decided 4 Nov, for okf/domain/insulin-effect.md): the same job reads
+  `GET {site}/api/v1/treatments.json?find[created_at][$gte]=…&find[created_at][$lt]=…&count=1000` in 3-day chunks
+  and keeps each treatment with a number in `insulin` (Bolus, Meal Bolus, Correction Bolus, SMB, Combo Bolus: pump,
+  Loop, AAPS or pen apps) in table `ns_insulin(id, date_ms, units, event_type, entered_by)`. Treatments Kitchen Carbs
+  sent itself (`enteredBy: "Kitchen Carbs"`) are skipped: the log already has them. Each sync reads the last 24
+  hours again and replaces them, so a bolus edited or deleted in Nightscout follows; the first one backfills 90 days.
+  Temp basals have no `insulin` and aren't read. Read only, like the glucose.
 - First connect backfills 90 days; then incremental. Statistics are computed locally from the cache.
 - If Nightscout is unreachable, the app keeps working; glucose views show 'last updated' time.
 

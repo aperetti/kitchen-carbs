@@ -2097,10 +2097,22 @@ def responses(days: int = 30, c=Depends(con)):
     now_ms = int(now().timestamp() * 1000)
     rs = readings(c, min(times, default=0) - core.WINDOW_BEFORE_MS, max(times, default=0) + core.WINDOW_AFTER_MS + 1)
     factors = (dose_settings(c)["settings"] or {}).get("isf")   # the correction factor, for the estimated insulin effect
-    rapid = [(e["insulin"], meal_ms(e["day"], e["time"])) for e in entries if e["insulin"] is not None and e["insulin_kind"] == "rapid"]
-    rapid += [(m["insulin"], meal_ms(m["day"], m["time"]) - (m["insulin_offset_min"] or 0) * 60000)
-              for m in meals_for_days(c, (first - timedelta(days=1)).isoformat(), last.isoformat())
-              if m["insulin"] is not None and m["insulin_kind"] == "bolus"]
+    # Rapid-acting insulin (okf/domain/insulin-effect.md): Nightscout's boluses, and the log's; a logged dose matching a
+    # Nightscout one (15 min, 10% or 0.1 u) is the same insulin and counts once, at Nightscout's time
+    logged = [(e["insulin"], meal_ms(e["day"], e["time"])) for e in entries if e["insulin"] is not None and e["insulin_kind"] == "rapid"]
+    logged += [(m["insulin"], meal_ms(m["day"], m["time"]) - (m["insulin_offset_min"] or 0) * 60000)
+               for m in meals_for_days(c, (first - timedelta(days=1)).isoformat(), last.isoformat())
+               if m["insulin"] is not None and m["insulin_kind"] == "bolus"]
+    ns = [dict(r) for r in c.execute("SELECT id, date_ms, units FROM ns_insulin WHERE date_ms >= ? AND date_ms <= ? ORDER BY date_ms",
+                                     (day_bounds_ms((first - timedelta(days=1)).isoformat())[0], day_bounds_ms(last.isoformat())[1]))]
+    matched, rapid = set(), [(x["units"], x["date_ms"]) for x in ns]
+    for u, t in logged:
+        twin = next((x for x in ns if x["id"] not in matched and abs(x["date_ms"] - t) <= 15 * 60000
+                     and abs(x["units"] - u) <= max(0.1, u * 0.1) + 1e-9), None)
+        if twin:
+            matched.add(twin["id"])
+        else:
+            rapid.append((u, t))
     out, groups, at = [], {}, [t for t, _ in rs]
     for m, ms in zip(meals, times):
         lo, hi = bisect.bisect_left(at, ms - core.WINDOW_BEFORE_MS), bisect.bisect_right(at, ms + core.WINDOW_AFTER_MS)
@@ -2112,6 +2124,8 @@ def responses(days: int = 30, c=Depends(con)):
         insulin += [{"units": e["insulin"], "kind": e["insulin_kind"], "min": round((t - ms) / 60000), "meal": False}
                     for e in entries if e["insulin"] is not None and e["insulin_kind"] != "long"
                     and -60 * 60000 <= (t := meal_ms(e["day"], e["time"])) - ms <= core.WINDOW_AFTER_MS]
+        insulin += [{"units": x["units"], "kind": "rapid", "min": round((x["date_ms"] - ms) / 60000), "meal": False, "nightscout": True}
+                    for x in ns if x["id"] not in matched and -60 * 60000 <= x["date_ms"] - ms <= core.WINDOW_AFTER_MS]
         r = {"id": m["id"], "day": m["day"], "time": m["time"], "carbs": m["total"],
              "foods": [i["food_name"] for i in m["items"]],
              "points": [[round((t - ms) / 60000), v] for t, v in w["points"] if t >= ms],

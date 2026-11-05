@@ -12,9 +12,13 @@ links:
 ---
 # Estimated insulin effect
 Decided 4 Nov, so meals given different insulin can be compared by what the food did.
-- Which insulin: every rapid-acting amount in the log (a meal's insulin marked Bolus, an entry marked rapid-acting)
-  given from 6 hours before the meal to 3 hours after it. Basal and long-acting are left out, and so is anything not
-  typed into the log (a pump's basal, a bolus given on the pump and not logged here).
+- Which insulin, given from 6 hours before the meal to 3 hours after it (decided 4 Nov: Nightscout added the same day):
+  - every bolus in Nightscout, from the pump, Loop (automatic boluses too) or a pen app (okf/architecture/nightscout-client.md);
+  - every rapid-acting amount in the log (a meal's insulin marked Bolus, an entry marked rapid-acting), except one that
+    matches a Nightscout bolus, given within 15 minutes of it and within 10% (or 0.1 u) of its units: that is the same
+    insulin typed in both places, and counts once, at Nightscout's time;
+  - left out: basal and long-acting, and temp basals (Loop raising or cutting the basal rate), which Nightscout keeps as
+    rates, not amounts.
 - The curve: the exponential insulin activity curve Loop and OpenAPS use for rapid-acting insulin, peaking at 75
   minutes and lasting 6 hours. The share of a dose that has acted by time t, times its units, times the correction
   factor (okf/domain/insulin-settings.md) for the meal's time, is the mg/dL it has lowered glucose by then.

@@ -20,7 +20,8 @@ care team to read (okf/rules/descriptive-stats-only.md).
   - where it was at 2 hours and at 3 hours: 'In range at 2 h', else 'In range at 3 h', else 'Above range at 3 h'
     or 'Below range at 3 h' (in the warn colour, like any low);
   - the insulin typed with the meal and its minutes before the meal, plus any other insulin entry (rapid) from an hour
-    before to 3 hours after, with its minutes from the meal. 'No insulin added' when there is none. The curve depends
+    before to 3 hours after, with its minutes from the meal, and the Nightscout boluses in that time marked
+    'Nightscout' (a logged dose that matches one is shown once, okf/domain/insulin-effect.md). 'No insulin added' when there is none. The curve depends
     as much on the insulin and its timing as on the food, so it is always shown beside the numbers.
 - The chart: the curves lined up at the meal time, 0 to 3 hours along the bottom. 'Rise' (the start) draws each as
   the change from its meal-time value, so meals starting at different BGs compare; 'mg/dL' draws the readings with the
@@ -30,7 +31,8 @@ care team to read (okf/rules/descriptive-stats-only.md).
   from earlier still acting' when a dose from more than an hour before counts)
   and each food 'without the insulin, average rise +X (estimate)'; a meal with no insulin in the log says its curve is
   unchanged. The note under the chart says it is an estimate from the correction factor and a standard rapid-acting
-  curve, counting only insulin in this log. Without a correction factor, the button says it needs one in Manage →
+  curve, counting boluses from Nightscout and the log but not
+  temp basals. Without a correction factor, the button says it needs one in Manage →
   Settings. Each meal is a thin graphite line; the average of the measured ones, every 5 minutes,
   is a thicker line. No colour grades a meal.
 - By food: a food (or a carb entered by hand, by its name) that is in 2 or more measured meals gets a row, most meals

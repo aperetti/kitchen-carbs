@@ -1453,7 +1453,7 @@ function afRange(r) {
   const [w, at] = r.range_3h ? [r.range_3h, "3 h"] : [r.range_2h, "2 h"];
   return !w ? "" : w === "below" ? `<span class="warn">Below range at ${at}</span>` : `Above range at ${at}`;
 }
-const afInsulin = r => r.insulin.length ? r.insulin.map(i => `${fmtU(i.units)} ${KIND[i.kind] || i.kind}${i.meal
+const afInsulin = r => r.insulin.length ? r.insulin.map(i => `${fmtU(i.units)} ${i.nightscout ? "from Nightscout" : KIND[i.kind] || i.kind}${i.meal
   ? (i.min < 0 ? `, ${-i.min} min before the meal` : " at the meal time") : ` at ${i.min < 0 ? `${-i.min} min before` : `${i.min} min after`} the meal`}`).join(" · ") : "No insulin added";
 function renderAfter() {
   const d = AF.data, g = d.foods.find(x => x.key === AF.food);
@@ -1470,7 +1470,7 @@ function renderAfter() {
       ${!d.effect_ready ? `<p class="meta">Insulin backed out needs the correction factor in <a href="#manage/settings">Manage → Settings</a>.</p>` : ""}
       ${afSvg(drawn, d)}
       <p class="note">${drawn.length ? `Thin lines: each meal (${drawn.length}). Thick line: their average, every 5 minutes. ${AF.mode === "rise" ? "Drawn as the change from the meal-time reading." : AF.mode === "net"
-        ? "Drawn as the change from the meal-time reading with the insulin's estimated effect added back. An estimate from the correction factor and a standard rapid-acting insulin curve (peak 75 min, 6 h), counting only insulin in this log: pump basal and boluses not logged here aren't included. For spotting patterns with the care team, not for working out doses."
+        ? "Drawn as the change from the meal-time reading with the insulin's estimated effect added back. An estimate from the correction factor and a standard rapid-acting insulin curve (peak 75 min, 6 h), counting boluses from Nightscout (pump, Loop or pen apps) and this log, once each. Temp basals and basal aren't included. For spotting patterns with the care team, not for working out doses."
         : "The pale band is the target range."}${drawn.some(m => m.estimated.length) ? " Dashed: estimated across a sensor gap; the numbers use only real readings." : ""}` : "No meal here has a full 3 hours of readings yet."}</p>
     </section>
     <h3 class="label afsub">By food</h3>
@@ -1482,7 +1482,7 @@ function renderAfter() {
       <span class="when">${dayLabel(m.day)}, ${clk(m.time)}</span><span class="what">${esc(m.foods.join(" · "))} · ${m.carbs} g carbs</span>
       ${m.rise != null ? `<span class="nums">Rise <b>${signed(m.rise)}</b> (${m.at_meal} → ${m.peak})${m.to_peak_min != null ? `, peak at ${m.to_peak_min} min` : ""}${afRange(m) ? ` · ${afRange(m)}` : ""}${m.lowest != null && m.lowest < d.low ? ` · <span class="warn">lowest ${m.lowest}</span>` : ""}</span>` : ""}
       <span class="ins">${afInsulin(m)}</span>
-      ${AF.mode === "net" && m.at_meal != null && m.points.length ? `<span>${m.insulin_effect ? `Without the insulin (estimate): rise <b>${signed(netRise(m))}</b> · insulin lowered about ${m.insulin_effect[36][1]} by 3 h${m.earlier_insulin ? ", including insulin from earlier still acting" : ""}` : "No rapid-acting insulin in the log, so its curve is unchanged"}</span>` : ""}
+      ${AF.mode === "net" && m.at_meal != null && m.points.length ? `<span>${m.insulin_effect ? `Without the insulin (estimate): rise <b>${signed(netRise(m))}</b> · insulin lowered about ${m.insulin_effect[36][1]} by 3 h${m.earlier_insulin ? ", including insulin from earlier still acting" : ""}` : "No rapid-acting insulin in Nightscout or the log, so its curve is unchanged"}</span>` : ""}
       ${m.left_out ? `<span class="meta">Not in the averages: ${m.left_out === "coverage" ? `sensor ${Math.round(m.coverage * 100)}%` : LEFT_OUT[m.left_out]}</span>` : ""}</button></li>`).join("")}</ul>`
       : `<p class="meta">No meals logged in these ${AF.days} days.</p>`}`}
     <p class="note">Patterns only, to share with the care team. Each curve also depends on the insulin and its timing, activity, illness and what came before.</p>`;

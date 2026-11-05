@@ -338,6 +338,11 @@ def test_nightscout_is_read_only_and_token_hidden(app, monkeypatch):
         if url.endswith("status.json"):
             return R({"settings": {"thresholds": {"bgTargetBottom": 80, "bgTargetTop": 170}}})
         base = int(datetime(2026, 10, 27, 17, 30).timestamp() * 1000)
+        if url.endswith("treatments.json"):   # a Loop bolus is kept; what Kitchen Carbs sent itself is not
+            lo = params["find[created_at][$gte]"]
+            return R([{"_id": "t1", "insulin": 2.35, "eventType": "Correction Bolus", "enteredBy": "loop://iPhone", "date": base},
+                      {"_id": "t2", "insulin": 3, "eventType": "Meal Bolus", "enteredBy": "Kitchen Carbs", "date": base},
+                      {"_id": "t3", "eventType": "Temp Basal", "rate": 0.4, "date": base}] if lo < "2026-10-27T17" < params["find[created_at][$lt]"] else [])
         if params.get("count") == 1:
             return R([{"date": base, "sgv": 118, "direction": "Flat"}])
         lo, hi = params["find[date][$gt]"], params["find[date][$lte]"]
@@ -359,6 +364,8 @@ def test_nightscout_is_read_only_and_token_hidden(app, monkeypatch):
     assert r.status_code == 200
     monkeypatch.setattr(main.nightscout.time, "time", lambda: datetime(2026, 10, 27, 21, 0).timestamp())
     assert main.nightscout.sync_once() == 40
+    with main.db.connect() as c:
+        assert [tuple(r) for r in c.execute("SELECT id, units, event_type FROM ns_insulin")] == [("t1", 2.35, "Correction Bolus")]
     status = client.get("/api/nightscout").json()
     assert "kitchen-abc123" not in str(status) and status["low"] == 80 and status["readings"] == 40
     mid = client.post("/api/meals", json=meal()).json()["id"]
@@ -396,6 +403,16 @@ def test_meal_responses_line_up_and_group(app):
     assert r["effect_ready"] and b["insulin_effect"] is None
     eff = dict((t, v) for t, v in a["insulin_effect"])
     assert eff[0] == 0 and 0 < eff[60] < eff[180] < 3 * 50   # 3 u given 15 min before: part of 150 mg/dL by 3 h
+    # Nightscout's boluses count too; the same 3 u logged and in Nightscout (3.1 u, 3 min apart) counts once
+    ms = lambda day, hm: int(datetime.fromisoformat(f"{day}T{hm}").timestamp() * 1000)
+    with main.db.connect() as c:
+        c.executemany("INSERT INTO ns_insulin(id, date_ms, units, event_type, entered_by) VALUES (?, ?, ?, 'Bolus', 'loop')",
+                      [("same", ms("2026-10-25", "11:48"), 3.1), ("pump", ms("2026-10-26", "11:55"), 1.5)])
+    r = client.get("/api/responses?days=14").json()
+    a2, b2 = r["meals"][2], r["meals"][1]
+    assert [i["units"] for i in a2["insulin"]] == [3] and abs(dict(a2["insulin_effect"])[180] - eff[180]) <= 6
+    assert b2["insulin"] == [{"units": 1.5, "kind": "rapid", "min": -5, "meal": False, "nightscout": True}]
+    assert b2["insulin_effect"][-1][1] > 0
 
 
 # ---- tags and favorites ----

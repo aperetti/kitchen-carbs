@@ -234,12 +234,20 @@ def m020_planned_meals(con):
       items TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)""")
 
 
+def m021_ns_insulin(con):
+    """Boluses read from Nightscout treatments, for After meals' insulin (okf/domain/insulin-effect.md).
+    id is Nightscout's _id; Kitchen Carbs' own sends aren't kept."""
+    con.execute("""CREATE TABLE ns_insulin (
+      id TEXT PRIMARY KEY, date_ms INTEGER NOT NULL, units REAL NOT NULL, event_type TEXT, entered_by TEXT)""")
+    con.execute("CREATE INDEX ns_insulin_date ON ns_insulin(date_ms)")
+
+
 MIGRATIONS = [m001_schema, m002_sessions, m003_cooked_state, m004_moved_from, m005_portion_labels, m006_fiber,
               m007_food_confirmations, m008_meal_details, m009_barcode,
               m010_entered_carbs, m011_edited_later,
               m012_soft_delete, m013_carbs_corrected, m014_favorite_photo,
               m015_push_subscriptions, m016_tidepool_sent, m017_nightscout_sent, m018_meal_rating, m019_meal_fiber,
-              m020_planned_meals]
+              m020_planned_meals, m021_ns_insulin]
 LATEST = len(MIGRATIONS)
 
 

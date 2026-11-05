@@ -3,6 +3,7 @@ Each version is what went to the family's kitchen on that date (okf/architecture
 
 ## Unreleased
 
+- After meals now reads his boluses from Nightscout too (pump, Loop including its automatic boluses, or a pen app), so the insulin beside each meal and the "Insulin backed out" view include insulin that was never typed into the app. A bolus that's both logged here and in Nightscout counts once. Temp basals still aren't included.
 - After meals has a new "Insulin backed out" view: it adds back roughly what the logged insulin lowered his glucose by, so meals given different insulin can be compared by what the food did. It's an estimate from your correction factor and a standard rapid-acting insulin curve, counts only insulin entered in the app, and is for spotting patterns with the care team, never for working out doses.
 - The log now shows when a meal's insulin was given, e.g. "2.5 u bolus @ 5:50 PM", in the list and in the meal's details.
 ## v2026.11.04 · 4 Nov 2026
