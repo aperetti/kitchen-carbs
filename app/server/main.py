@@ -2096,6 +2096,11 @@ def responses(days: int = 30, c=Depends(con)):
     times = [meal_ms(m["day"], m["time"]) for m in meals]
     now_ms = int(now().timestamp() * 1000)
     rs = readings(c, min(times, default=0) - core.WINDOW_BEFORE_MS, max(times, default=0) + core.WINDOW_AFTER_MS + 1)
+    factors = (dose_settings(c)["settings"] or {}).get("isf")   # the correction factor, for the estimated insulin effect
+    rapid = [(e["insulin"], meal_ms(e["day"], e["time"])) for e in entries if e["insulin"] is not None and e["insulin_kind"] == "rapid"]
+    rapid += [(m["insulin"], meal_ms(m["day"], m["time"]) - (m["insulin_offset_min"] or 0) * 60000)
+              for m in meals_for_days(c, (first - timedelta(days=1)).isoformat(), last.isoformat())
+              if m["insulin"] is not None and m["insulin_kind"] == "bolus"]
     out, groups, at = [], {}, [t for t, _ in rs]
     for m, ms in zip(meals, times):
         lo, hi = bisect.bisect_left(at, ms - core.WINDOW_BEFORE_MS), bisect.bisect_right(at, ms + core.WINDOW_AFTER_MS)
@@ -2116,6 +2121,10 @@ def responses(days: int = 30, c=Depends(con)):
              "range_2h": range_word(w["two_h"], low, high), "range_3h": range_word(w["three_h"], low, high),
              "lowest": w["lowest"] and w["lowest"]["sgv"], "coverage": w["coverage"], "left_out": why,
              "insulin": sorted(insulin, key=lambda x: x["min"])}
+        if factors:   # okf/domain/insulin-effect.md: rapid-acting insulin from 6 h before to 3 h after
+            given = [(u, (t - ms) / 60000) for u, t in rapid if -360 * 60000 <= t - ms <= core.WINDOW_AFTER_MS]
+            r["insulin_effect"] = core.insulin_effect(given, dose.block_at(factors, m["time"])) if given else None
+            r["earlier_insulin"] = any(g < -60 for _, g in given)   # still acting, from more than an hour before
         out.append(r)
         for key, name in {(i["food_id"] or "hand:" + i["food_name"].strip().lower()): i["food_name"] for i in m["items"]}.items():
             groups.setdefault(key, {"key": key, "name": name, "meals": []})["meals"].append(r["id"])
@@ -2130,7 +2139,7 @@ def responses(days: int = 30, c=Depends(con)):
                       "in_range_by_3h": sum(1 for r in rows if "in" in (r["range_2h"], r["range_3h"]))})
     foods.sort(key=lambda g: (-g["measured"], g["name"].lower()))
     return {"from": first.isoformat(), "to": last.isoformat(), "days": days, "low": low, "high": high,
-            "glucose": has_glucose(c), "meals": out[::-1], "foods": foods}
+            "glucose": has_glucose(c), "meals": out[::-1], "foods": foods, "effect_ready": bool(factors)}
 
 
 @app.get("/api/stats")

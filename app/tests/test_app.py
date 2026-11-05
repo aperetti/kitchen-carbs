@@ -387,6 +387,15 @@ def test_meal_responses_line_up_and_group(app):
     [g] = r["foods"]
     assert (g["name"], g["measured"], g["avg_rise"], g["in_range_by_3h"]) == ("Pasta, cooked", 2, 90, 2)
     assert client.get("/api/responses?days=7").status_code == 400
+    # okf/domain/insulin-effect.md: backed out only with a correction factor, and only for logged rapid-acting insulin
+    assert not r["effect_ready"] and "insulin_effect" not in a
+    blocks = lambda v: [{"start": "00:00", "value": v}]
+    assert client.put("/api/dose-settings", json={"carb_ratio": blocks(15), "isf": blocks(50), "target": blocks(110)}).status_code == 200
+    r = client.get("/api/responses?days=14").json()
+    a, b = r["meals"][2], r["meals"][1]
+    assert r["effect_ready"] and b["insulin_effect"] is None
+    eff = dict((t, v) for t, v in a["insulin_effect"])
+    assert eff[0] == 0 and 0 < eff[60] < eff[180] < 3 * 50   # 3 u given 15 min before: part of 150 mg/dL by 3 h
 
 
 # ---- tags and favorites ----

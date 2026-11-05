@@ -1,12 +1,12 @@
 ---
 type: Value
 title: "Insulin settings"
-description: "The parent's carb ratio, correction factor and target BG, each by time of day, from the care team. Used only by the meal summary."
+description: "The parent's carb ratio, correction factor and target BG, each by time of day, from the care team. Used by the meal summary, and the correction factor by After meals' estimated insulin effect."
 tags: [domain, safety]
 timestamp: 2026-10-29
 status: draft
 links:
-  used_by: [features/meal-dose-summary.md]
+  used_by: [features/meal-dose-summary.md, domain/insulin-effect.md]
   governed_by: [rules/no-dosing.md, rules/glucose-units.md]
 ---
 # Insulin settings

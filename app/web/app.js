@@ -1439,8 +1439,13 @@ async function loadAfter() {
   if (AF.food && !AF.data.foods.some(g => g.key === AF.food)) AF.food = null;
   renderAfter();
 }
+const netAvg = f => { const rs = AF.data.meals.filter(m => f.meals.includes(m.id) && !m.left_out).map(netRise).filter(x => x != null);
+  return rs.length ? Math.round(rs.reduce((a, b) => a + b, 0) / rs.length) : 0; };
 const afHead = () => `<div class="afhead"><a class="btn quiet small" href="#log">‹ Log</a><h2>After meals</h2></div>`;
 const signed = n => n > 0 ? `+${n}` : n < 0 ? `−${-n}` : "0";
+/* 'Insulin backed out': the rise with the estimated insulin effect added back (okf/domain/insulin-effect.md) */
+const effAt = (m, t) => m.insulin_effect ? m.insulin_effect[Math.max(0, Math.min(36, Math.round(t / 5)))][1] : 0;
+const netRise = m => m.at_meal == null || !m.points.length ? null : Math.max(...m.points.map(([t, v]) => v - m.at_meal + effAt(m, t)));
 const LEFT_OUT = { in_progress: "In progress", no_start: "No reading at the meal time", overlap: "Another meal within 3 h" };
 function afRange(r) {
   if (r.range_2h === "in") return "In range at 2 h";
@@ -1452,6 +1457,7 @@ const afInsulin = r => r.insulin.length ? r.insulin.map(i => `${fmtU(i.units)} $
   ? (i.min < 0 ? `, ${-i.min} min before the meal` : " at the meal time") : ` at ${i.min < 0 ? `${-i.min} min before` : `${i.min} min after`} the meal`}`).join(" · ") : "No insulin added";
 function renderAfter() {
   const d = AF.data, g = d.foods.find(x => x.key === AF.food);
+  if (AF.mode === "net" && !d.effect_ready) AF.mode = "rise";
   const rows = g ? d.meals.filter(m => g.meals.includes(m.id)) : d.meals, drawn = rows.filter(m => !m.left_out);
   $("#afterView").innerHTML = afHead() + `
     <div class="periods" role="group" aria-label="Period">${[14, 30, 90].map(n => `<button data-afdays="${n}" class="${n === AF.days ? "on" : ""}">${n} days</button>`).join("")}</div>
@@ -1459,28 +1465,32 @@ function renderAfter() {
     ${!d.glucose ? `<div class="empty">No glucose readings yet. Connect Nightscout in Manage → Settings.</div>` : `
     <section class="afchart">
       <div class="afbar"><b>${g ? esc(g.name) : "All meals"}</b>${g ? `<button class="linkbtn" data-afall>All meals</button>` : ""}
-        <div class="seg neutral" role="group" aria-label="Draw as">${[["rise", "Rise"], ["mgdl", "mg/dL"]].map(([k, l]) =>
-          `<button data-afmode="${k}" class="${AF.mode === k ? "on" : ""}" aria-pressed="${AF.mode === k}">${l}</button>`).join("")}</div></div>
+        <div class="seg neutral" role="group" aria-label="Draw as">${[["rise", "Rise"], ["mgdl", "mg/dL"], ["net", "Insulin backed out"]].map(([k, l]) =>
+          `<button data-afmode="${k}" class="${AF.mode === k ? "on" : ""}" aria-pressed="${AF.mode === k}" ${k === "net" && !d.effect_ready ? "disabled" : ""}>${l}</button>`).join("")}</div></div>
+      ${!d.effect_ready ? `<p class="meta">Insulin backed out needs the correction factor in <a href="#manage/settings">Manage → Settings</a>.</p>` : ""}
       ${afSvg(drawn, d)}
-      <p class="note">${drawn.length ? `Thin lines: each meal (${drawn.length}). Thick line: their average, every 5 minutes. ${AF.mode === "rise" ? "Drawn as the change from the meal-time reading." : "The pale band is the target range."}${drawn.some(m => m.estimated.length) ? " Dashed: estimated across a sensor gap; the numbers use only real readings." : ""}` : "No meal here has a full 3 hours of readings yet."}</p>
+      <p class="note">${drawn.length ? `Thin lines: each meal (${drawn.length}). Thick line: their average, every 5 minutes. ${AF.mode === "rise" ? "Drawn as the change from the meal-time reading." : AF.mode === "net"
+        ? "Drawn as the change from the meal-time reading with the insulin's estimated effect added back. An estimate from the correction factor and a standard rapid-acting insulin curve (peak 75 min, 6 h), counting only insulin in this log: pump basal and boluses not logged here aren't included. For spotting patterns with the care team, not for working out doses."
+        : "The pale band is the target range."}${drawn.some(m => m.estimated.length) ? " Dashed: estimated across a sensor gap; the numbers use only real readings." : ""}` : "No meal here has a full 3 hours of readings yet."}</p>
     </section>
     <h3 class="label afsub">By food</h3>
     ${d.foods.length ? `<div class="afoods">${d.foods.map(f => `<button class="affood ${f.key === AF.food ? "on" : ""}" data-affood="${esc(f.key)}" aria-pressed="${f.key === AF.food}">
-      <b>${esc(f.name)}, ${f.measured} meals</b><span>average rise ${signed(f.avg_rise)} mg/dL, peak at ${f.avg_to_peak_min} min on average, in range by 3 h in ${f.in_range_by_3h} of ${f.measured}</span></button>`).join("")}</div>`
+      <b>${esc(f.name)}, ${f.measured} meals</b><span>average rise ${signed(f.avg_rise)} mg/dL, peak at ${f.avg_to_peak_min} min on average, in range by 3 h in ${f.in_range_by_3h} of ${f.measured}</span>${AF.mode === "net" ? `<span>without the insulin, average rise ${signed(netAvg(f))} mg/dL (estimate)</span>` : ""}</button>`).join("")}</div>`
       : `<p class="meta">No food is in 2 or more meals with a full 3 hours of readings yet.</p>`}
     <h3 class="label afsub">${g ? `Meals with ${esc(g.name)}` : "Each meal"}</h3>
     ${rows.length ? `<ul class="afmeals">${rows.map(m => `<li><button data-afmeal="${m.id}" data-afday="${m.day}">
       <span class="when">${dayLabel(m.day)}, ${clk(m.time)}</span><span class="what">${esc(m.foods.join(" · "))} · ${m.carbs} g carbs</span>
       ${m.rise != null ? `<span class="nums">Rise <b>${signed(m.rise)}</b> (${m.at_meal} → ${m.peak})${m.to_peak_min != null ? `, peak at ${m.to_peak_min} min` : ""}${afRange(m) ? ` · ${afRange(m)}` : ""}${m.lowest != null && m.lowest < d.low ? ` · <span class="warn">lowest ${m.lowest}</span>` : ""}</span>` : ""}
       <span class="ins">${afInsulin(m)}</span>
+      ${AF.mode === "net" && m.at_meal != null && m.points.length ? `<span>${m.insulin_effect ? `Without the insulin (estimate): rise <b>${signed(netRise(m))}</b> · insulin lowered about ${m.insulin_effect[36][1]} by 3 h${m.earlier_insulin ? ", including insulin from earlier still acting" : ""}` : "No rapid-acting insulin in the log, so its curve is unchanged"}</span>` : ""}
       ${m.left_out ? `<span class="meta">Not in the averages: ${m.left_out === "coverage" ? `sensor ${Math.round(m.coverage * 100)}%` : LEFT_OUT[m.left_out]}</span>` : ""}</button></li>`).join("")}</ul>`
       : `<p class="meta">No meals logged in these ${AF.days} days.</p>`}`}
     <p class="note">Patterns only, to share with the care team. Each curve also depends on the insulin and its timing, activity, illness and what came before.</p>`;
 }
 function afSvg(rows, d) {
   if (!rows.length) return "";
-  const rise = AF.mode === "rise", W = PHONE_MQ.matches ? 360 : 760, H = PHONE_MQ.matches ? 230 : 260, L = 44, R = 14, T = 14, B = 28;
-  const val = (m, v) => rise ? v - m.at_meal : v, all = rows.flatMap(m => m.points.map(p => val(m, p[1])));
+  const rise = AF.mode !== "mgdl", W = PHONE_MQ.matches ? 360 : 760, H = PHONE_MQ.matches ? 230 : 260, L = 44, R = 14, T = 14, B = 28;
+  const val = (m, t, v) => !rise ? v : v - m.at_meal + (AF.mode === "net" ? effAt(m, t) : 0), all = rows.flatMap(m => m.points.map(p => val(m, ...p)));
   const maxV = rise ? Math.max(150, ...all) + 10 : Math.max(300, ...all) + 10, minV = rise ? Math.min(-60, ...all) - 10 : Math.min(40, ...all) - 10;
   const X = t => L + t / 180 * (W - L - R), Y = v => T + (1 - (v - minV) / (maxV - minV)) * (H - T - B);
   const o = [`<svg class="gcurve afsvg" viewBox="0 0 ${W} ${H}" role="img" aria-label="Glucose in the 3 hours after each meal, ${rise ? "change from the meal time" : "mg/dL"}">`];
@@ -1495,18 +1505,18 @@ function afSvg(rows, d) {
   const path = pts => { let s = "", prev = null; for (const [t, v] of pts) { s += `${prev == null || t - prev > 10 ? "M" : "L"}${X(t).toFixed(1)},${Y(v).toFixed(1)} `; prev = t; } return s; };
   const op = rows.length > 1 ? .28 : 1;
   for (const m of rows) {
-    o.push(`<path d="${path(m.points.map(([t, v]) => [t, val(m, v)]))}" fill="none" stroke="var(--ink)" stroke-opacity="${op}" stroke-width="1.5" stroke-linejoin="round"><title>${dayLabel(m.day)}, ${clk(m.time)}</title></path>`);
-    for (const seg of m.estimated) o.push(`<path d="${seg.map(([t, v], i) => `${i ? "L" : "M"}${X(t).toFixed(1)},${Y(val(m, v)).toFixed(1)}`).join(" ")}" fill="none" stroke="var(--ink)" stroke-opacity="${op}" stroke-width="1.5" stroke-dasharray="4 4"><title>Estimated across a sensor gap</title></path>`);
+    o.push(`<path d="${path(m.points.map(([t, v]) => [t, val(m, t, v)]))}" fill="none" stroke="var(--ink)" stroke-opacity="${op}" stroke-width="1.5" stroke-linejoin="round"><title>${dayLabel(m.day)}, ${clk(m.time)}</title></path>`);
+    for (const seg of m.estimated) o.push(`<path d="${seg.map(([t, v], i) => `${i ? "L" : "M"}${X(t).toFixed(1)},${Y(val(m, t, v)).toFixed(1)}`).join(" ")}" fill="none" stroke="var(--ink)" stroke-opacity="${op}" stroke-width="1.5" stroke-dasharray="4 4"><title>Estimated across a sensor gap</title></path>`);
   }
   if (rows.length > 1) {   // the average every 5 minutes, from the meals with a reading within 3 minutes of it
     const avg = [];
     for (let t = 0; t <= 180; t += 5) {
-      const vs = rows.map(m => [...m.points, ...m.estimated.flat()].find(p => Math.abs(p[0] - t) <= 3)).map((p, i) => p && val(rows[i], p[1])).filter(v => v != null);
+      const vs = rows.map(m => [...m.points, ...m.estimated.flat()].find(p => Math.abs(p[0] - t) <= 3)).map((p, i) => p && val(rows[i], ...p)).filter(v => v != null);
       if (vs.length * 2 >= rows.length) avg.push([t, vs.reduce((a, b) => a + b, 0) / vs.length]);
     }
     o.push(`<path d="${path(avg)}" fill="none" stroke="var(--ink)" stroke-width="3.5" stroke-linejoin="round"/>`);
   }
-  for (const m of rows) for (const [t, v] of m.points) if (v < d.low) o.push(`<circle cx="${X(t)}" cy="${Y(val(m, v))}" r="3" fill="var(--warn)"><title>${v} mg/dL</title></circle>`);
+  for (const m of rows) for (const [t, v] of m.points) if (v < d.low) o.push(`<circle cx="${X(t)}" cy="${Y(val(m, t, v))}" r="3" fill="var(--warn)"><title>${v} mg/dL</title></circle>`);
   o.push("</svg>");
   return o.join("");
 }

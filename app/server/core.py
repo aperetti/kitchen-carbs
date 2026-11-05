@@ -166,6 +166,31 @@ def gap_estimates(readings):
     return out
 
 
+# Rapid-acting insulin activity (okf/domain/insulin-effect.md): the exponential curve Loop and OpenAPS use,
+# peaking at 75 minutes and lasting 6 hours.
+INS_PEAK_MIN, INS_DURATION_MIN = 75, 360
+
+
+def insulin_acted(t_min: float) -> float:
+    """The share of a rapid-acting dose that has acted t minutes after it was given, 0 to 1."""
+    if t_min <= 0:
+        return 0.0
+    tp, td = INS_PEAK_MIN, INS_DURATION_MIN
+    if t_min >= td:
+        return 1.0
+    tau = tp * (1 - tp / td) / (1 - 2 * tp / td)
+    a = 2 * tau / td
+    s = 1 / (1 - a + (1 + a) * math.exp(-td / tau))
+    left = 1 - s * (1 - a) * ((t_min ** 2 / (tau * td * (1 - a)) - t_min / tau - 1) * math.exp(-t_min / tau) + 1)
+    return min(1.0, max(0.0, 1 - left))
+
+
+def insulin_effect(doses, factor: float, minutes=range(0, 181, 5)):
+    """mg/dL the doses [(units, minutes from the meal)] are estimated to have lowered glucose between the meal time and
+    each minute: an estimate for After meals only, never for a dose (okf/domain/insulin-effect.md)."""
+    return [[t, round(factor * sum(u * (insulin_acted(t - g) - insulin_acted(-g)) for u, g in doses))] for t in minutes]
+
+
 def meal_window(readings, meal_ms: int, now_ms: int, other_meals_ms=()) -> dict:
     """Glucose from 30 min before to 3 h after a meal. Gaps stay gaps."""
     start, end = meal_ms - WINDOW_BEFORE_MS, meal_ms + WINDOW_AFTER_MS

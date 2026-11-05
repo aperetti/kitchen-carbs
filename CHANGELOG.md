@@ -3,6 +3,7 @@ Each version is what went to the family's kitchen on that date (okf/architecture
 
 ## Unreleased
 
+- After meals has a new "Insulin backed out" view: it adds back roughly what the logged insulin lowered his glucose by, so meals given different insulin can be compared by what the food did. It's an estimate from your correction factor and a standard rapid-acting insulin curve, counts only insulin entered in the app, and is for spotting patterns with the care team, never for working out doses.
 - The log now shows when a meal's insulin was given, e.g. "2.5 u bolus @ 5:50 PM", in the list and in the meal's details.
 ## v2026.11.04 · 4 Nov 2026
 - When the sensor misses readings for 10 to 60 minutes, the glucose charts now fill the gap with a dashed estimate (the same AR2 method Nightscout uses for its forecast, run from both sides of the gap). The numbers under the charts still come only from real readings, and longer gaps stay blank.

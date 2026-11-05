@@ -139,3 +139,4 @@
 - 2026-11-04 — After meals: a page from the Log with each meal's 0–3 h glucose lined up at the meal time, its rise, time to peak, 2/3-hour range and the insulin typed, and foods eaten 2+ times grouped to compare. Patterns only (features/meal-responses.md).
 - 2026-11-04 — Sensor gaps of 10 to 60 minutes are drawn dashed with an AR2 estimate (forward and backward, blended); numbers still come from real readings only (domain/glucose-reading.md).
 - 2026-11-04 — A meal's insulin in the log shows the clock time it was given: '2.5 u bolus @ 5:50 PM' (design/components/entry-row.md, log-details.md).
+- 2026-11-04 — After meals can draw curves with the estimated insulin effect backed out (standard rapid-acting curve × correction factor, only insulin in the log), to compare meals by what the food did. An estimate, never used for a dose (domain/insulin-effect.md).

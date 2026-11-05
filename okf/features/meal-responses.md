@@ -6,7 +6,7 @@ tags: [feature, nightscout]
 timestamp: 2026-11-04
 status: draft
 links:
-  uses: [domain/meal.md, domain/meal-glucose.md, domain/glucose-reading.md, domain/target-range.md, domain/food.md]
+  uses: [domain/meal.md, domain/insulin-effect.md, domain/meal-glucose.md, domain/glucose-reading.md, domain/target-range.md, domain/food.md]
   constrained_by: [rules/descriptive-stats-only.md, rules/sensor-coverage.md, rules/no-dosing.md]
 ---
 # After meals: post-meal responses
@@ -24,7 +24,14 @@ care team to read (okf/rules/descriptive-stats-only.md).
     as much on the insulin and its timing as on the food, so it is always shown beside the numbers.
 - The chart: the curves lined up at the meal time, 0 to 3 hours along the bottom. 'Rise' (the start) draws each as
   the change from its meal-time value, so meals starting at different BGs compare; 'mg/dL' draws the readings with the
-  target range as the pale band. Each meal is a thin graphite line; the average of the measured ones, every 5 minutes,
+  target range as the pale band. 'Insulin backed out' (decided 4 Nov) draws each as its rise with the estimated
+  insulin effect added back (okf/domain/insulin-effect.md), so meals given different insulin compare by what the food
+  did. In that mode each meal also shows 'Without the insulin (estimate): rise +X · insulin lowered about Y by 3 h' (adding 'including insulin
+  from earlier still acting' when a dose from more than an hour before counts)
+  and each food 'without the insulin, average rise +X (estimate)'; a meal with no insulin in the log says its curve is
+  unchanged. The note under the chart says it is an estimate from the correction factor and a standard rapid-acting
+  curve, counting only insulin in this log. Without a correction factor, the button says it needs one in Manage →
+  Settings. Each meal is a thin graphite line; the average of the measured ones, every 5 minutes,
   is a thicker line. No colour grades a meal.
 - By food: a food (or a carb entered by hand, by its name) that is in 2 or more measured meals gets a row, most meals
   first: 'Pizza, 4 meals: average rise +110 mg/dL, peak at 75 min on average, in range by 3 h in 2 of 4'. Tapping a
