@@ -1094,11 +1094,39 @@ function renderLog() {
       ${isToday ? "" : `<p class="meta">${d.editable ? "Changes to an earlier day are marked ✎ Modified." : "Earlier days are read-only. A parent can allow changes in Manage → Settings."} <button class="linkbtn" data-day="today">Go to today</button></p>`}
       ${S.log.exportOpen ? `<div class="exportrow"><span class="meta">Export</span>
         <input type="date" id="exFrom" value="${shiftDay(d.day, -13)}" aria-label="From"><input type="date" id="exTo" value="${d.day}" aria-label="To">
-        <button class="btn small" data-act="export" data-fmt="pdf">PDF</button><button class="btn small quiet" data-act="export" data-fmt="csv">CSV</button></div>`
+        <button class="btn small" data-act="export" data-fmt="pdf">PDF</button><button class="btn small quiet" data-act="export" data-fmt="csv">CSV</button>
+        <button class="btn small quiet" data-act="copy-day">Copy ${isToday ? "today" : dayLabel(d.day)} and plans</button></div>
+        <textarea id="copyText" class="copytext" readonly hidden aria-label="Text to copy"></textarea>`
         : `<button class="btn small quiet" data-act="export-open">Export</button>`}
     </div>`;
   renderMeal();
   cardSync();
+}
+
+/* Copy for school: the open day and upcoming plans as plain text (okf/features/export-log.md) */
+const weighed = (grams, qty) => grams ? ` ${+(grams * (qty || 1)).toFixed(1)} g` : "";
+function dayText(d) {
+  const L = [`Kitchen Carbs · ${dayLabel(d.day)}`, ""];
+  const rows = [...d.meals.map(m => ({ t: m.time, m })), ...d.entries.map(e => ({ t: e.time, e }))].sort((a, b) => a.t.localeCompare(b.t));
+  if (!rows.length) L.push("Nothing logged.");
+  for (const { m, e } of rows) {
+    if (e) { L.push(`${clk(e.time)}  ${entrySummary(e)}${e.note ? ` · ${e.note}` : ""}`); continue; }
+    L.push(`${clk(m.time)}  Meal: ${m.total} g carbs`);
+    for (const i of m.items) L.push(`   - ${i.food_name}${i.entered_carbs != null ? "" : weighed(i.grams, i.qty)}: ${i.carbs} g carbs`);
+    const rec = [m.bg != null && `BG ${m.bg}`, m.insulin != null && `${fmtU(m.insulin)} ${m.insulin_kind} @ ${givenAt(m)}`].filter(Boolean);
+    if (rec.length) L.push(`   ${rec.join(" · ")}`);
+    if (m.comments.length) L.push(`   Note: ${m.comments.map(c => c.text).join(" · ")}`);
+  }
+  L.push("", `Day total: ${d.total} g carbs`);
+  const plans = S.plans.filter(p => p.day >= localDay());
+  if (plans.length) {
+    L.push("", "Planned (not eaten yet)");
+    for (const p of plans) {
+      L.push(`${dayLabel(p.day)}, ${clk(p.time)}  ${p.name}: ${p.carbs} g carbs`);
+      for (const i of p.items) L.push(`   - ${i.food_name}${i.entered != null ? "" : weighed(i.grams, i.qty)}: ${whole(i.entered != null ? i.entered : i.grams * i.carbs_per_100g / 100 * (i.qty || 1))} g carbs`);
+    }
+  }
+  return L.join("\n");
 }
 
 /* Phone: a meal, entry or plan is a card over the list and a history step (okf/design/components/log-card.md) */
@@ -1601,6 +1629,11 @@ $("#v-log").addEventListener("click", async e => {
   else if (t.dataset.act === "del-meal") {
     if (Date.now() - confirmDelete > 4000) { confirmDelete = Date.now(); t.textContent = "Tap again to delete"; return; }
     try { await api(`/api/meals/${S.log.sel}`, { method: "DELETE" }); toast("Meal deleted. It can be restored from Deleted, below the day."); S.log.sel = null; loadLog(d.day); } catch (err) { toast(err.message); }
+  }
+  else if (t.dataset.act === "copy-day") {
+    const text = dayText(d), box = $("#copyText");
+    try { await navigator.clipboard.writeText(text); box.hidden = true; toast("Copied. Paste it into an email or message."); }
+    catch { box.value = text; box.hidden = false; box.focus(); box.select(); toast("Couldn't copy here. The text is selected below: copy it by hand."); }
   }
   else if (t.dataset.act === "export") {
     const from = $("#exFrom").value, to = $("#exTo").value;

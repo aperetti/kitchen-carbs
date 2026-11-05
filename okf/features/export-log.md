@@ -3,10 +3,10 @@ type: Feature
 title: "Export log"
 description: "Download the log for a date range as CSV (for spreadsheets) or as a formatted PDF (to read, print or send to the care team)."
 tags: [feature]
-timestamp: 2026-10-26
+timestamp: 2026-11-05
 status: draft
 links:
-  uses: [domain/meal-log.md]
+  uses: [domain/meal-log.md, domain/planned-meal.md]
   constrained_by: [rules/snapshot-log-values.md]
 ---
 # Export log
@@ -29,3 +29,15 @@ app's own Kitchen Sans), so it downloads as a file on the tablet and phones alik
 - In the Log under the day: an 'Export' button (decided 2 Nov: tucked away to calm the log) that opens the date range
   and two buttons, 'CSV' and 'PDF'. Up to 92 days.
 - The PDF's times follow the log's 12-hour setting (okf/features/review-log.md); the CSV keeps 24-hour times for spreadsheets.
+
+## Copy for school (decided 5 Nov)
+Beside CSV and PDF, 'Copy' puts the open day and the plans as plain text on the clipboard, to paste into an email or
+message, e.g. for the school to plan lunches.
+- Heading 'Kitchen Carbs · Thu, Nov 5', then the day's meals and entries in time order. Each meal is its time, each food
+  with its weight and carbs, the meal total, and the BG and insulin as recorded (insulin with the time it was given);
+  an entry is its BG, carbs, insulin and note. Then the day's carbs total.
+- Then 'Planned': every plan for today or later (overdue ones left out), each with its date and time, name, each food
+  with its weight and carbs, and the total. A plan is marked 'not eaten yet' and isn't in the day's total.
+- Times follow the log's 12-hour setting. Insulin is only what was recorded; no calculated dose
+  (okf/rules/no-dosing.md). Deleted rows are left out.
+- Where the browser won't allow the clipboard, the text is shown selected so it can be copied by hand.

@@ -194,6 +194,7 @@ input[type="time"], input[type="date"], .field input, .field select, .field text
 #entryForm .seg button { min-width: 140px; }
 .exportrow { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 15px; }
 .exportrow input { height: 44px; width: 160px; }
+.copytext { width: 100%; min-height: 220px; margin-top: 8px; font: 14px/1.4 ui-monospace, monospace; }
 .mdh { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; }
 .mdh b { font-size: 24px; font-weight: 500; }
 .mdh .c { font-size: 40px; color: var(--accent); font-weight: 500; font-variant-numeric: tabular-nums; white-space: nowrap; }
