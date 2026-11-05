@@ -33,9 +33,10 @@ app's own Kitchen Sans), so it downloads as a file on the tablet and phones alik
 ## Copy for school (decided 5 Nov)
 Beside CSV and PDF, 'Copy' puts the open day and the plans as plain text on the clipboard, to paste into an email or
 message, e.g. for the school to plan lunches.
-- Heading 'Kitchen Carbs · Thu, Nov 5', then the day's meals and entries in time order. Each meal is its time, each food
-  with its weight and carbs, the meal total, and the BG and insulin as recorded (insulin with the time it was given);
-  an entry is its BG, carbs, insulin and note. Then the day's carbs total.
+- Heading 'Kitchen Carbs · Thu, Nov 5', then the day in time order, one line each (decided 5 Nov: what matters is
+  the carbs and when insulin was given, not what was in an eaten meal): a meal is its time, carbs and insulin with
+  the time it was given ('7:30 AM  47 g carbs · 4.0 u bolus @ 7:20 AM'); an entry is its carbs and insulin, and an
+  entry with neither (BG or a note only) is left out. Then the day's carbs total.
 - Then 'Planned': every plan for today or later (overdue ones left out), each with its date and time, name, each food
   with its weight and carbs, and the total. A plan is marked 'not eaten yet' and isn't in the day's total.
 - Times follow the log's 12-hour setting. Insulin is only what was recorded; no calculated dose

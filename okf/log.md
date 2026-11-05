@@ -142,3 +142,4 @@
 - 2026-11-04 — After meals can draw curves with the estimated insulin effect backed out (standard rapid-acting curve × correction factor, only insulin in the log), to compare meals by what the food did. An estimate, never used for a dose (domain/insulin-effect.md).
 - 2026-11-04 — Insulin from Nightscout: boluses (pump, Loop, pen apps) are read into a local table and counted in After meals' insulin and its insulin-backed-out estimate; a logged dose matching one counts once; Kitchen Carbs' own sends are skipped (architecture/nightscout-client.md, domain/insulin-effect.md).
 - 2026-11-05 — Export gets 'Copy': the open day's log and the upcoming plans as plain text for the clipboard, e.g. for the school to plan lunches (features/export-log.md).
+- 2026-11-05 — Copy for school: eaten meals become one line of carbs and insulin with its time; the foods are listed only for planned meals (features/export-log.md).

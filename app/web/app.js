@@ -1108,14 +1108,11 @@ const weighed = (grams, qty) => grams ? ` ${+(grams * (qty || 1)).toFixed(1)} g`
 function dayText(d) {
   const L = [`Kitchen Carbs · ${dayLabel(d.day)}`, ""];
   const rows = [...d.meals.map(m => ({ t: m.time, m })), ...d.entries.map(e => ({ t: e.time, e }))].sort((a, b) => a.t.localeCompare(b.t));
-  if (!rows.length) L.push("Nothing logged.");
-  for (const { m, e } of rows) {
-    if (e) { L.push(`${clk(e.time)}  ${entrySummary(e)}${e.note ? ` · ${e.note}` : ""}`); continue; }
-    L.push(`${clk(m.time)}  Meal: ${m.total} g carbs`);
-    for (const i of m.items) L.push(`   - ${i.food_name}${i.entered_carbs != null ? "" : weighed(i.grams, i.qty)}: ${i.carbs} g carbs`);
-    const rec = [m.bg != null && `BG ${m.bg}`, m.insulin != null && `${fmtU(m.insulin)} ${m.insulin_kind} @ ${givenAt(m)}`].filter(Boolean);
-    if (rec.length) L.push(`   ${rec.join(" · ")}`);
-    if (m.comments.length) L.push(`   Note: ${m.comments.map(c => c.text).join(" · ")}`);
+  if (!rows.some(({ m, e }) => m || e.carbs != null || e.insulin != null)) L.push("No carbs or insulin logged.");
+  for (const { m, e } of rows) {   // eaten: carbs and when insulin was given; the foods only for plans
+    const x = m || e, ins = x.insulin != null && `${fmtU(x.insulin)} ${m ? `${m.insulin_kind} @ ${givenAt(m)}` : KIND[e.insulin_kind]}`;
+    const carbs = m ? `${m.total} g carbs` : e.carbs != null && `${whole(e.carbs)} g carbs`;
+    if (carbs || ins) L.push(`${clk(x.time)}  ${[carbs, ins].filter(Boolean).join(" · ")}`);
   }
   L.push("", `Day total: ${d.total} g carbs`);
   const plans = S.plans.filter(p => p.day >= localDay());
