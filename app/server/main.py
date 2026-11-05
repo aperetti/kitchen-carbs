@@ -2110,6 +2110,7 @@ def responses(days: int = 30, c=Depends(con)):
         r = {"id": m["id"], "day": m["day"], "time": m["time"], "carbs": m["total"],
              "foods": [i["food_name"] for i in m["items"]],
              "points": [[round((t - ms) / 60000), v] for t, v in w["points"] if t >= ms],
+             "estimated": [s for seg in w["estimated"] if len(s := [[round((t - ms) / 60000), v] for t, v in seg if t >= ms]) > 1],
              "at_meal": w["at_meal"], "peak": w["peak"] and w["peak"]["sgv"], "rise": rise, "to_peak_min": w["to_peak_min"],
              "two_h": w["two_h"], "three_h": w["three_h"],
              "range_2h": range_word(w["two_h"], low, high), "range_3h": range_word(w["three_h"], low, high),

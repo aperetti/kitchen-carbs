@@ -137,3 +137,4 @@
 - 2026-11-03 — A food search now looks through every food, whatever tag or Favorites is chosen, so matches are never hidden below 'Nothing in … matches' (features/browse-foods.md).
 - 2026-11-04 — A new plate's time is the estimated eat time: now plus BG ÷ 10 minutes (none under 80, 15 with no BG), worked out again when the summary opens, until the time is changed by hand (features/meal-dose-summary.md, domain/meal.md).
 - 2026-11-04 — After meals: a page from the Log with each meal's 0–3 h glucose lined up at the meal time, its rise, time to peak, 2/3-hour range and the insulin typed, and foods eaten 2+ times grouped to compare. Patterns only (features/meal-responses.md).
+- 2026-11-04 — Sensor gaps of 10 to 60 minutes are drawn dashed with an AR2 estimate (forward and backward, blended); numbers still come from real readings only (domain/glucose-reading.md).

@@ -1859,3 +1859,20 @@ def test_planned_meal_goes_to_nightscout_as_a_note(app, monkeypatch):
     client.post("/api/nightscout/send/sync")
     [bolus] = ns.docs.values()
     assert (bolus["eventType"], bolus["carbs"]) == ("Meal Bolus", 43)
+
+
+def test_gap_estimates_are_ar2_and_drawing_only():
+    """okf/domain/glucose-reading.md: gaps of 10-60 min get AR2 estimates, blended both ways; longer stay blank."""
+    from server import core
+    step = 300_000
+    flat = [(i * step, 120) for i in range(6)] + [(i * step, 120) for i in range(12, 18)]   # a 30-minute gap
+    [seg] = core.gap_estimates(flat)
+    assert seg[0] == (5 * step, 120) and seg[-1] == (12 * step, 120) and len(seg) == 8
+    assert all(120 <= v <= 122 for _, v in seg)   # AR2 drifts a little toward 140
+    rising = [(i * step, 100 + 5 * i) for i in range(6)] + [(i * step, 100 + 5 * i) for i in range(12, 18)]
+    vals = [v for _, v in core.gap_estimates(rising)[0]]
+    assert vals == sorted(vals) and vals[0] == 125 and vals[-1] == 160
+    assert core.gap_estimates([(0, 120), (2 * step, 125)]) == []          # 10 minutes: a normal missed reading
+    assert core.gap_estimates([(0, 120), (13 * step, 140)]) == []         # over an hour stays blank
+    w = core.meal_window(flat, 6 * step, 10**13)
+    assert w["estimated"] and len(w["points"]) == 12 and w["coverage"] < 1   # numbers stay on real readings

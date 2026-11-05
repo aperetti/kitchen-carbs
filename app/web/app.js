@@ -1389,6 +1389,7 @@ async function loadCurve(m) {
     <span class="${w.coverage < 0.7 ? "warn" : ""}">Sensor ${Math.round(w.coverage * 100)}%</span>
     ${w.in_progress ? `<span>In progress</span>` : ""}</div>
     ${w.overlapping_meals.length ? `<p class="note">Another meal falls in this window, so the curve shows both.</p>` : ""}
+    ${(w.estimated || []).length ? `<p class="note">Dashed: estimated across a sensor gap. The numbers use only real readings.</p>` : ""}
     ${(w.entries || []).length ? `<p class="note">Squares are meter readings; ticks along the bottom are insulin entries.</p>` : ""}`;
 }
 
@@ -1412,6 +1413,7 @@ function curveSvg(w) {
   let d = "", prev = null;
   for (const [t, v] of w.points) { d += `${!prev || t - prev > 10 * 60e3 ? "M" : "L"}${X(t).toFixed(1)},${Y(v).toFixed(1)} `; prev = t; }
   o.push(`<path d="${d}" fill="none" stroke="var(--ink)" stroke-width="2" stroke-linejoin="round"/>`);
+  for (const seg of w.estimated || []) o.push(`<path d="${seg.map(([t, v], i) => `${i ? "L" : "M"}${X(t).toFixed(1)},${Y(v).toFixed(1)}`).join(" ")}" fill="none" stroke="var(--ink)" stroke-width="2" stroke-dasharray="4 4"><title>Estimated across a sensor gap</title></path>`);
   for (const en of w.entries || []) {
     if (en.bg != null) o.push(`<rect x="${X(en.ms) - 5}" y="${Y(en.bg) - 5}" width="10" height="10" fill="var(--paper)" stroke="var(--ink)" stroke-width="2"><title>Meter ${en.bg}</title></rect>`);
     if (en.insulin != null) o.push(`<line x1="${X(en.ms)}" x2="${X(en.ms)}" y1="${H - B}" y2="${H - B - 12}" stroke="var(--ink)" stroke-width="2"/><text x="${X(en.ms) + 4}" y="${H - B - 4}" class="ax">${fmtU(en.insulin)}</text>`);
@@ -1459,7 +1461,7 @@ function renderAfter() {
         <div class="seg neutral" role="group" aria-label="Draw as">${[["rise", "Rise"], ["mgdl", "mg/dL"]].map(([k, l]) =>
           `<button data-afmode="${k}" class="${AF.mode === k ? "on" : ""}" aria-pressed="${AF.mode === k}">${l}</button>`).join("")}</div></div>
       ${afSvg(drawn, d)}
-      <p class="note">${drawn.length ? `Thin lines: each meal (${drawn.length}). Thick line: their average, every 5 minutes. ${AF.mode === "rise" ? "Drawn as the change from the meal-time reading." : "The pale band is the target range."}` : "No meal here has a full 3 hours of readings yet."}</p>
+      <p class="note">${drawn.length ? `Thin lines: each meal (${drawn.length}). Thick line: their average, every 5 minutes. ${AF.mode === "rise" ? "Drawn as the change from the meal-time reading." : "The pale band is the target range."}${drawn.some(m => m.estimated.length) ? " Dashed: estimated across a sensor gap; the numbers use only real readings." : ""}` : "No meal here has a full 3 hours of readings yet."}</p>
     </section>
     <h3 class="label afsub">By food</h3>
     ${d.foods.length ? `<div class="afoods">${d.foods.map(f => `<button class="affood ${f.key === AF.food ? "on" : ""}" data-affood="${esc(f.key)}" aria-pressed="${f.key === AF.food}">
@@ -1490,11 +1492,15 @@ function afSvg(rows, d) {
     o.push(`<text x="${X(t)}" y="${H - 8}" text-anchor="${t === 180 ? "end" : t ? "middle" : "start"}" class="ax">${l}</text>`);
   }
   const path = pts => { let s = "", prev = null; for (const [t, v] of pts) { s += `${prev == null || t - prev > 10 ? "M" : "L"}${X(t).toFixed(1)},${Y(v).toFixed(1)} `; prev = t; } return s; };
-  for (const m of rows) o.push(`<path d="${path(m.points.map(([t, v]) => [t, val(m, v)]))}" fill="none" stroke="var(--ink)" stroke-opacity="${rows.length > 1 ? .28 : 1}" stroke-width="1.5" stroke-linejoin="round"><title>${dayLabel(m.day)}, ${clk(m.time)}</title></path>`);
+  const op = rows.length > 1 ? .28 : 1;
+  for (const m of rows) {
+    o.push(`<path d="${path(m.points.map(([t, v]) => [t, val(m, v)]))}" fill="none" stroke="var(--ink)" stroke-opacity="${op}" stroke-width="1.5" stroke-linejoin="round"><title>${dayLabel(m.day)}, ${clk(m.time)}</title></path>`);
+    for (const seg of m.estimated) o.push(`<path d="${seg.map(([t, v], i) => `${i ? "L" : "M"}${X(t).toFixed(1)},${Y(val(m, v)).toFixed(1)}`).join(" ")}" fill="none" stroke="var(--ink)" stroke-opacity="${op}" stroke-width="1.5" stroke-dasharray="4 4"><title>Estimated across a sensor gap</title></path>`);
+  }
   if (rows.length > 1) {   // the average every 5 minutes, from the meals with a reading within 3 minutes of it
     const avg = [];
     for (let t = 0; t <= 180; t += 5) {
-      const vs = rows.map(m => m.points.find(p => Math.abs(p[0] - t) <= 3)).map((p, i) => p && val(rows[i], p[1])).filter(v => v != null);
+      const vs = rows.map(m => [...m.points, ...m.estimated.flat()].find(p => Math.abs(p[0] - t) <= 3)).map((p, i) => p && val(rows[i], p[1])).filter(v => v != null);
       if (vs.length * 2 >= rows.length) avg.push([t, vs.reduce((a, b) => a + b, 0) / vs.length]);
     }
     o.push(`<path d="${path(avg)}" fill="none" stroke="var(--ink)" stroke-width="3.5" stroke-linejoin="round"/>`);

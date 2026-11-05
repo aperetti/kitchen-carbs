@@ -129,6 +129,43 @@ def _nearest(points, target_ms):
     return best if best and abs(best[0] - target_ms) <= NEAR_MS else None
 
 
+GAP_MS, GAP_MAX_MS = 10 * 60 * 1000, 60 * 60 * 1000
+AR2 = (-0.723, 1.716)   # Nightscout's AR2: in ln(BG / 140), next = 1.716 * last - 0.723 * the one before
+
+
+def _ar2(y_before, y_last, n):
+    out = []
+    for _ in range(n):
+        y_before, y_last = y_last, AR2[0] * y_before + AR2[1] * y_last
+        out.append(y_last)
+    return out
+
+
+def gap_estimates(readings):
+    """Drawing only (okf/domain/glucose-reading.md): each gap over 10 and up to 60 minutes, as a list of points from the
+    reading before it, through 5-minute estimates, to the reading after it. AR2 forward from the two readings before
+    and backward from the two after, blended by distance. Never stored, sent or used for a number."""
+    out = []
+    for i in range(len(readings) - 1):
+        (ta, va), (tb, vb) = readings[i], readings[i + 1]
+        if not GAP_MS < tb - ta <= GAP_MAX_MS:
+            continue
+        n = round((tb - ta) / READING_MS) - 1
+        if n < 1:
+            continue
+        ln = lambda v: math.log(v / 140)
+        ya, yb = ln(va), ln(vb)
+        fwd = _ar2(ln(readings[i - 1][1]) if i > 0 else ya, ya, n)
+        back = _ar2(ln(readings[i + 2][1]) if i + 2 < len(readings) else yb, yb, n)[::-1]
+        seg = [(ta, va)]
+        for k in range(1, n + 1):
+            w = k / (n + 1)   # the nearer side counts more
+            v = 140 * math.exp((1 - w) * fwd[k - 1] + w * back[k - 1])
+            seg.append((ta + round(k * (tb - ta) / (n + 1)), round(min(400, max(39, v)))))
+        out.append(seg + [(tb, vb)])
+    return out
+
+
 def meal_window(readings, meal_ms: int, now_ms: int, other_meals_ms=()) -> dict:
     """Glucose from 30 min before to 3 h after a meal. Gaps stay gaps."""
     start, end = meal_ms - WINDOW_BEFORE_MS, meal_ms + WINDOW_AFTER_MS
@@ -143,6 +180,7 @@ def meal_window(readings, meal_ms: int, now_ms: int, other_meals_ms=()) -> dict:
     return {
         "start_ms": start, "end_ms": end, "meal_ms": meal_ms,
         "points": pts,
+        "estimated": gap_estimates(pts),
         "at_meal": at_meal and at_meal[1],
         "peak": peak and {"ms": peak[0], "sgv": peak[1]},
         "lowest": lowest and {"ms": lowest[0], "sgv": lowest[1]},
