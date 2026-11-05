@@ -147,6 +147,7 @@ def meal_window(readings, meal_ms: int, now_ms: int, other_meals_ms=()) -> dict:
         "peak": peak and {"ms": peak[0], "sgv": peak[1]},
         "lowest": lowest and {"ms": lowest[0], "sgv": lowest[1]},
         "two_h": two_h and two_h[1],
+        "three_h": (three := _nearest(pts, meal_ms + 180 * 60 * 1000)) and three[1],   # okf/features/meal-responses.md
         # for the meal rating (okf/domain/meal-rating.md): measured, never judged
         "rise_1h": max(first_hour) - at_meal[1] if at_meal and first_hour else None,
         "to_peak_min": peak and round((peak[0] - meal_ms) / 60000),

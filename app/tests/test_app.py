@@ -366,6 +366,29 @@ def test_nightscout_is_read_only_and_token_hidden(app, monkeypatch):
     assert w["at_meal"] == 125 and w["in_progress"]
 
 
+def test_meal_responses_line_up_and_group(app):
+    """okf/features/meal-responses.md: 0-3 h after each meal, rise, 2/3 h range, insulin; repeats grouped."""
+    client, main = app
+    for day, peak in (("2026-10-25", 230), ("2026-10-26", 190)):
+        base = int(datetime.fromisoformat(f"{day}T12:00").timestamp() * 1000)
+        with main.db.connect() as c:   # 120 at the meal, up to the peak at 60 min, back to 150 by 2 h and 3 h
+            c.executemany("INSERT INTO glucose (date_ms, sgv, direction) VALUES (?, ?, 'Flat')",
+                          [(base + i * 300_000, 120 + (peak - 120) * i // 12 if i <= 12 else 150) for i in range(37)])
+        client.post("/api/meals", json={**meal(day=day, time="12:00", cid=f"resp-{day}"),
+                                        **({"insulin": 3, "insulin_kind": "bolus", "insulin_offset_min": 15} if peak == 230 else {})})
+    client.post("/api/meals", json=meal(cid="resp-today"))   # 18:05 today: still in progress
+    r = client.get("/api/responses?days=14").json()
+    assert [m["day"] for m in r["meals"]] == ["2026-10-27", "2026-10-26", "2026-10-25"]
+    today, b, a = r["meals"]
+    assert today["left_out"] == "in_progress" and a["left_out"] is None
+    assert (a["rise"], a["to_peak_min"], a["range_2h"], a["three_h"]) == (110, 60, "in", 150)
+    assert a["points"][0] == [0, 120] and a["points"][-1][0] == 180
+    assert a["insulin"] == [{"units": 3, "kind": "bolus", "min": -15, "meal": True}] and b["insulin"] == []
+    [g] = r["foods"]
+    assert (g["name"], g["measured"], g["avg_rise"], g["in_range_by_3h"]) == ("Pasta, cooked", 2, 90, 2)
+    assert client.get("/api/responses?days=7").status_code == 400
+
+
 # ---- tags and favorites ----
 def test_default_tags_and_multiple_tags(app):
     client, _ = app
@@ -594,7 +617,7 @@ def test_no_dose_is_ever_computed(app):
     client, _ = app
     client.post("/api/meals", json=meal(qty=2))
     body = json.dumps([client.get("/api/log").json(), client.get("/api/stats?days=7").json(),
-                       client.get("/api/meals/1/glucose").json()])
+                       client.get("/api/meals/1/glucose").json(), client.get("/api/responses").json()])
     assert '"insulin": {}' in body
     for word in ("ratio", "dose", "bolus", "iob", "on_board", "suggest"):
         assert word not in body.lower()

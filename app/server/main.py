@@ -1,4 +1,5 @@
 """Kitchen Carbs server: API, photos and the tablet web app (okf/architecture/docker-server.md)."""
+import bisect
 import csv
 import hashlib
 import io
@@ -2075,6 +2076,60 @@ def meal_glucose(mid: int, c=Depends(con)):
     if m["bg"] is not None and m["bg_source"] == "meter":
         marks.append({"ms": ms, "bg": m["bg"], "insulin": None, "insulin_kind": None})
     return {**w, "entries": marks, "low": low, "high": high}
+
+
+def range_word(v, low, high):
+    return None if v is None else "below" if v < low else "above" if v > high else "in"
+
+
+@app.get("/api/responses")
+def responses(days: int = 30, c=Depends(con)):
+    """Each meal's glucose 0-3 h after eating, lined up at the meal time, beside the insulin typed for it; foods in two
+    or more measured meals are grouped. Measured, never judged or turned into advice (okf/features/meal-responses.md)."""
+    if days not in (14, 30, 90):
+        fail(400, "Choose 14, 30 or 90 days.")
+    last = date.fromisoformat(today())
+    first = last - timedelta(days=days - 1)
+    low, high = targets(c)
+    meals = meals_for_days(c, first.isoformat(), last.isoformat())
+    entries = entries_for_days(c, (first - timedelta(days=1)).isoformat(), last.isoformat())
+    times = [meal_ms(m["day"], m["time"]) for m in meals]
+    now_ms = int(now().timestamp() * 1000)
+    rs = readings(c, min(times, default=0) - core.WINDOW_BEFORE_MS, max(times, default=0) + core.WINDOW_AFTER_MS + 1)
+    out, groups, at = [], {}, [t for t, _ in rs]
+    for m, ms in zip(meals, times):
+        lo, hi = bisect.bisect_left(at, ms - core.WINDOW_BEFORE_MS), bisect.bisect_right(at, ms + core.WINDOW_AFTER_MS)
+        w = core.meal_window(rs[lo:hi], ms, now_ms, times)
+        rise = w["peak"]["sgv"] - w["at_meal"] if w["peak"] and w["at_meal"] is not None else None
+        why = ("in_progress" if w["in_progress"] else "no_start" if w["at_meal"] is None
+               else "coverage" if w["coverage"] < 0.7 else "overlap" if w["overlapping_meals"] else None)
+        insulin = [{"units": m["insulin"], "kind": m["insulin_kind"], "min": -(m["insulin_offset_min"] or 0), "meal": True}] if m["insulin"] is not None else []
+        insulin += [{"units": e["insulin"], "kind": e["insulin_kind"], "min": round((t - ms) / 60000), "meal": False}
+                    for e in entries if e["insulin"] is not None and e["insulin_kind"] != "long"
+                    and -60 * 60000 <= (t := meal_ms(e["day"], e["time"])) - ms <= core.WINDOW_AFTER_MS]
+        r = {"id": m["id"], "day": m["day"], "time": m["time"], "carbs": m["total"],
+             "foods": [i["food_name"] for i in m["items"]],
+             "points": [[round((t - ms) / 60000), v] for t, v in w["points"] if t >= ms],
+             "at_meal": w["at_meal"], "peak": w["peak"] and w["peak"]["sgv"], "rise": rise, "to_peak_min": w["to_peak_min"],
+             "two_h": w["two_h"], "three_h": w["three_h"],
+             "range_2h": range_word(w["two_h"], low, high), "range_3h": range_word(w["three_h"], low, high),
+             "lowest": w["lowest"] and w["lowest"]["sgv"], "coverage": w["coverage"], "left_out": why,
+             "insulin": sorted(insulin, key=lambda x: x["min"])}
+        out.append(r)
+        for key, name in {(i["food_id"] or "hand:" + i["food_name"].strip().lower()): i["food_name"] for i in m["items"]}.items():
+            groups.setdefault(key, {"key": key, "name": name, "meals": []})["meals"].append(r["id"])
+    measured = {r["id"]: r for r in out if not r["left_out"]}
+    foods = []
+    for g in groups.values():
+        rows = [measured[i] for i in g["meals"] if i in measured]
+        if len(rows) < 2:
+            continue
+        mean = lambda k: round(sum(r[k] for r in rows) / len(rows))
+        foods.append({**g, "name": g["name"], "measured": len(rows), "avg_rise": mean("rise"), "avg_to_peak_min": mean("to_peak_min"),
+                      "in_range_by_3h": sum(1 for r in rows if "in" in (r["range_2h"], r["range_3h"]))})
+    foods.sort(key=lambda g: (-g["measured"], g["name"].lower()))
+    return {"from": first.isoformat(), "to": last.isoformat(), "days": days, "low": low, "high": high,
+            "glucose": has_glucose(c), "meals": out[::-1], "foods": foods}
 
 
 @app.get("/api/stats")

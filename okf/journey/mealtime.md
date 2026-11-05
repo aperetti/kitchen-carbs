@@ -6,7 +6,7 @@ tags: [journey]
 timestamp: 2026-10-27
 status: draft
 links:
-  involves: [features/sign-in.md, features/install-app.md, features/food-lookup.md, features/manual-log.md, features/photo-style-setup.md, features/scan-label.md, features/favorite-plates.md, features/connect-nightscout.md, features/meal-glucose-view.md, features/glucose-stats-view.md, features/photo-pipeline.md, features/manage-foods.md, features/browse-foods.md, features/view-food.md, features/build-plate.md, features/kitchen-scale.md, features/log-meal.md, features/annotate-meal.md, features/review-log.md, features/export-log.md, features/fill-in-fiber.md, features/meal-dose-summary.md, features/confirm-food.md, features/notify-family.md, features/tidepool-sync.md, features/nightscout-send.md, features/rate-meal.md, features/plan-meal.md]
+  involves: [features/sign-in.md, features/install-app.md, features/food-lookup.md, features/manual-log.md, features/photo-style-setup.md, features/scan-label.md, features/favorite-plates.md, features/connect-nightscout.md, features/meal-glucose-view.md, features/glucose-stats-view.md, features/photo-pipeline.md, features/manage-foods.md, features/browse-foods.md, features/view-food.md, features/build-plate.md, features/kitchen-scale.md, features/log-meal.md, features/annotate-meal.md, features/review-log.md, features/export-log.md, features/fill-in-fiber.md, features/meal-dose-summary.md, features/confirm-food.md, features/notify-family.md, features/tidepool-sync.md, features/nightscout-send.md, features/rate-meal.md, features/plan-meal.md, features/meal-responses.md]
 steps:
   - id: sign-in
     phase: Set up (once)
@@ -179,6 +179,15 @@ steps:
     risk: "Editing old meals would make history unreliable."
     helps: "Past days are read-only; comments and eaten notes are in the export."
     features: [features/review-log.md, features/export-log.md, features/glucose-stats-view.md]
+  - id: compare
+    phase: Later
+    name: Compare meals
+    doing: "Opens After meals from the Log to see how his glucose went in the 3 hours after each meal, and how the same food went each time."
+    screen: "Log → After meals"
+    thinking: "Pizza always seems to run high late. Is that real, and was the insulin timing the same each time?"
+    risk: "Reading a pattern as a dosing rule, or comparing curves when another meal or a sensor gap muddied one."
+    helps: "Insulin and its timing sit beside every curve; overlapped, gappy and unfinished meals are listed but left out of averages; nothing suggests a dose."
+    features: [features/meal-responses.md]
 ---
 # Parent journey
 Primary user is a parent at the counter. The child looks at photos alongside but does not edit data.

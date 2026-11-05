@@ -93,7 +93,7 @@ function renderStatus() {
 }
 
 /* ---------- routing ---------- */
-const VIEWS = ["foods", "plate", "log", "manage"];
+const VIEWS = ["foods", "plate", "log", "after", "manage"];
 function route() {
   if (S.signedOut) return showSignIn();
   lockShow();
@@ -113,14 +113,15 @@ function route() {
   }
   if (v === "manage") mBooted = true;
   VIEWS.forEach(x => ($("#v-" + x).hidden = x !== v));
-  document.querySelectorAll("#tabs a").forEach(a => a.dataset.v === v ? a.setAttribute("aria-current", "page") : a.removeAttribute("aria-current"));
+  const tab = v === "after" ? "log" : v;   // After meals is part of the Log
+  document.querySelectorAll("#tabs a").forEach(a => a.dataset.v === tab ? a.setAttribute("aria-current", "page") : a.removeAttribute("aria-current"));
   if (v === "log") {   // Back from a card with unsaved changes stays on it (okf/design/components/log-card.md)
     const was = S.log.card, card = logFromHash();
     if (was && !card && logDirty()) { history.pushState({ logCard: true }, "", cardHash()); toast("Save or discard the changes first"); return; }
     S.log.card = card; if (!card && was) { S.log.adding = false; S.log.selPlan = null; S.log.edit = null; }
     cardView(false);
   } else if (S.log.card) { S.log.card = false; cardView(false); }
-  ({ foods: () => { renderFoods(); if (splitMode()) renderPlate(); }, plate: renderPlate, log: () => loadLog(S.log.day), manage: renderManage })[v]();
+  ({ foods: () => { renderFoods(); if (splitMode()) renderPlate(); }, plate: renderPlate, log: () => loadLog(S.log.day), after: loadAfter, manage: renderManage })[v]();
   if (v === "foods" || v === "plate") loadPlans().then(changed => { if (changed && !S.plate.length) renderPlate(); });
   renderPlatebar(v);
 }
@@ -1083,6 +1084,7 @@ function renderLog() {
       <span class="meta">${d.total} g</span><button data-day="1" aria-label="Next day" ${isToday ? "disabled" : ""}>›</button></div>
     ${statLine(d)}
     ${strip}
+    ${S.session?.glucose ? `<a class="linkbtn aftlink" href="#after">After meals: how glucose went in the 3 hours after each meal ›</a>` : ""}
     ${planList(d)}
     ${d.editable ? `<button class="btn small addentry ${S.log.adding ? "on" : ""}" data-act="add-entry">Add entry${isToday ? "" : ` to ${dayLabel(d.day)}`}: carbs, BG or insulin</button>` : ""}
     ${logRows(d)}
@@ -1423,6 +1425,96 @@ function curveSvg(w) {
   o.push("</svg>");
   return o.join("");
 }
+
+/* ---------- After meals (okf/features/meal-responses.md): each meal's 0-3 h lined up at the meal time, beside the
+   insulin typed for it. Measured, never judged, and never turned into advice (okf/rules/descriptive-stats-only.md). */
+const AF = { days: 30, data: null, food: null, mode: "rise" };
+async function loadAfter() {
+  if (!AF.data) $("#afterView").innerHTML = `<p class="meta">Loading…</p>`;
+  try { AF.data = await api(`/api/responses?days=${AF.days}`); }
+  catch (err) { $("#afterView").innerHTML = `${afHead()}<div class="empty">${esc(err.message)}</div>`; return; }
+  if (AF.food && !AF.data.foods.some(g => g.key === AF.food)) AF.food = null;
+  renderAfter();
+}
+const afHead = () => `<div class="afhead"><a class="btn quiet small" href="#log">‹ Log</a><h2>After meals</h2></div>`;
+const signed = n => n > 0 ? `+${n}` : n < 0 ? `−${-n}` : "0";
+const LEFT_OUT = { in_progress: "In progress", no_start: "No reading at the meal time", overlap: "Another meal within 3 h" };
+function afRange(r) {
+  if (r.range_2h === "in") return "In range at 2 h";
+  if (r.range_3h === "in") return "In range at 3 h";
+  const [w, at] = r.range_3h ? [r.range_3h, "3 h"] : [r.range_2h, "2 h"];
+  return !w ? "" : w === "below" ? `<span class="warn">Below range at ${at}</span>` : `Above range at ${at}`;
+}
+const afInsulin = r => r.insulin.length ? r.insulin.map(i => `${fmtU(i.units)} ${KIND[i.kind] || i.kind}${i.meal
+  ? (i.min < 0 ? `, ${-i.min} min before the meal` : " at the meal time") : ` at ${i.min < 0 ? `${-i.min} min before` : `${i.min} min after`} the meal`}`).join(" · ") : "No insulin added";
+function renderAfter() {
+  const d = AF.data, g = d.foods.find(x => x.key === AF.food);
+  const rows = g ? d.meals.filter(m => g.meals.includes(m.id)) : d.meals, drawn = rows.filter(m => !m.left_out);
+  $("#afterView").innerHTML = afHead() + `
+    <div class="periods" role="group" aria-label="Period">${[14, 30, 90].map(n => `<button data-afdays="${n}" class="${n === AF.days ? "on" : ""}">${n} days</button>`).join("")}</div>
+    <p class="meta">${dayLabel(d.from)} to ${dayLabel(d.to)} · ${d.meals.length} meal${d.meals.length === 1 ? "" : "s"}, ${d.meals.filter(m => !m.left_out).length} with a full 3 hours of readings</p>
+    ${!d.glucose ? `<div class="empty">No glucose readings yet. Connect Nightscout in Manage → Settings.</div>` : `
+    <section class="afchart">
+      <div class="afbar"><b>${g ? esc(g.name) : "All meals"}</b>${g ? `<button class="linkbtn" data-afall>All meals</button>` : ""}
+        <div class="seg neutral" role="group" aria-label="Draw as">${[["rise", "Rise"], ["mgdl", "mg/dL"]].map(([k, l]) =>
+          `<button data-afmode="${k}" class="${AF.mode === k ? "on" : ""}" aria-pressed="${AF.mode === k}">${l}</button>`).join("")}</div></div>
+      ${afSvg(drawn, d)}
+      <p class="note">${drawn.length ? `Thin lines: each meal (${drawn.length}). Thick line: their average, every 5 minutes. ${AF.mode === "rise" ? "Drawn as the change from the meal-time reading." : "The pale band is the target range."}` : "No meal here has a full 3 hours of readings yet."}</p>
+    </section>
+    <h3 class="label afsub">By food</h3>
+    ${d.foods.length ? `<div class="afoods">${d.foods.map(f => `<button class="affood ${f.key === AF.food ? "on" : ""}" data-affood="${esc(f.key)}" aria-pressed="${f.key === AF.food}">
+      <b>${esc(f.name)}, ${f.measured} meals</b><span>average rise ${signed(f.avg_rise)} mg/dL, peak at ${f.avg_to_peak_min} min on average, in range by 3 h in ${f.in_range_by_3h} of ${f.measured}</span></button>`).join("")}</div>`
+      : `<p class="meta">No food is in 2 or more meals with a full 3 hours of readings yet.</p>`}
+    <h3 class="label afsub">${g ? `Meals with ${esc(g.name)}` : "Each meal"}</h3>
+    ${rows.length ? `<ul class="afmeals">${rows.map(m => `<li><button data-afmeal="${m.id}" data-afday="${m.day}">
+      <span class="when">${dayLabel(m.day)}, ${clk(m.time)}</span><span class="what">${esc(m.foods.join(" · "))} · ${m.carbs} g carbs</span>
+      ${m.rise != null ? `<span class="nums">Rise <b>${signed(m.rise)}</b> (${m.at_meal} → ${m.peak})${m.to_peak_min != null ? `, peak at ${m.to_peak_min} min` : ""}${afRange(m) ? ` · ${afRange(m)}` : ""}${m.lowest != null && m.lowest < d.low ? ` · <span class="warn">lowest ${m.lowest}</span>` : ""}</span>` : ""}
+      <span class="ins">${afInsulin(m)}</span>
+      ${m.left_out ? `<span class="meta">Not in the averages: ${m.left_out === "coverage" ? `sensor ${Math.round(m.coverage * 100)}%` : LEFT_OUT[m.left_out]}</span>` : ""}</button></li>`).join("")}</ul>`
+      : `<p class="meta">No meals logged in these ${AF.days} days.</p>`}`}
+    <p class="note">Patterns only, to share with the care team. Each curve also depends on the insulin and its timing, activity, illness and what came before.</p>`;
+}
+function afSvg(rows, d) {
+  if (!rows.length) return "";
+  const rise = AF.mode === "rise", W = PHONE_MQ.matches ? 360 : 760, H = PHONE_MQ.matches ? 230 : 260, L = 44, R = 14, T = 14, B = 28;
+  const val = (m, v) => rise ? v - m.at_meal : v, all = rows.flatMap(m => m.points.map(p => val(m, p[1])));
+  const maxV = rise ? Math.max(150, ...all) + 10 : Math.max(300, ...all) + 10, minV = rise ? Math.min(-60, ...all) - 10 : Math.min(40, ...all) - 10;
+  const X = t => L + t / 180 * (W - L - R), Y = v => T + (1 - (v - minV) / (maxV - minV)) * (H - T - B);
+  const o = [`<svg class="gcurve afsvg" viewBox="0 0 ${W} ${H}" role="img" aria-label="Glucose in the 3 hours after each meal, ${rise ? "change from the meal time" : "mg/dL"}">`];
+  if (!rise) o.push(`<rect x="${L}" y="${Y(d.high)}" width="${W - L - R}" height="${Y(d.low) - Y(d.high)}" fill="var(--sunk)"/>`);
+  const ticks = rise ? [-50, 0, 50, 100, 150, 200, 250].filter(v => v > minV && v < maxV) : [d.low, d.high, 250];
+  for (const v of ticks) o.push(`<text x="${L - 6}" y="${Y(v) + 4}" text-anchor="end" class="ax">${rise ? signed(v) : v}</text>`);
+  if (rise) o.push(`<line x1="${L}" x2="${W - R}" y1="${Y(0)}" y2="${Y(0)}" stroke="var(--line)"/>`);
+  for (const [t, l] of [[0, "meal"], [60, "1 h"], [120, "2 h"], [180, "3 h"]]) {
+    o.push(`<line x1="${X(t)}" x2="${X(t)}" y1="${T}" y2="${H - B}" stroke="${t ? "var(--line)" : "var(--accent)"}" ${t ? `stroke-dasharray="3 3"` : ""}/>`);
+    o.push(`<text x="${X(t)}" y="${H - 8}" text-anchor="${t === 180 ? "end" : t ? "middle" : "start"}" class="ax">${l}</text>`);
+  }
+  const path = pts => { let s = "", prev = null; for (const [t, v] of pts) { s += `${prev == null || t - prev > 10 ? "M" : "L"}${X(t).toFixed(1)},${Y(v).toFixed(1)} `; prev = t; } return s; };
+  for (const m of rows) o.push(`<path d="${path(m.points.map(([t, v]) => [t, val(m, v)]))}" fill="none" stroke="var(--ink)" stroke-opacity="${rows.length > 1 ? .28 : 1}" stroke-width="1.5" stroke-linejoin="round"><title>${dayLabel(m.day)}, ${clk(m.time)}</title></path>`);
+  if (rows.length > 1) {   // the average every 5 minutes, from the meals with a reading within 3 minutes of it
+    const avg = [];
+    for (let t = 0; t <= 180; t += 5) {
+      const vs = rows.map(m => m.points.find(p => Math.abs(p[0] - t) <= 3)).map((p, i) => p && val(rows[i], p[1])).filter(v => v != null);
+      if (vs.length * 2 >= rows.length) avg.push([t, vs.reduce((a, b) => a + b, 0) / vs.length]);
+    }
+    o.push(`<path d="${path(avg)}" fill="none" stroke="var(--ink)" stroke-width="3.5" stroke-linejoin="round"/>`);
+  }
+  for (const m of rows) for (const [t, v] of m.points) if (v < d.low) o.push(`<circle cx="${X(t)}" cy="${Y(val(m, v))}" r="3" fill="var(--warn)"><title>${v} mg/dL</title></circle>`);
+  o.push("</svg>");
+  return o.join("");
+}
+$("#v-after").addEventListener("click", e => {
+  const t = e.target.closest("[data-afdays],[data-afmode],[data-affood],[data-afall],[data-afmeal]"); if (!t) return;
+  if (t.dataset.afdays) { AF.days = +t.dataset.afdays; loadAfter(); return; }
+  if (t.dataset.afmode) AF.mode = t.dataset.afmode;
+  else if (t.dataset.affood) AF.food = AF.food === t.dataset.affood ? null : t.dataset.affood;
+  else if (t.hasAttribute("data-afall")) AF.food = null;
+  else {   // open that meal in the Log
+    Object.assign(S.log, { day: t.dataset.afday, sel: +t.dataset.afmeal, selEntry: null, selPlan: null, adding: false, edit: null });
+    location.hash = PHONE_MQ.matches ? `#log/meal/${t.dataset.afmeal}` : "#log"; return;
+  }
+  renderAfter();
+});
 
 let confirmDelete = 0;
 $("#v-log").addEventListener("click", async e => {

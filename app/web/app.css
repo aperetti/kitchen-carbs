@@ -865,3 +865,23 @@ p.moved { margin: 6px 0 0; }
 button.statline { cursor: pointer; min-height: 44px; }
 .statline b { color: var(--ink); font-weight: 500; }
 .statline .chev { margin-left: auto; color: var(--ink); }
+
+/* After meals (okf/features/meal-responses.md) */
+.aftlink { display: block; text-align: left; font-size: 15px; }
+.afhead { display: flex; align-items: center; gap: 14px; margin-bottom: 8px; }
+.afhead h2 { margin: 0; font-size: 22px; font-weight: 500; }
+.after > .meta { margin: 4px 0 14px; }
+.afchart { border: 1px solid var(--line); border-radius: var(--r); background: var(--surface); padding: 14px; }
+.afbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin-bottom: 8px; }
+.afbar .seg { margin-left: auto; }
+.afsub { margin: 26px 0 8px; }
+.afoods { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 8px; }
+.afsvg { max-width: none; }
+.affood { display: grid; align-content: start; gap: 4px; text-align: left; padding: 12px 14px; min-height: 44px; border: 1px solid var(--line); border-radius: var(--r); background: var(--surface); color: var(--vein); font: inherit; font-size: 15px; cursor: pointer; }
+.affood b { color: var(--ink); font-weight: 500; }
+.affood.on { border-color: var(--ink); background: var(--sunk); }
+.afmeals { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
+.afmeals button { display: grid; gap: 3px; width: 100%; text-align: left; padding: 12px 0; border: 0; border-bottom: 1px solid var(--line); background: none; font: inherit; font-size: 15px; color: var(--vein); cursor: pointer; }
+.afmeals .when { color: var(--ink); font-weight: 500; }
+.afmeals .nums b { color: var(--ink); font-weight: 500; font-variant-numeric: tabular-nums; }
+@media (max-width: 680px) { .after.pad { padding: 16px 16px 40px; } .afchart { padding: 10px; } .afbar .seg { margin-left: 0; } }
