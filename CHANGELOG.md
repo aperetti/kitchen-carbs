@@ -2,6 +2,8 @@
 Each version is what went to the family's kitchen on that date (okf/architecture/releases.md).
 
 ## Unreleased
+- The meal summary has an "Add a BG correction" switch. If a correction was given in the last 3 hours (a Nightscout correction bolus, or a rapid-acting shot logged without carbs), it starts off and names that correction; switching it on shows a warning that the earlier one may still be acting. The 3 hours can be changed (1 to 6) in Manage → Settings, under the insulin settings.
+- On a phone, the food list now leaves room at the bottom while the keyboard is open, so the last search results can be scrolled up above it.
 
 ## v2026.11.05.3 · 5 Nov 2026
 - The Copy button is shorter for meals already eaten: one line each with the carbs and when the bolus was given. Planned meals still list every food.

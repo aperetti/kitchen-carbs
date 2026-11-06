@@ -39,3 +39,5 @@ links:
   screen (serving size and total carbohydrate each confirmed, okf/rules/label-reading-needs-check.md). 'Not this one?'
   lists the other results. Saving closes the modal and the new food appears under the search; Cancel or × leaves nothing.
 - Phones show two cards per row; the tablet and wide screens as many as fit, with the plate in a column on the right.
+- Phone keyboard (decided 5 Nov): while it is open, the list gets extra room at the bottom as tall as the part the
+  keyboard covers, so the last results can scroll up above it.

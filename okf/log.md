@@ -143,3 +143,5 @@
 - 2026-11-04 — Insulin from Nightscout: boluses (pump, Loop, pen apps) are read into a local table and counted in After meals' insulin and its insulin-backed-out estimate; a logged dose matching one counts once; Kitchen Carbs' own sends are skipped (architecture/nightscout-client.md, domain/insulin-effect.md).
 - 2026-11-05 — Export gets 'Copy': the open day's log and the upcoming plans as plain text for the clipboard, e.g. for the school to plan lunches (features/export-log.md).
 - 2026-11-05 — Copy for school: eaten meals become one line of carbs and insulin with its time; the foods are listed only for planned meals (features/export-log.md).
+- 2026-11-05 — Meal summary: 'Add a BG correction' switch; off to start with, and a warning when turned on, if a correction was given within the recent-correction window (setting, 3 h default) (features/meal-dose-summary.md, domain/insulin-settings.md).
+- 2026-11-05 — Foods list: while the phone keyboard is open, extra room at the bottom so the last search results scroll above it (features/browse-foods.md).

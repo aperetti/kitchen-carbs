@@ -87,6 +87,32 @@ def test_summary_uses_fresh_iob_only(app, monkeypatch):
     assert not r["iob_fresh"] and r["calc"]["iob"] is None and r["calc"]["dose"] == 5.9
 
 
+def test_correction_switch_and_recent_correction(app):
+    """okf/features/meal-dose-summary.md: the BG correction can be left out; a correction in the window is named."""
+    s = dose.check_settings(SETTINGS)
+    assert s["correction_gap_h"] == 3
+    off = dose.calc(62, 210, 0.6, s, "18:30", correct=False)          # carbs only; IOB goes with the correction
+    assert off["correction_left_out"] and off["correction_u"] == 0 and off["iob_off"] == 0 and off["dose"] == 4.1
+    low = dose.calc(30, 95, None, s, "12:00", correct=False)         # under target still lowers it
+    assert not low["correction_left_out"] and low["dose"] == 1.5
+    with pytest.raises(ValueError, match="1 to 6 hours"):
+        dose.check_settings({**SETTINGS, "correction_gap_h": 8})
+    client, main = app
+    client.put("/api/dose-settings", json=SETTINGS)
+    assert client.get("/api/dose?carbs=45&at=18:30&bg=220").json()["recent_correction"] is None
+    now_ms = int(datetime(2026, 10, 27, 18, 30).timestamp() * 1000)
+    with main.db.connect() as c:
+        c.execute("INSERT INTO ns_insulin(id, date_ms, units, event_type, entered_by) VALUES ('a', ?, 2, 'Meal Bolus', '')", (now_ms - 30 * 60000,))
+        c.execute("INSERT INTO ns_insulin(id, date_ms, units, event_type, entered_by) VALUES ('b', ?, 1.5, 'Correction Bolus', '')", (now_ms - 200 * 60000,))
+    assert client.get("/api/dose?carbs=45&at=18:30&bg=220").json()["recent_correction"] is None   # meal bolus; 3 h 20 ago
+    client.post("/api/entries", json={"client_id": "corr-0001", "day": "2026-10-27", "time": "17:10", "insulin": 1, "insulin_kind": "rapid"})
+    r = client.get("/api/dose?carbs=45&at=18:30&bg=220").json()
+    assert r["recent_correction"]["units"] == 1 and r["recent_correction"]["source"] == "log" and r["recent_correction"]["age_min"] == 80
+    client.put("/api/dose-settings", json={**SETTINGS, "correction_gap_h": 4})
+    r = client.get("/api/dose?carbs=45&at=18:30&bg=220&correct=false").json()
+    assert r["recent_correction"]["source"] == "log" and r["calc"]["correction_left_out"] and r["calc"]["dose"] == 3
+
+
 def test_nightscout_iob_shapes(monkeypatch):
     from server import nightscout
     answers = {}

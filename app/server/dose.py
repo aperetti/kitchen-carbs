@@ -9,6 +9,7 @@ import re
 FRESH_MIN = 15          # a CGM reading or IOB older than this is not used
 STEP_U = 0.05           # pump precision; always rounded down
 STEPS = (0.05, 0.1, 0.5, 1.0)   # the parent picks one to match the pump or pen
+GAP_H = 3               # a correction within this many hours counts as recent, unless the parent sets 1-6
 LIMITS = {"carb_ratio": (1, 150), "isf": (5, 500), "target": (70, 200)}
 HHMM = re.compile(r"^([01]\d|2[0-3]):[0-5]\d$")
 
@@ -19,7 +20,10 @@ def check_settings(s: dict) -> dict:
     step = s.get("round_to", STEP_U)
     if step not in STEPS:
         raise ValueError("Round the dose down to 0.05, 0.1, 0.5 or 1 u.")
-    out = {"round_to": float(step)}
+    gap = s.get("correction_gap_h", GAP_H)
+    if gap not in range(1, 7):
+        raise ValueError("The recent-correction window must be 1 to 6 hours.")
+    out = {"round_to": float(step), "correction_gap_h": int(gap)}
     for k, (lo, hi) in LIMITS.items():
         blocks = s.get(k) or []
         if not blocks:
@@ -50,17 +54,21 @@ def round_down(u: float, step: float = STEP_U) -> float:
     return round(math.floor(u / step + 1e-9) * step, 2)
 
 
-def calc(carbs: float, bg: float | None, iob: float | None, settings: dict, at: str) -> dict:
-    """Carbs ÷ ratio, plus (BG − target) ÷ factor; IOB comes off a positive correction only."""
+def calc(carbs: float, bg: float | None, iob: float | None, settings: dict, at: str, correct: bool = True) -> dict:
+    """Carbs ÷ ratio, plus (BG − target) ÷ factor; IOB comes off a positive correction only.
+    correct=False leaves a positive correction out (and the IOB with it); a BG under target still lowers the dose."""
     icr, isf, target = (block_at(settings[k], at) for k in ("carb_ratio", "isf", "target"))
     carb_u = carbs / icr
     corr = None if bg is None else (bg - target) / isf
+    left_out = corr is not None and corr > 0 and not correct
+    if left_out:
+        corr = 0.0
     iob_off = 0.0
     if corr is not None and corr > 0 and iob:
         iob_off = min(max(iob, 0.0), corr)
     total = max(0.0, carb_u + (corr or 0.0) - iob_off)
     step = settings.get("round_to", STEP_U)   # settings saved before 2 Nov have none
     return {"carb_ratio": icr, "isf": isf, "target": target, "carbs": carbs, "bg": bg,
-            "carb_u": round(carb_u, 2), "correction_u": None if corr is None else round(corr, 2),
+            "carb_u": round(carb_u, 2), "correction_u": None if corr is None else round(corr, 2), "correction_left_out": left_out,
             "iob": iob, "iob_off": round(iob_off, 2), "iob_used": corr is not None and corr > 0,
             "total_exact": round(total, 3), "round_to": step, "dose": round_down(total, step)}

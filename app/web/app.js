@@ -830,7 +830,7 @@ const u2 = x => (+x).toFixed(2);
 const agoMin = m => m < 1 ? "just now" : m < 120 ? `${m} min ago` : m < 2880 ? `${Math.round(m / 60)} hours ago` : `${Math.round(m / 1440)} days ago`;
 function openSummary() {
   if (S.plateAuto) S.plateTime = eatAt(null);   // worked out again from now; loadDose moves it to the BG
-  S.sum = { carbs: whole(plateExact()), day: localDay(), at: S.plateTime || hhmm(), bg: "", typed: false, data: null, err: null };
+  S.sum = { carbs: whole(plateExact()), day: localDay(), at: S.plateTime || hhmm(), bg: "", typed: false, data: null, err: null, correct: null };   // correct: the BG correction switch, null until first set
   doseDlg.innerHTML = `<div class="dlghead"><b id="sumHead">${sumHead()}</b><button class="rm" data-sum="close" aria-label="Back to plate">×</button></div>
     <div class="dlgbody">
       <ul class="summeal">${S.plate.map(x => `<li><span class="t">${esc(x.food_name)}<small>${x.entered != null ? "Entered by hand" : fmtG(x.grams) + stateLabel(x)}</small></span>
@@ -855,9 +855,13 @@ const sumAway = () => { const d = new Date(`${S.sum.day}T${S.sum.at}`).getTime()
 async function loadDose() {
   const s = S.sum; if (!s) return;
   const bg = s.typed && s.bg !== "" ? `&bg=${encodeURIComponent(s.bg)}` : s.typed || sumAway() ? "&use_cgm=false" : "";
-  try { s.data = await api(`/api/dose?carbs=${s.carbs}&at=${s.at}${bg}`); s.err = null; }
+  try { s.data = await api(`/api/dose?carbs=${s.carbs}&at=${s.at}${bg}${s.correct === false ? "&correct=false" : ""}`); s.err = null; }
   catch (err) { s.data = null; s.err = err.status === 422 ? "Blood glucose must be between 20 and 600 mg/dL." : err.message || "Couldn't reach the server."; }
   if (S.sum !== s) return;
+  if (s.correct == null && s.data?.ready) {   // a correction given recently starts it off (okf/features/meal-dose-summary.md)
+    s.correct = !s.data.recent_correction;
+    if (!s.correct) return loadDose();
+  }
   if (!s.typed) $("#sumBg").value = s.data?.bg_source === "cgm" ? s.data.cgm.sgv : "";   // filled in only from a fresh reading
   if (S.plateAuto && s.day === localDay()) {   // the eat time follows the BG until it's changed by hand
     const at = eatAt($("#sumBg").value.trim());
@@ -897,7 +901,7 @@ function drawDose() {
   if (!d.ready) { el.innerHTML = note + `<p class="sumnone">Insulin settings aren't set up, so no dose is worked out.
     <a href="#manage/settings" data-sum="settings">Add the carb ratio, correction factor and target in Manage → Settings</a>.</p>`; return; }
   const k = d.calc, i = d.iob;
-  const iobLine = !d.nightscout ? "Nightscout isn't connected, so nothing is taken off."
+  const iobLine = k.correction_left_out && i ? `${u2(i.units)} u. Not used: the correction is left out.` : !d.nightscout ? "Nightscout isn't connected, so nothing is taken off."
     : !i ? `Not available from Nightscout${d.ns_error ? ` (${esc(d.ns_error)})` : ""}, so nothing is taken off.`
     : !d.iob_fresh ? `Nightscout's is ${i.age_min} min old (${u2(i.units)} u), so nothing is taken off.`
     : k.correction_u == null ? `${u2(i.units)} u (${esc(i.source)}, ${agoMin(i.age_min)}). No correction to take it off.`
@@ -909,13 +913,27 @@ function drawDose() {
     <dl class="sumcalc">
       <dt>Carbs</dt><dd>${k.carbs} g ÷ ${k.carb_ratio} g per u = <b>${u2(k.carb_u)} u</b></dd>
       <dt>Correction</dt><dd>${k.correction_u == null ? "No BG, so none added."
-        : `(${k.bg} − ${k.target}) ÷ ${k.isf} = <b>${k.correction_u < 0 ? "−" : ""}${u2(Math.abs(k.correction_u))} u</b>${k.correction_u < 0 ? " (BG under target lowers the dose)" : ""}`}</dd>
+        : k.correction_left_out ? `Left out. (${k.bg} − ${k.target}) ÷ ${k.isf} isn't added.`
+        : `(${k.bg} − ${k.target}) ÷ ${k.isf} = <b>${k.correction_u < 0 ? "−" : ""}${u2(Math.abs(k.correction_u))} u</b>${k.correction_u < 0 ? " (BG under target lowers the dose)" : ""}`}
+        ${corrSwitch(d)}</dd>
       <dt>Insulin on board</dt><dd>${iobLine}</dd>
       <dt>Total</dt><dd>${(+k.total_exact).toFixed(3).replace(/0$/, "")} u, rounded down to ${k.round_to ?? 0.05} u</dd>
     </dl>
     <p class="meta">Worked out from your settings${d.updated ? ` (changed ${esc(dayLabel(d.updated))})` : ""}. Check it against the pump before giving.</p>`;
 }
+/* 'Add a BG correction', with a recent correction named and warned about (okf/features/meal-dose-summary.md) */
+const hm = m => m < 60 ? `${m} min` : `${Math.floor(m / 60)} h${m % 60 ? ` ${m % 60} min` : ""}`;
+function corrSwitch(d) {
+  const k = d.calc, r = d.recent_correction, on = S.sum.correct !== false;
+  if (k.correction_u == null || (k.correction_u <= 0 && !k.correction_left_out)) return "";
+  const when = r && `${fmtU(r.units)} correction at ${clk(new Date(r.ms).toTimeString().slice(0, 5))}, ${hm(r.age_min)} ago, ${r.source === "log" ? "in the log" : "from Nightscout"}`;
+  return `<label class="corrsw"><input type="checkbox" data-sum="correct" ${on ? "checked" : ""}> Add a BG correction</label>
+    ${r && !on ? `<p class="meta">${esc(cap(when))}, within ${r.hours} hour${r.hours > 1 ? "s" : ""}, so it starts off.</p>` : ""}
+    ${r && on ? `<p class="sumlow" role="alert">A correction was given recently: ${esc(when)}. It may still be acting.
+      Check against the pump and the care team's plan before adding another.</p>` : ""}`;
+}
 doseDlg.addEventListener("change", e => {   // date or time of the meal: heading, plate time and the dose follow
+  if (e.target.dataset.sum === "correct" && S.sum) { S.sum.correct = e.target.checked; return loadDose(); }
   if (!["sumDay", "sumAt"].includes(e.target.id) || !S.sum) return;
   const day = $("#sumDay").value, at = $("#sumAt").value;
   if (!day || !at || day > localDay()) return;
@@ -1101,6 +1119,16 @@ function renderLog() {
     </div>`;
   renderMeal();
   cardSync();
+}
+
+/* The phone keyboard covers the bottom of the foods list without shrinking it: pad the list by the part it covers,
+   so the last results can scroll up above it (okf/features/browse-foods.md) */
+if (window.visualViewport) {
+  const vv = visualViewport, kb = () => {
+    const b = vv.scale > 1.05 ? 0 : ($(".fg-main")?.getBoundingClientRect().bottom ?? 0) - vv.offsetTop - vv.height;
+    document.documentElement.style.setProperty("--kb", `${Math.max(0, Math.round(b))}px`);
+  };
+  vv.addEventListener("resize", kb); vv.addEventListener("scroll", kb);
 }
 
 /* Copy for school: the open day and upcoming plans as plain text (okf/features/export-log.md) */
@@ -3140,6 +3168,8 @@ function doseForm() {
         <button type="button" class="linkbtn" data-act="dose-add">+ Add a time</button></fieldset>`; }).join("")}
     <label class="field"><span>Round the dose down to, to match what the pump or pen can give</span><select id="doseRound">${DOSE_STEPS.map(s =>
       `<option value="${s}" ${(d.round_to ?? 0.05) === s ? "selected" : ""}>${s} u</option>`).join("")}</select></label>
+    <label class="field"><span>A correction counts as recent for, in the meal summary</span><select id="doseGap">${[1, 2, 3, 4, 5, 6].map(h =>
+      `<option value="${h}" ${(d.correction_gap_h ?? 3) === h ? "selected" : ""}>${h} hour${h > 1 ? "s" : ""}</option>`).join("")}</select></label>
 </form>`;
 }
 /* One Save for every setting (okf/design/components/settings-save.md): the log's bar, floating up when anything differs */
@@ -3248,7 +3278,7 @@ async function saveSettings() {   // each changed section in page order; a probl
   } finally { setSaving = false; btn.disabled = false; setDirty(); }
 }
 function doseCollect() {
-  const out = { round_to: +($("#doseRound")?.value ?? 0.05) };
+  const out = { round_to: +($("#doseRound")?.value ?? 0.05), correction_gap_h: +($("#doseGap")?.value ?? 3) };
   for (const fs of document.querySelectorAll("#doseForm .doseset")) out[fs.dataset.k] = [...fs.querySelectorAll(".doserow")].map(r => ({
     start: r.querySelector(".dStart").value, value: r.querySelector(".dVal").value === "" ? "" : +r.querySelector(".dVal").value }));
   return out;

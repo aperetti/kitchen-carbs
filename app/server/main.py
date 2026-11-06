@@ -2345,6 +2345,7 @@ class DoseSettingsIn(BaseModel):
     isf: list[DoseBlock] = Field(max_length=24)
     target: list[DoseBlock] = Field(max_length=24)
     round_to: float = dose.STEP_U
+    correction_gap_h: int = dose.GAP_H
 
 
 def dose_settings(c):
@@ -2379,7 +2380,7 @@ def clear_dose_settings(c=Depends(con)):
 
 @app.get("/api/dose")
 def meal_dose(carbs: float = Query(ge=0, le=1000), at: str = Query(pattern=r"^([01]\d|2[0-3]):[0-5]\d$"),
-              bg: float | None = Query(default=None, ge=20, le=600), use_cgm: bool = True, c=Depends(con)):
+              bg: float | None = Query(default=None, ge=20, le=600), use_cgm: bool = True, correct: bool = True, c=Depends(con)):
     """Worked out for the summary only; never stored. bg is a typed meter reading; without it the CGM is used if fresh,
     unless use_cgm is false (the parent cleared the box)."""
     ds = dose_settings(c)
@@ -2401,8 +2402,26 @@ def meal_dose(carbs: float = Query(ge=0, le=1000), at: str = Query(pattern=r"^([
            "cgm": cgm, "cgm_fresh": cgm_ok, "bg_source": "typed" if bg is not None else ("cgm" if from_cgm else None),
            "iob": iob, "iob_fresh": iob_ok, "ns_error": live["error"]}
     if ds["settings"]:
-        out["calc"] = dose.calc(carbs, used_bg, iob["units"] if iob_ok else None, ds["settings"], at)
+        out["calc"] = dose.calc(carbs, used_bg, iob["units"] if iob_ok else None, ds["settings"], at, correct)
+        out["recent_correction"] = recent_correction(c, now_ms, ds["settings"].get("correction_gap_h", dose.GAP_H))
     return out
+
+
+def recent_correction(c, now_ms: int, hours: int):
+    """The newest correction within the window: a Nightscout 'Correction Bolus', or a rapid-acting log entry with no
+    carbs (okf/features/meal-dose-summary.md). Told to the parent; it never changes the numbers."""
+    since = now_ms - hours * 3600000
+    found = [{"units": r["units"], "ms": r["date_ms"], "source": "Nightscout"} for r in c.execute(
+        "SELECT units, date_ms FROM ns_insulin WHERE event_type = 'Correction Bolus' AND date_ms BETWEEN ? AND ?", (since, now_ms))]
+    d0 = (now() - timedelta(hours=hours)).date().isoformat()
+    for e in entries_for_days(c, d0, today()):
+        t = meal_ms(e["day"], e["time"])
+        if e["insulin"] is not None and e["insulin_kind"] == "rapid" and e["carbs"] is None and since <= t <= now_ms:
+            found.append({"units": e["insulin"], "ms": t, "source": "log"})
+    if not found:
+        return None
+    r = max(found, key=lambda x: x["ms"])
+    return {**r, "age_min": round((now_ms - r["ms"]) / 60000), "hours": hours}
 
 
 # ----- nightscout -----

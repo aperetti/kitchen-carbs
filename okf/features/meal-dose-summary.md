@@ -3,7 +3,7 @@ type: Feature
 title: "Meal summary and dose"
 description: "Tapping 'Save to log' opens a summary of the plate with the insulin worked out from the parent's ratios, the BG and insulin on board, step by step."
 tags: [feature, safety]
-timestamp: 2026-11-04
+timestamp: 2026-11-05
 status: draft
 links:
   uses: [domain/plate.md, domain/insulin-settings.md, domain/glucose-reading.md]
@@ -22,6 +22,14 @@ Decided 29 Oct. 'Save to log' on the plate opens a modal before anything is save
   - Insulin on board: −0.60 u (off the correction only, never below zero)
   - Total 5.33 u → **5.30 u** (rounded down to 0.05 u, or the step set in the insulin settings: 5.00 u at 0.5 u)
 - BG below target: the negative correction lowers the carb dose, never below zero. Below 70 mg/dL the BG shows as low.
+- 'Add a BG correction' (decided 5 Nov): a switch beside the Correction step, shown when there is a BG above target.
+  Off, the correction (and the insulin on board taken off it) is left out and the dose is the carbs' only; the
+  Correction line says it was left out. A BG under target still lowers the dose either way. On to start with, unless a
+  correction was given within the recent-correction window (okf/domain/insulin-settings.md, 3 hours until changed):
+  then it starts off with a line naming it ('1.5 u correction at 2:10 PM, 1 h 20 min ago, from Nightscout'), and
+  turning it on shows a warning that a correction was given recently and insulin may still be acting, to check
+  against the pump and the care team's plan. A recent correction is a Nightscout 'Correction Bolus', or a rapid-acting
+  insulin entry in the log with no carbs. The switch isn't saved; it resets each time the summary opens.
 - No BG: carbs only, and it says no correction was added. No settings: the summary shows the meal, says the ratios
   aren't set up, and links to Manage → Settings.
 - 'What was given (optional)', under the steps (decided 29 Oct): insulin given (empty, never filled in from the dose),
