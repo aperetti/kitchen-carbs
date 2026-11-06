@@ -1132,7 +1132,6 @@ if (window.visualViewport) {
 }
 
 /* Copy for school: the open day and upcoming plans as plain text (okf/features/export-log.md) */
-const weighed = (grams, qty) => grams ? ` ${+(grams * (qty || 1)).toFixed(1)} g` : "";
 function dayText(d) {
   const L = [`Kitchen Carbs · ${dayLabel(d.day)}`, ""];
   const rows = [...d.meals.map(m => ({ t: m.time, m })), ...d.entries.map(e => ({ t: e.time, e }))].sort((a, b) => a.t.localeCompare(b.t));
@@ -1147,8 +1146,9 @@ function dayText(d) {
   if (plans.length) {
     L.push("", "Planned (not eaten yet)");
     for (const p of plans) {
-      L.push(`${dayLabel(p.day)}, ${clk(p.time)}  ${p.name}: ${p.carbs} g carbs`);
-      for (const i of p.items) L.push(`   - ${i.food_name}${i.entered != null ? "" : weighed(i.grams, i.qty)}: ${whole(i.entered != null ? i.entered : i.grams * i.carbs_per_100g / 100 * (i.qty || 1))} g carbs`);
+      L.push(`${dayLabel(p.day)}, ${clk(p.time)}  ${p.name}`);   // each food's carbs, no weights, then the total
+      for (const i of p.items) L.push(`   - ${i.food_name}: ${whole(i.entered != null ? i.entered : i.grams * i.carbs_per_100g / 100 * (i.qty || 1))} g carbs`);
+      L.push(`   Total: ${p.carbs} g carbs`);
     }
   }
   return L.join("\n");

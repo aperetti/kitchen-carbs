@@ -37,8 +37,8 @@ message, e.g. for the school to plan lunches.
   the carbs and when insulin was given, not what was in an eaten meal): a meal is its time, carbs and insulin with
   the time it was given ('7:30 AM  47 g carbs · 4.0 u bolus @ 7:20 AM'); an entry is its carbs and insulin, and an
   entry with neither (BG or a note only) is left out. Then the day's carbs total.
-- Then 'Planned': every plan for today or later (overdue ones left out), each with its date and time, name, each food
-  with its weight and carbs, and the total. A plan is marked 'not eaten yet' and isn't in the day's total.
+- Then 'Planned': every plan for today or later (overdue ones left out), each with its date and time and name, each food
+  with its carbs (no weights; decided 5 Nov), then a 'Total' line with the plan's carbs. A plan is marked 'not eaten yet' and isn't in the day's total.
 - Times follow the log's 12-hour setting. Insulin is only what was recorded; no calculated dose
   (okf/rules/no-dosing.md). Deleted rows are left out.
 - Where the browser won't allow the clipboard, the text is shown selected so it can be copied by hand.

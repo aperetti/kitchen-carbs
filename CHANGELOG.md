@@ -2,6 +2,7 @@
 Each version is what went to the family's kitchen on that date (okf/architecture/releases.md).
 
 ## Unreleased
+- Copy for school: each planned meal now lists every food with just its carbs (no weights), then a Total line.
 
 ## v2026.11.05.4 · 5 Nov 2026
 - Editing a meal in the log now lets you change its foods: change a food's weight, remove one with ×, or add one with a quick search of the food list (small photos, compact rows), then pick its serving. The change is written into the meal's comments, so what was first logged is still on record.
