@@ -2,6 +2,8 @@
 Each version is what went to the family's kitchen on that date (okf/architecture/releases.md).
 
 ## Unreleased
+
+## v2026.11.06 · 6 Nov 2026
 - Copy for school: each planned meal now lists every food with just its carbs (no weights), then a Total line.
 - A new portion (like 2× or ½× a serving) now just shows the serving's photo instead of asking Gemini to draw one. It's marked "Same photo as another portion"; you can still upload a real photo or tap Estimate.
 
