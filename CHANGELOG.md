@@ -2,9 +2,10 @@
 Each version is what went to the family's kitchen on that date (okf/architecture/releases.md).
 
 ## Unreleased
+- The Copy button is shorter for meals already eaten: one line each with the carbs and when the bolus was given. Planned meals still list every food.
 
 ## v2026.11.05.2 · 5 Nov 2026
-- Log → Export has a new Copy button: it copies the day's meals as carbs and when the bolus was given, one line each, then the upcoming planned meals with every food, ready to paste into an email for school.
+- Log → Export has a new Copy button: it copies the day's meals (foods, weights, carbs, BG and insulin as given) and the upcoming planned meals as plain text, ready to paste into an email for school.
 
 ## v2026.11.05 · 5 Nov 2026
 
