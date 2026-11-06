@@ -1921,3 +1921,15 @@ def test_gap_estimates_are_ar2_and_drawing_only():
     assert core.gap_estimates([(0, 120), (13 * step, 140)]) == []         # over an hour stays blank
     w = core.meal_window(flat, 6 * step, 10**13)
     assert w["estimated"] and len(w["points"]) == 12 and w["coverage"] < 1   # numbers stay on real readings
+
+
+def test_added_portion_shows_parent_photo(app):
+    # okf/domain/portion.md: a new portion shows its parent portion's photo, no Gemini call, labelled as copied
+    client, _ = app
+    f = client.get("/api/foods").json()[0]
+    base = f["portions"][0]
+    out = client.post(f"/api/foods/{f['id']}/portions", json={"label": "3 cup", "grams": 333, "photo_from": base["id"]}).json()
+    p = next(x for x in out["portions"] if x["grams"] == 333)
+    assert p["photo"]["styled"] == (base["photo"]["styled"] or base["photo"]["original"])
+    assert p["photo"]["copied"] and p["photo"]["estimated"] and not p["photo"]["original"] and not p["job"]
+    assert not base["photo"]["copied"]

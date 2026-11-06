@@ -19,6 +19,9 @@ links:
   logged meals keep their labels (okf/rules/snapshot-log-values.md).
 - Multiple of a serving (decided 27 Oct): a portion can be made as ½×, 1½×, 2× or any multiple (0.1 to 10) of a weighed
   portion, by default the food's serving (the first portion). Its grams are that weighed amount times the multiple, its label
-  is the multiplied amount in the same unit ('1½ servings', 1.5 × '4 Nuggets' = '6 Nuggets'), and after that it is an ordinary portion: it can be renamed, reweighed or photographed. If the serving has a photo, an
-  estimated photo of the new portion is started from it (its styled photo first) at once (okf/features/photo-pipeline.md); the serving's note
-  for Gemini, container and size reference are copied.
+  is the multiplied amount in the same unit ('1½ servings', 1.5 × '4 Nuggets' = '6 Nuggets'), and after that it is an ordinary portion: it can be renamed, reweighed or photographed. The new portion shows the
+  serving's photo (its styled photo first) straight away, with no call to Gemini (decided 6 Nov, replacing the estimate started
+  at once); the serving's note for Gemini, container and size reference are copied.
+- Any added portion (decided 6 Nov): a portion added later, as a multiple or by hand, uses its parent portion's photo by
+  default: the one it is a multiple of, else the serving, else any portion with a photo. It is labelled 'Same photo as
+  another portion' (okf/rules/estimated-photo-label.md) until a photo of that amount is uploaded or estimated.

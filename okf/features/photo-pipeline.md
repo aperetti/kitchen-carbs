@@ -20,8 +20,8 @@ links:
 4. Side-by-side review → accept / regenerate / use original. Accepting also saves unsaved changes to the food and its
    portions first (decided 30 Oct, okf/features/manage-foods.md).
 5. Stand-in for an unphotographed portion: generate from a sibling portion's **styled** photo (decided 27 Oct: it already has
-   the approved counter, dish and light), or its original when it has no styled photo yet; flagged estimated. A portion quick-added as a multiple of a serving starts this
-   straight away from that serving's photo when it has one (decided 27 Oct).
+   the approved counter, dish and light), or its original when it has no styled photo yet; flagged estimated. A newly added portion no longer starts this on its own (decided 6 Nov): it
+   shows its parent portion's photo as is (okf/domain/portion.md), and 'Estimate from …' stays available for a photo of the right amount.
 6. No photo at all (decided 27 Oct): 'Generate a photo' makes one from the food name, portion name and grams, the
    portion's container (base photo when there is one), its size reference and the style prompt. It is checked like any
    other candidate and flagged estimated until a real photo of that portion is uploaded.

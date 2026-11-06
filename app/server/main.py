@@ -147,6 +147,7 @@ class PortionIn(BaseModel):
     container: Literal["auto", "plate", "bowl", "dressing", "counter", "package"] = "auto"   # counter: no dish
     size_ref_id: int | None = None
     photo_note: str | None = Field(None, max_length=300)   # None keeps the current note
+    photo_from: int | None = None   # a new portion's parent portion, whose photo it shows (okf/domain/portion.md)
 
 
 class SizeRefIn(BaseModel):
@@ -330,7 +331,7 @@ def portion_out(p, cp100):
             "job": p["photo_job"] and {"kind": p["photo_job"], "started": p["photo_job_started"]},
             "job_error": p["photo_job_error"],
             "photo": {"styled": p["photo_styled"], "original": p["photo_original"],
-                      "candidate": p["photo_candidate"], "estimated": bool(p["photo_estimated"]),
+                      "candidate": p["photo_candidate"], "estimated": bool(p["photo_estimated"]), "copied": p["photo_estimated"] == 2,
                       "candidate_estimated": bool(p["candidate_estimated"]),
                       "candidate_kind": ("styled", "estimate", "generated")[p["candidate_estimated"] or 0]}}
 
@@ -946,9 +947,16 @@ def delete_food(food_id: str, c=Depends(con)):
 def add_portion(food_id: str, body: PortionIn, c=Depends(con)):
     get_food(c, food_id)
     with c:
-        c.execute("INSERT INTO portions(food_id, label, grams, sort, container, size_ref_id, photo_note) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        # The parent portion's photo, else the serving's, else any (okf/domain/portion.md); 2 = same photo as another portion
+        f = get_food(c, food_id)
+        src = c.execute("SELECT COALESCE(photo_styled, photo_original) FROM portions WHERE food_id = ? "
+                        "AND (photo_styled IS NOT NULL OR photo_original IS NOT NULL) "
+                        "ORDER BY id = ? DESC, grams = ? DESC, photo_styled IS NULL, sort, id",
+                        (food_id, body.photo_from or 0, f["serving_grams"])).fetchone()
+        c.execute("INSERT INTO portions(food_id, label, grams, sort, container, size_ref_id, photo_note, photo_styled, photo_estimated) "
+                  "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
                   (food_id, body.label.strip(), body.grams, body.sort, body.container, check_size_ref(c, body.size_ref_id),
-                   (body.photo_note or "").strip()))
+                   (body.photo_note or "").strip(), src and src[0], 2 if src else 0))
     return food_out(c, get_food(c, food_id))
 
 
@@ -1657,7 +1665,7 @@ def generate_missing_photos(c=Depends(con)):
     for p in missing:
         f = get_food(c, p["food_id"])
         ref = c.execute("SELECT * FROM portions WHERE food_id = ? AND id != ? AND (photo_styled IS NOT NULL OR photo_original IS NOT NULL) "
-                        "ORDER BY photo_styled IS NULL, grams = ? DESC, sort", (p["food_id"], p["id"], f["serving_grams"])).fetchone()
+                        "AND photo_estimated != 2 ORDER BY photo_styled IS NULL, grams = ? DESC, sort", (p["food_id"], p["id"], f["serving_grams"])).fetchone()
         what = {"food": f["name"], "grams": p["grams"], "label": p["label"]}
         if ref:
             jobs.append(_generate(c, p["id"], ref["photo_styled"] or ref["photo_original"], p["container"], ESTIMATE,

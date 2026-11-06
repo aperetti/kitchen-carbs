@@ -184,7 +184,8 @@ function foodCard(f) {
   const verified = f.trust === "parent-verified" ? `verified ${dayLabel(f.verified_at)}` : `<span class="warn">not verified</span>`;
   const tags = [f.trust !== "parent-verified" && "Not verified"].filter(Boolean), lean = riseLean(f.ratings);
   const onPlate = S.plate.filter(x => x.food_id === f.id).reduce((g, x) => g + itemG(x), 0);   // shows it was added (okf/features/view-food.md)
-  const estimated = f.portions.filter(p => p.photo.estimated && !p.photo.original).map(p => esc(p.label));
+  const estimated = f.portions.filter(p => p.photo.estimated && !p.photo.copied && !p.photo.original).map(p => esc(p.label));
+  const copied = f.portions.filter(p => p.photo.copied && !p.photo.original).map(p => esc(p.label));
   const serving = f.portions[0];
   return `<article class="card ${open ? "open" : ""} ${serving ? "addable" : ""}" ${serving ? `data-addcard="${esc(f.id)}" tabindex="0" role="button" aria-pressed="${onPlate > 0}" aria-label="${esc(f.name)}, ${esc(serving.label)}, ${serving.carbs} grams of carbs. Tap to ${onPlate ? "take off" : "add to"} the plate"` : ""}>
     <div class="cimg">${img ? `<img ${sized(img, "(min-width: 1100px) 300px, (min-width: 681px) 33vw, 50vw")} alt="" loading="lazy">` : `<span class="noimg">No photo yet</span>`}
@@ -197,6 +198,7 @@ function foodCard(f) {
         <span>${f.portions.map(p => `${esc(p.label)} = ${p.grams} g, ${p.carbs} g carbs${fiberText(f, p.grams)}`).join(" · ") || "No portions yet. A parent can add one in Manage."}</span>
         <span>${f.carbs_per_100g} g carbs per 100 g${f.basis && f.basis !== "as-sold" ? ` ${STATE[f.basis]}` : ""}${f.cook_ratio ? ` · cooked ×${+f.cook_ratio.toFixed(2)}, weighed ${dayLabel(f.cook_measured_at)}` : ""}</span>
         ${estimated.length ? `<span class="warn">Estimated photo: ${estimated.join(", ")}. Gemini drew ${estimated.length > 1 ? "them" : "it"}; the amount may not match.</span>` : ""}
+        ${copied.length ? `<span class="warn">Same photo as another portion: ${copied.join(", ")}. The amount shown is that portion's.</span>` : ""}
         <span>${esc(SOURCE[f.source_kind] || f.source_kind)} · ${esc(f.source_ref)} · ${verified}${f.barcode && !f.source_ref.includes(f.barcode) ? ` · barcode ${esc(f.barcode)}` : ""}</span>
         ${f.notes ? `<span>${esc(f.notes)}</span>` : ""}
         ${f.ratings ? `<span>In rated meals with this food: ${esc(ratingText(f.ratings))}</span>` : ""}
@@ -2120,13 +2122,13 @@ const refFor = dish => S.sizeRefs.find(r => r.container === dish);   // first re
 /* The portion another is estimated from: the serving first, then one with a styled photo, then any photo.
    Its styled photo is what gets sent (okf/features/photo-pipeline.md). */
 const hasPhoto = x => x.photo.styled || x.photo.original;
-const photoSource = (f, p) => f.portions.find(x => x.id !== p.id && x.grams === f.serving_grams && hasPhoto(x))
-  || f.portions.find(x => x.id !== p.id && x.photo.styled) || f.portions.find(x => x.id !== p.id && x.photo.original);
+const photoSource = (f, p) => { const o = f.portions.filter(x => x.id !== p.id && !x.photo.copied);   // never a copied stand-in
+  return o.find(x => x.grams === f.serving_grams && hasPhoto(x)) || o.find(x => x.photo.styled) || o.find(x => x.photo.original); };
 function portionsEditor(f) {
   const gramsHead = f.basis && f.basis !== "as-sold" ? `Grams, ${STATE[f.basis]}` : "Grams";   // portions are in the food's own state (okf/domain/food.md)
   const rows = f.portions.map(p => {
     const img = p.photo.styled || p.photo.original;
-    const status = p.photo.styled ? (p.photo.estimated ? `<span class="warn">Estimated photo</span>` : "Styled") : p.photo.original ? "Your photo" : "No photo";
+    const status = p.photo.styled ? (p.photo.copied ? `<span class="warn">Same photo as another portion</span>` : p.photo.estimated ? `<span class="warn">Estimated photo</span>` : "Styled") : p.photo.original ? "Your photo" : "No photo";
     const sibling = photoSource(f, p);
     const busy = S.m.busy[p.id];
     const job = p.job && `<div class="jobbar" role="progressbar" aria-label="Making the photo"><i></i></div>
@@ -2184,12 +2186,8 @@ async function addMultiple(m) {
   const grams = Math.round(base.grams * m * 10) / 10;
   if (f.portions.some(p => p.grams === grams)) { toast(`There's already a ${grams} g portion.`); return; }
   await parentCall(`/api/foods/${f.id}/portions`, { method: "POST", body: { label: multLabel(m, base).slice(0, 40), grams, sort: f.portions.length,
-    container: base.container, size_ref_id: base.size_ref_id, photo_note: base.photo_note || "" } });
-  const added = foodById(f.id)?.portions.find(p => p.grams === grams);
-  if (added && hasPhoto(base)) {   // start its photo from the serving's (okf/features/photo-pipeline.md)
-    await parentCall(`/api/portions/${added.id}/estimate`, { method: "POST", body: { from_portion_id: base.id } }, added.id, "Starting…");
-    toast(`Added ${multLabel(m, base)}, ${grams} g. Making its photo from ${base.label}…`); watchJobs();
-  } else toast(`Added ${multLabel(m, base)}, ${grams} g`);
+    container: base.container, size_ref_id: base.size_ref_id, photo_note: base.photo_note || "", photo_from: base.id } });
+  toast(`Added ${multLabel(m, base)}, ${grams} g${hasPhoto(base) ? `, showing ${base.label}'s photo` : ""}`);   // no Gemini call (okf/domain/portion.md)
 }
 
 function reviewPanel(f, p) {
