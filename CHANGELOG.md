@@ -2,6 +2,8 @@
 Each version is what went to the family's kitchen on that date (okf/architecture/releases.md).
 
 ## Unreleased
+
+## v2026.11.05.3 · 5 Nov 2026
 - The Copy button is shorter for meals already eaten: one line each with the carbs and when the bolus was given. Planned meals still list every food.
 
 ## v2026.11.05.2 · 5 Nov 2026
