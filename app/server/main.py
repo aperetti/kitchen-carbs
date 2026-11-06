@@ -1709,15 +1709,73 @@ def create_meal(body: MealIn, c=Depends(con), x_kc_push: str = Header(default=""
                          now().strftime("%Y-%m-%d %H:%M") if body.day < today() else None,
                          *(getattr(body, k) for k in DETAILS))).lastrowid
         for i in body.items:
-            c.execute("INSERT INTO meal_items(meal_id, food_id, portion_id, food_name, portion_label, grams, carbs_per_100g, qty, carbs_exact, entered_carbs, fiber_per_100g) "
-                      "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                      (mid, i.food_id, i.portion_id, i.food_name.strip(), i.portion_label, i.grams, i.carbs_per_100g, i.qty,
-                       i.entered_carbs if i.entered_carbs is not None else core.carbs_exact(i.grams, i.carbs_per_100g, i.qty), i.entered_carbs,
-                       item_fiber(c, i)))
+            insert_item(c, mid, i)
         if body.plan_id is not None:
             c.execute("DELETE FROM planned_meals WHERE id = ?", (body.plan_id,))
     notify(lambda: meal_notice(c, mid), x_kc_push)
     return {"id": mid, "duplicate": False}
+
+
+def insert_item(c, mid: int, i: ItemIn):
+    """A food as it is now, snapshotted into the meal (okf/rules/snapshot-log-values.md)."""
+    c.execute("INSERT INTO meal_items(meal_id, food_id, portion_id, food_name, portion_label, grams, carbs_per_100g, qty, carbs_exact, entered_carbs, fiber_per_100g) "
+              "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+              (mid, i.food_id, i.portion_id, i.food_name.strip(), i.portion_label, i.grams, i.carbs_per_100g, i.qty,
+               i.entered_carbs if i.entered_carbs is not None else core.carbs_exact(i.grams, i.carbs_per_100g, i.qty), i.entered_carbs,
+               item_fiber(c, i)))
+
+
+class ItemKeep(BaseModel):
+    id: int
+    grams: float | None = Field(default=None, gt=0, le=2000)   # a new weight for a weighed food
+
+
+class ItemsIn(BaseModel):
+    keep: list[ItemKeep] = Field(max_length=30)
+    add: list[ItemIn] = Field(default=[], max_length=30)
+
+
+@app.put("/api/meals/{mid}/items")
+def put_meal_items(mid: int, body: ItemsIn, c=Depends(con)):
+    """Foods reweighed, removed or added after the meal. A reweighed food keeps its saved carbs per 100 g; every change
+    goes into the comments, and a corrected total gives way to the foods' new one (okf/rules/snapshot-log-values.md)."""
+    m = get_meal(c, mid)
+    require_editable(c, m)
+    rows = {r["id"]: dict(r) for r in c.execute("SELECT * FROM meal_items WHERE meal_id = ? ORDER BY id", (mid,))}
+    if any(k.id not in rows for k in body.keep):
+        fail(409, "The meal's foods changed on another device. Open it again.")
+    if not body.keep and not body.add:
+        fail(400, "A meal needs at least one food. To remove it, delete the meal.")
+    if len(body.keep) + len(body.add) > 30:
+        fail(400, "A meal can have up to 30 foods.")
+    g = lambda x: f"{round(x, 1):g} g"
+    old = sum(r["carbs_exact"] for r in rows.values()) if m["carbs_corrected"] is None else m["carbs_corrected"]
+    notes = []
+    with c:
+        for k in body.keep:
+            r = rows[k.id]
+            was = r["grams"] * r["qty"]
+            if k.grams is None or r["entered_carbs"] is not None or abs(k.grams - was) < 0.05:
+                continue
+            c.execute("UPDATE meal_items SET grams = ?, qty = 1, carbs_exact = ? WHERE id = ?",
+                      (k.grams, core.carbs_exact(k.grams, r["carbs_per_100g"]), k.id))
+            notes.append(f"{r['food_name']} {g(was)} → {g(k.grams)}")
+        for rid in rows.keys() - {k.id for k in body.keep}:
+            c.execute("DELETE FROM meal_items WHERE id = ?", (rid,))
+            notes.append(f"removed {rows[rid]['food_name']}")
+        for i in body.add:
+            insert_item(c, mid, i)
+            notes.append(f"added {i.food_name.strip()} " + (f"({core.whole_grams(i.entered_carbs)} g carbs)" if i.entered_carbs is not None else g(i.grams * i.qty)))
+        if not notes:
+            fail(400, "The foods are as saved already.")
+        new = sum(r["carbs_exact"] for r in c.execute("SELECT carbs_exact FROM meal_items WHERE meal_id = ?", (mid,)))
+        c.execute("UPDATE meals SET carbs_corrected = NULL WHERE id = ?", (mid,))
+        c.execute("INSERT INTO meal_comments(meal_id, time, text) VALUES (?, ?, ?)",
+                  (mid, now().strftime("%H:%M" if m["day"] == today() else "%Y-%m-%d %H:%M"),
+                   (f"Foods changed: {'; '.join(notes)}. Carbs {core.whole_grams(old)} → {core.whole_grams(new)} g"
+                    + (" (replaces the corrected total)" if m["carbs_corrected"] is not None else ""))[:500]))
+        mark_later(c, "meals", m)
+    return {"total": core.whole_grams(new)}
 
 
 @app.patch("/api/meals/{mid}")

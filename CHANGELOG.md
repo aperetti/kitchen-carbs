@@ -2,6 +2,7 @@
 Each version is what went to the family's kitchen on that date (okf/architecture/releases.md).
 
 ## Unreleased
+- Editing a meal in the log now lets you change its foods: change a food's weight, remove one with ×, or add one with a quick search of the food list (small photos, compact rows), then pick its serving. The change is written into the meal's comments, so what was first logged is still on record.
 - The meal summary has an "Add a BG correction" switch. If a correction was given in the last 3 hours (a Nightscout correction bolus, or a rapid-acting shot logged without carbs), it starts off and names that correction; switching it on shows a warning that the earlier one may still be acting. The 3 hours can be changed (1 to 6) in Manage → Settings, under the insulin settings.
 - On a phone, the food list now leaves room at the bottom while the keyboard is open, so the last search results can be scrolled up above it.
 

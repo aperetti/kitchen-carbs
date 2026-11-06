@@ -44,3 +44,5 @@ while the setting allows it (okf/rules/same-day-edits.md). The day's insulin tot
 glucose graph at their own times; the export has them on each of the meal's rows.
 
 A meal can also carry the parent's rating of its GI and speed of rise (okf/domain/meal-rating.md, decided 1 Nov).
+Foods changed later (decided 5 Nov): a logged meal's foods can be reweighed, removed or added in Edit; each change is
+written into the comments and a corrected total gives way to the foods' new total (okf/rules/snapshot-log-values.md).

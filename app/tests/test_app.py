@@ -170,6 +170,25 @@ def test_correct_meal_total(app):
     assert client.put(f"/api/meals/{old}/carbs", json={"total": 40, "reason": "x y z"}).status_code == 409
 
 
+def test_change_meal_foods(app):
+    """okf/rules/snapshot-log-values.md: foods reweighed, removed or added later; each change is in the comments."""
+    client, _ = app
+    mid = client.post("/api/meals", json=meal()).json()["id"]
+    iid = client.get("/api/log").json()["meals"][0]["items"][0]["id"]
+    client.put(f"/api/meals/{mid}/carbs", json={"total": 50, "reason": "Seconds"})
+    assert client.put(f"/api/meals/{mid}/items", json={"keep": [], "add": []}).status_code == 400          # at least one food
+    assert client.put(f"/api/meals/{mid}/items", json={"keep": [{"id": iid, "grams": 140}]}).status_code == 400   # nothing changed
+    assert client.put(f"/api/meals/{mid}/items", json={"keep": [{"id": 999, "grams": 1}]}).status_code == 409
+    apple = {"food_id": "apple", "portion_id": 1, "food_name": "Apple", "portion_label": "1 apple", "grams": 90, "carbs_per_100g": 14, "qty": 1}
+    r = client.put(f"/api/meals/{mid}/items", json={"keep": [{"id": iid, "grams": 100}], "add": [apple]}).json()
+    assert r == {"total": 44}                                                                           # 30.9 + 12.6
+    m = client.get("/api/log").json()["meals"][0]
+    assert m["carbs_corrected"] is None and [(i["food_name"], i["grams"], i["carbs_per_100g"]) for i in m["items"]] == [("Pasta, cooked", 100, 30.9), ("Apple", 90, 14)]
+    assert m["comments"][-1]["text"] == "Foods changed: Pasta, cooked 140 g → 100 g; added Apple 90 g. Carbs 50 → 44 g (replaces the corrected total)"
+    r = client.put(f"/api/meals/{mid}/items", json={"keep": [{"id": m["items"][1]["id"]}]}).json()
+    assert r == {"total": 13} and client.get("/api/log").json()["meals"][0]["comments"][-1]["text"] == "Foods changed: removed Pasta, cooked. Carbs 44 → 13 g"
+
+
 def test_soft_delete_and_restore(app):
     """okf/domain/meal-log.md: deleting keeps the meal or entry, out of every total, and it can be restored."""
     client, _ = app

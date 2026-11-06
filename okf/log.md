@@ -145,3 +145,4 @@
 - 2026-11-05 — Copy for school: eaten meals become one line of carbs and insulin with its time; the foods are listed only for planned meals (features/export-log.md).
 - 2026-11-05 — Meal summary: 'Add a BG correction' switch; off to start with, and a warning when turned on, if a correction was given within the recent-correction window (setting, 3 h default) (features/meal-dose-summary.md, domain/insulin-settings.md).
 - 2026-11-05 — Foods list: while the phone keyboard is open, extra room at the bottom so the last search results scroll above it (features/browse-foods.md).
+- 2026-11-05 — A logged meal's foods can be changed in Edit: reweigh, remove, or add from a quick food search with small photos; each change is written into the comments (rules/snapshot-log-values.md, design/components/log-details.md).

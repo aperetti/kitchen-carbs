@@ -1326,14 +1326,14 @@ const saveBar = `<div class="savebar" id="logSave" hidden role="region" aria-lab
 function logSnap() {
   const v = id => $(id)?.value ?? null, f = $("#mdetForm");
   const ev = $("#entValForm");
-  return { day: v("#whDay"), time: v("#whTime"), ent: ev ? JSON.stringify([v("#evBg"), v("#evCarbs"), v("#evIns"), ev.querySelector("[data-ekind].on")?.dataset.ekind ?? "", v("#evNote").trim()]) : null, eaten: $(".eatseg .on")?.dataset.eaten ?? "", rate: $(".rateseg .on")?.dataset.rate ?? "", total: ((t) => t == null || t.trim() === "" ? t : String(+t))(v("#cfTotal")), cmt: (v("#cmtText") || "").trim(),
+  return { day: v("#whDay"), time: v("#whTime"), ent: ev ? JSON.stringify([v("#evBg"), v("#evCarbs"), v("#evIns"), ev.querySelector("[data-ekind].on")?.dataset.ekind ?? "", v("#evNote").trim()]) : null, eaten: $(".eatseg .on")?.dataset.eaten ?? "", rate: $(".rateseg .on")?.dataset.rate ?? "", total: ((t) => t == null || t.trim() === "" ? t : String(+t))(v("#cfTotal")), cmt: (v("#cmtText") || "").trim(), fe: S.log.fe && $("#foodEdit") ? feKey() : null,
     det: f ? JSON.stringify([...f.querySelectorAll("input")].map(i => i.value).concat([...f.querySelectorAll("button.on")].map(b => b.dataset.dkind))) : null };
 }
 function logBaseline() { S.log.base = logSnap(); S.log.done = new Set(); document.body.classList.remove("unsaved"); logDirty(); }
 function logDirty() {
   const b = S.log.base, n = logSnap(), bar = $("#logSave"); if (!b || !bar) return false;
   const parts = { "#whenForm": n.day !== b.day || n.time !== b.time, "#entValForm": n.ent !== b.ent, "#mdetForm": n.det !== b.det, ".eatseg": n.eaten !== b.eaten, "#rateBox": n.rate !== b.rate,
-    "#carbsFix": n.total !== b.total, "#cmtForm": !!n.cmt };
+    "#carbsFix": n.total !== b.total && n.fe === b.fe, "#foodEdit": n.fe !== b.fe, "#cmtForm": !!n.cmt };
   for (const [sel, on] of Object.entries(parts)) $(sel)?.classList.toggle("dirty", on);
   const any = Object.values(parts).some(Boolean);
   if (bar.hidden === any) { bar.hidden = !any; if (!any) $("#logErr").textContent = ""; }
@@ -1369,7 +1369,17 @@ async function saveLogEdits(btn) {
       steps.push(["rate", () => api(`/api/meals/${id}/rating`, { method: "PUT", body: { rise: n.rate || null } })]);
     }
     if (!entry && n.eaten !== b.eaten) steps.push(["eaten", () => api(`/api/meals/${id}`, { method: "PATCH", body: { eaten: n.eaten } })]);
-    if (!entry && n.total !== b.total) {   // a corrected total, with its reason (okf/domain/meal.md)
+    if (!entry && n.fe !== b.fe) {   // the foods first; the Carbs box then follows them
+      const keep = [], add = [];
+      for (const r of S.log.fe) {
+        if (r.entered == null && !(+r.grams > 0 && +r.grams <= 2000)) throw new Error(`Give ${r.food_name} a weight between 1 and 2000 g.`);
+        if (r.iid) keep.push({ id: r.iid, grams: r.entered == null ? +r.grams : null });
+        else add.push({ food_id: r.food_id, portion_id: r.portion_id, food_name: r.food_name, grams: +r.grams, carbs_per_100g: r.cp, qty: 1,
+          portion_label: (foodById(r.food_id)?.portions.find(p => p.id === r.portion_id)?.label || "Weighed").slice(0, 40 - stateLabel(r.x).length) + stateLabel(r.x) });
+      }
+      steps.push(["foods", () => api(`/api/meals/${id}/items`, { method: "PUT", body: { keep, add } })]);
+    }
+    if (!entry && n.total !== b.total && n.fe === b.fe) {   // a corrected total, with its reason (okf/domain/meal.md)
       const total = +n.total, reason = $("#cfReason").value.trim();
       if (n.total === "" || !(total >= 0 && total <= 1000)) throw new Error("Total carbs are between 0 and 1000 g.");
       if (reason.length < 3) { $("#cfReason").focus(); throw new Error("Say why the carbs changed."); }
@@ -1390,6 +1400,50 @@ async function saveLogEdits(btn) {
   S.log.base = null; loadLog(n.day || S.log.data.day);   // follow it to its day; the read view has no date box
 }
 
+/* A logged meal's foods in Edit: reweigh, remove, or add from a quick search (okf/design/components/log-details.md).
+   A reweighed food keeps its saved carbs per 100 g; an added one is taken as the food is now (okf/rules/snapshot-log-values.md). */
+const feThumb = (foodId, portionId) => { const f = foodById(foodId), p = f && (f.portions.find(x => x.id === portionId) || f.portions[0]), img = p && shownPhoto(p);
+  return img ? `<img class="fethumb" ${sized(img, "32px")} alt="">` : `<span class="fethumb"></span>`; };
+const feCarbs = r => r.entered != null ? r.entered : exact(+r.grams || 0, r.cp);
+const feTotal = () => whole(S.log.fe.reduce((a, r) => a + feCarbs(r), 0));
+const feKey = () => JSON.stringify(S.log.fe.map(r => [r.iid ?? r.key, r.grams == null ? null : String(+r.grams)]));
+function feStart(m) {
+  S.log.fe = m.items.map(i => ({ iid: i.id, food_id: i.food_id, portion_id: i.portion_id, food_name: i.food_name,
+    grams: i.entered_carbs != null ? null : itemG(i), cp: i.carbs_per_100g, entered: i.entered_carbs }));
+  S.log.feQ = "";
+}
+const feRows = () => S.log.fe.map((r, n) => `<div class="ferow" data-fe="${n}">${feThumb(r.food_id, r.portion_id)}
+    <span class="fename"><span>${esc(r.food_name)}</span>${r.x ? `<select class="feport" aria-label="Portion of ${esc(r.food_name)}">${foodById(r.food_id).portions.map(p =>
+      `<option value="${p.id}" ${p.id === r.portion_id ? "selected" : ""}>${esc(p.label)}</option>`).join("")}</select>` : ""}</span>
+    ${r.entered != null ? `<span class="meta">by hand</span>` : `<span class="unitin"><input class="feg" type="number" inputmode="decimal" min="1" max="2000" step="any" value="${r.grams}" aria-label="Grams of ${esc(r.food_name)}"> g</span>`}
+    <span class="fec">${whole(feCarbs(r))} g</span>
+    <button type="button" class="rm" data-act="fe-rm" aria-label="Remove ${esc(r.food_name)}">×</button></div>`).join("");
+function feHits() {
+  const q = S.log.feQ.trim().toLowerCase(); if (!q) return "";
+  const hits = S.foods.filter(f => f.portions.length && f.name.toLowerCase().includes(q)).slice(0, 8);
+  return hits.length ? hits.map(f => `<button type="button" class="fehit" data-fadd="${esc(f.id)}">${feThumb(f.id)}<span class="fename">${esc(f.name)}</span>
+    <span class="meta">${+f.carbs_per_100g} g / 100 g</span></button>`).join("") : `<p class="meta">No foods match.</p>`;
+}
+const foodEditBox = () => `<div class="glab"><span class="label">Foods</span><span class="meta" id="feTotal">${feTotal()} g carbs</span></div>
+  <div id="foodEdit" class="foodedit"><div id="feRows">${feRows()}</div>
+    <label class="search fesearch"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
+      <input id="feQ" type="search" placeholder="Add a food" autocomplete="off" aria-label="Add a food: search the food list"></label>
+    <div id="feHits" class="fehits"></div></div>`;
+function feSync() {   // the total, and the Carbs box takes it while the foods differ from what's saved
+  const t = feTotal(), changed = feKey() !== S.log.base?.fe, cf = $("#cfTotal");
+  $("#feTotal").textContent = `${t} g carbs`;
+  if (cf) { if (changed) { cf.value = t; $("#cfWhy").hidden = true; } else if (cf.disabled) cf.value = cf.dataset.was;
+    cf.disabled = changed; $("#cfFoods").hidden = !changed; }
+  logDirty();
+}
+function feAdd(id) {
+  const f = foodById(id), p = f?.portions[0]; if (!p) return;
+  const x = { basis: f.basis || "as-sold", state: startState(f.basis, f.cook_ratio), cp_basis: f.carbs_per_100g, ratio: f.cook_ratio };   // weighed as served, like the plate
+  S.log.fe.push({ key: uid(), x, food_id: f.id, portion_id: p.id, food_name: f.name, grams: r1(p.grams * stateFactor(x)), cp: cpFor(x) });
+  S.log.feQ = ""; $("#feQ").value = ""; $("#feHits").innerHTML = "";
+  $("#feRows").innerHTML = feRows(); feSync();
+}
+
 async function renderMeal() {
   if (S.log.adding) return renderEntryForm();
   if (S.log.selPlan) { const p = S.plans.find(x => x.id === S.log.selPlan); if (p) { S.log.base = null; return renderPlan(p); } S.log.selPlan = null; }
@@ -1397,15 +1451,17 @@ async function renderMeal() {
   const el = $("#mealDetail"), d = S.log.data, m = d.meals.find(x => x.id === S.log.sel);
   if (!m) { el.innerHTML = `${cardHead("Log")}<div class="empty">${d.meals.length ? "Choose a meal." : "Meals you save from the plate appear here."}</div>`; return; }
   const ed = d.editable, edit = editing();
+  if (edit && ed) feStart(m); else S.log.fe = null;
   el.innerHTML = `${cardHead(`Meal at ${clk(m.time)}`)}
     <div class="mdh"><b>${clk(m.time)}</b><span class="c">${m.total} <small>g carbs</small></span>${detailTools([`<button type="button" data-act="pin-meal">Pin as favorite</button>`, ed && `<button type="button" data-act="del-meal">Delete meal</button>`].filter(Boolean))}</div>
     ${m.carbs_corrected != null ? `<p class="meta moved">Corrected from ${m.items_total} g, the foods' own total. The reason is in the comments.</p>` : ""}
-    <span class="meta">${m.items.map(i => `${esc(i.food_name)}, ${i.carbs} g carbs (${i.entered_carbs != null ? "entered by hand" : fmtG(itemG(i))})`).join(" · ")}</span>
+    ${edit && ed ? "" : `<span class="meta">${m.items.map(i => `${esc(i.food_name)}, ${i.carbs} g carbs (${i.entered_carbs != null ? "entered by hand" : fmtG(itemG(i))})`).join(" · ")}</span>`}
     <span class="meta">${esc(fiberLine(m))}</span>
-    ${!edit ? `<p class="${detailSummary(m) ? "" : "meta"}">${esc(detailSummary(m)) || "No BG or insulin added"}</p>${modNote(m)}` : whenBox(m, "meals") + (!ed ? "" : `
+    ${!edit ? `<p class="${detailSummary(m) ? "" : "meta"}">${esc(detailSummary(m)) || "No BG or insulin added"}</p>${modNote(m)}` : whenBox(m, "meals") + (!ed ? "" : foodEditBox() + `
     <div class="glab"><span class="label">Carbs</span></div>
     <form id="carbsFix" class="carbsfix">
       <label class="field"><span>Total carbs for the meal</span><span class="unitin"><input id="cfTotal" type="number" inputmode="decimal" min="0" max="1000" step="any" required value="${m.total}" data-was="${m.total}"> g</span></label>
+      <p class="meta" id="cfFoods" hidden>The foods' new total. To correct it, save the foods first.</p>
       <div id="cfWhy" hidden><label class="field"><span>Why it changed (needed to save)</span><input id="cfReason" maxlength="400" minlength="3" placeholder="e.g. only ate half the pasta, label was wrong" autocomplete="off"></label>
         <p class="meta">The foods keep their saved carbs; the meal's total, the day's totals and the export use the new number.</p></div></form>
     <div class="glab"><span class="label">BG, insulin and time to eat</span></div>
@@ -1588,6 +1644,12 @@ $("#v-after").addEventListener("click", e => {
 
 let confirmDelete = 0;
 $("#v-log").addEventListener("click", async e => {
+  const fa = e.target.closest("[data-fadd]"); if (fa) return feAdd(fa.dataset.fadd);
+  const fr = e.target.closest("[data-act=fe-rm]");
+  if (fr) {
+    if (S.log.fe.length < 2) { toast("A meal needs at least one food. To remove the meal, use ⋯ → Delete meal."); return; }
+    S.log.fe.splice(+fr.closest(".ferow").dataset.fe, 1); $("#feRows").innerHTML = feRows(); feSync(); return;
+  }
   if (e.target.closest("#mealDetail")) setTimeout(logDirty);   // after the switches below have moved
   const t = e.target.closest("[data-day],[data-meal],[data-entry],[data-plan],[data-kind],[data-ekind],[data-eaten],[data-rate],[data-act],[data-period],[data-restore]"); if (!t) return;
   const d = S.log.data;
@@ -1669,9 +1731,19 @@ $("#v-log").addEventListener("click", async e => {
   }
 });
 $("#v-log").addEventListener("input", e => {
+  if (e.target.id === "feQ") { S.log.feQ = e.target.value; $("#feHits").innerHTML = feHits(); return; }
+  if (e.target.classList.contains("feg")) {   // typed weight: the row's carbs and the total follow, the box keeps focus
+    const row = e.target.closest(".ferow"), r = S.log.fe[+row.dataset.fe]; r.grams = e.target.value;
+    row.querySelector(".fec").textContent = `${whole(feCarbs(r))} g`; return feSync();
+  }
   if (e.target.id === "cfTotal") $("#cfWhy").hidden = e.target.value.trim() === "" || +e.target.value === +e.target.dataset.was;   // the reason only once it differs
   if (e.target.closest("#entryForm")) entryPreview(); if (e.target.closest("#mealDetail")) logDirty(); });
-$("#v-log").addEventListener("change", e => { if (e.target.closest("#mealDetail")) logDirty(); });
+$("#v-log").addEventListener("change", e => {
+  if (e.target.classList.contains("feport")) {   // an added food's portion sets its weight
+    const r = S.log.fe[+e.target.closest(".ferow").dataset.fe], p = foodById(r.food_id).portions.find(x => x.id === +e.target.value);
+    Object.assign(r, { portion_id: p.id, grams: r1(p.grams * stateFactor(r.x)) }); $("#feRows").innerHTML = feRows(); return feSync();
+  }
+  if (e.target.closest("#mealDetail")) logDirty(); });
 $("#v-log").addEventListener("submit", async e => {
   if (["carbsFix", "mdetForm", "whenForm", "cmtForm", "entValForm"].includes(e.target.id)) {   // Enter in any of them: the one Save
     e.preventDefault(); if (logDirty()) saveLogEdits($("[data-act=log-save]")); return;
