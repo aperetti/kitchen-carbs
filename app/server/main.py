@@ -2149,7 +2149,7 @@ def range_word(v, low, high):
 
 
 @app.get("/api/responses")
-def responses(days: int = 30, c=Depends(con)):
+def responses(days: int = 30, meal: Literal["all", "breakfast", "lunch", "dinner"] = "all", c=Depends(con)):
     """Each meal's glucose 0-3 h after eating, lined up at the meal time, beside the insulin typed for it; foods in two
     or more measured meals are grouped. Measured, never judged or turned into advice (okf/features/meal-responses.md)."""
     if days not in (14, 30, 90):
@@ -2180,6 +2180,7 @@ def responses(days: int = 30, c=Depends(con)):
         else:
             rapid.append((u, t))
     out, groups, at = [], {}, [t for t, _ in rs]
+    counts = {"breakfast": 0, "lunch": 0, "dinner": 0}
     for m, ms in zip(meals, times):
         lo, hi = bisect.bisect_left(at, ms - core.WINDOW_BEFORE_MS), bisect.bisect_right(at, ms + core.WINDOW_AFTER_MS)
         w = core.meal_window(rs[lo:hi], ms, now_ms, times)
@@ -2205,6 +2206,10 @@ def responses(days: int = 30, c=Depends(con)):
             given = [(u, (t - ms) / 60000) for u, t in rapid if -360 * 60000 <= t - ms <= core.WINDOW_AFTER_MS]
             r["insulin_effect"] = core.insulin_effect(given, dose.block_at(factors, m["time"])) if given else None
             r["earlier_insulin"] = any(g < -60 for _, g in given)   # still acting, from more than an hour before
+        r["meal_of_day"] = core.meal_of_day(m["time"])
+        counts[r["meal_of_day"]] += 1
+        if meal != "all" and r["meal_of_day"] != meal:   # still counted above for overlaps and the buttons
+            continue
         out.append(r)
         for key, name in {(i["food_id"] or "hand:" + i["food_name"].strip().lower()): i["food_name"] for i in m["items"]}.items():
             groups.setdefault(key, {"key": key, "name": name, "meals": []})["meals"].append(r["id"])
@@ -2219,7 +2224,8 @@ def responses(days: int = 30, c=Depends(con)):
                       "in_range_by_3h": sum(1 for r in rows if "in" in (r["range_2h"], r["range_3h"]))})
     foods.sort(key=lambda g: (-g["measured"], g["name"].lower()))
     return {"from": first.isoformat(), "to": last.isoformat(), "days": days, "low": low, "high": high,
-            "glucose": has_glucose(c), "meals": out[::-1], "foods": foods, "effect_ready": bool(factors)}
+            "glucose": has_glucose(c), "meals": out[::-1], "foods": foods, "effect_ready": bool(factors),
+            "meal": meal, "counts": {"all": len(meals), **counts}}
 
 
 @app.get("/api/stats")

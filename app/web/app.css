@@ -172,7 +172,7 @@ input[type="time"], input[type="date"], .field input, .field select, .field text
 .tirl { display: flex; flex-wrap: wrap; gap: 4px 18px; font-size: 15px; color: var(--vein); }
 .tirl b { color: var(--ink); font-weight: 500; font-variant-numeric: tabular-nums; }
 .tirl .warn, .tirl .warn b { color: var(--warn); }
-.periods { display: flex; gap: 16px; }
+.periods { display: flex; flex-wrap: wrap; gap: 0 16px; }
 .periods button { background: none; border: 0; padding: 0; min-height: 36px; color: var(--vein); font-size: 15px; cursor: pointer; border-bottom: 2px solid transparent; }
 .periods button.on { color: var(--ink); border-bottom-color: var(--ink); }
 .lrow { display: grid; grid-template-columns: 56px 1fr 48px; gap: 12px; padding: 12px 10px; margin: 0 -10px; border: 0; border-bottom: 1px solid var(--line); align-items: start; background: none; text-align: left; cursor: pointer; width: calc(100% + 20px); }

@@ -1542,10 +1542,12 @@ function curveSvg(w) {
 
 /* ---------- After meals (okf/features/meal-responses.md): each meal's 0-3 h lined up at the meal time, beside the
    insulin typed for it. Measured, never judged, and never turned into advice (okf/rules/descriptive-stats-only.md). */
-const AF = { days: 30, data: null, food: null, mode: "rise" };
+const AF = { days: 30, meal: "all", data: null, food: null, mode: "rise" };
+const MEALS_OF_DAY = { all: "All", breakfast: "Breakfast", lunch: "Lunch", dinner: "Dinner" };
+const MEALS_PLURAL = { all: "meals", breakfast: "breakfasts", lunch: "lunches", dinner: "dinners" };   // by logged time (okf/features/meal-responses.md)
 async function loadAfter() {
   if (!AF.data) $("#afterView").innerHTML = `<p class="meta">Loading…</p>`;
-  try { AF.data = await api(`/api/responses?days=${AF.days}`); }
+  try { AF.data = await api(`/api/responses?days=${AF.days}&meal=${AF.meal}`); }
   catch (err) { $("#afterView").innerHTML = `${afHead()}<div class="empty">${esc(err.message)}</div>`; return; }
   if (AF.food && !AF.data.foods.some(g => g.key === AF.food)) AF.food = null;
   renderAfter();
@@ -1572,10 +1574,12 @@ function renderAfter() {
   const rows = g ? d.meals.filter(m => g.meals.includes(m.id)) : d.meals, drawn = rows.filter(m => !m.left_out);
   $("#afterView").innerHTML = afHead() + `
     <div class="periods" role="group" aria-label="Period">${[14, 30, 90].map(n => `<button data-afdays="${n}" class="${n === AF.days ? "on" : ""}">${n} days</button>`).join("")}</div>
-    <p class="meta">${dayLabel(d.from)} to ${dayLabel(d.to)} · ${d.meals.length} meal${d.meals.length === 1 ? "" : "s"}, ${d.meals.filter(m => !m.left_out).length} with a full 3 hours of readings</p>
+    <div class="periods" role="group" aria-label="Meal of the day">${Object.entries(MEALS_OF_DAY).map(([k, l]) =>
+      `<button data-afmeals="${k}" class="${k === AF.meal ? "on" : ""}" aria-pressed="${k === AF.meal}">${l} · ${d.counts[k]}</button>`).join("")}</div>
+    <p class="meta">${dayLabel(d.from)} to ${dayLabel(d.to)} · ${d.meals.length} ${d.meals.length === 1 ? MEALS_OF_DAY[AF.meal === "all" ? "" : AF.meal]?.toLowerCase() || "meal" : MEALS_PLURAL[AF.meal]}, ${d.meals.filter(m => !m.left_out).length} with a full 3 hours of readings</p>
     ${!d.glucose ? `<div class="empty">No glucose readings yet. Connect Nightscout in Manage → Settings.</div>` : `
     <section class="afchart">
-      <div class="afbar"><b>${g ? esc(g.name) : "All meals"}</b>${g ? `<button class="linkbtn" data-afall>All meals</button>` : ""}
+      <div class="afbar"><b>${g ? esc(g.name) : AF.meal === "all" ? "All meals" : `All ${MEALS_PLURAL[AF.meal]}`}</b>${g ? `<button class="linkbtn" data-afall>All meals</button>` : ""}
         <div class="seg neutral" role="group" aria-label="Draw as">${[["rise", "Rise"], ["mgdl", "mg/dL"], ["net", "Insulin backed out"]].map(([k, l]) =>
           `<button data-afmode="${k}" class="${AF.mode === k ? "on" : ""}" aria-pressed="${AF.mode === k}" ${k === "net" && !d.effect_ready ? "disabled" : ""}>${l}</button>`).join("")}</div></div>
       ${!d.effect_ready ? `<p class="meta">Insulin backed out needs the correction factor in <a href="#manage/settings">Manage → Settings</a>.</p>` : ""}
@@ -1595,7 +1599,7 @@ function renderAfter() {
       <span class="ins">${afInsulin(m)}</span>
       ${AF.mode === "net" && m.at_meal != null && m.points.length ? `<span>${m.insulin_effect ? `Without the insulin (estimate): rise <b>${signed(netRise(m))}</b> · insulin lowered about ${m.insulin_effect[36][1]} by 3 h${m.earlier_insulin ? ", including insulin from earlier still acting" : ""}` : "No rapid-acting insulin in Nightscout or the log, so its curve is unchanged"}</span>` : ""}
       ${m.left_out ? `<span class="meta">Not in the averages: ${m.left_out === "coverage" ? `sensor ${Math.round(m.coverage * 100)}%` : LEFT_OUT[m.left_out]}</span>` : ""}</button></li>`).join("")}</ul>`
-      : `<p class="meta">No meals logged in these ${AF.days} days.</p>`}`}
+      : `<p class="meta">No ${MEALS_PLURAL[AF.meal]} logged in these ${AF.days} days.</p>`}`}
     <p class="note">Patterns only, to share with the care team. Each curve also depends on the insulin and its timing, activity, illness and what came before.</p>`;
 }
 function afSvg(rows, d) {
@@ -1632,8 +1636,9 @@ function afSvg(rows, d) {
   return o.join("");
 }
 $("#v-after").addEventListener("click", e => {
-  const t = e.target.closest("[data-afdays],[data-afmode],[data-affood],[data-afall],[data-afmeal]"); if (!t) return;
+  const t = e.target.closest("[data-afdays],[data-afmeals],[data-afmode],[data-affood],[data-afall],[data-afmeal]"); if (!t) return;
   if (t.dataset.afdays) { AF.days = +t.dataset.afdays; loadAfter(); return; }
+  if (t.dataset.afmeals) { AF.meal = t.dataset.afmeals; loadAfter(); return; }
   if (t.dataset.afmode) AF.mode = t.dataset.afmode;
   else if (t.dataset.affood) AF.food = AF.food === t.dataset.affood ? null : t.dataset.affood;
   else if (t.hasAttribute("data-afall")) AF.food = null;

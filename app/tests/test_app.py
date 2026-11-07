@@ -413,6 +413,13 @@ def test_meal_responses_line_up_and_group(app):
     [g] = r["foods"]
     assert (g["name"], g["measured"], g["avg_rise"], g["in_range_by_3h"]) == ("Pasta, cooked", 2, 90, 2)
     assert client.get("/api/responses?days=7").status_code == 400
+    # meal of the day by logged time: the two 12:00 meals are lunch, today's 18:05 dinner
+    assert r["counts"] == {"all": 3, "breakfast": 0, "lunch": 2, "dinner": 1} and today["meal_of_day"] == "dinner"
+    lunch = client.get("/api/responses?days=14&meal=lunch").json()
+    assert [m["day"] for m in lunch["meals"]] == ["2026-10-26", "2026-10-25"] and lunch["foods"][0]["measured"] == 2
+    dinner = client.get("/api/responses?days=14&meal=dinner").json()
+    assert len(dinner["meals"]) == 1 and dinner["foods"] == [] and dinner["counts"] == r["counts"]
+    assert client.get("/api/responses?days=14&meal=brunch").status_code == 422
     # okf/domain/insulin-effect.md: backed out only with a correction factor, and only for logged rapid-acting insulin
     assert not r["effect_ready"] and "insulin_effect" not in a
     blocks = lambda v: [{"start": "00:00", "value": v}]

@@ -218,3 +218,8 @@ def meal_window(readings, meal_ms: int, now_ms: int, other_meals_ms=()) -> dict:
         "in_progress": now_ms < end,
         "overlapping_meals": [m for m in other_meals_ms if start < m <= end and m != meal_ms],
     }
+
+
+def meal_of_day(hhmm):
+    """breakfast before 11:00, lunch to 15:59, dinner from 16:00 (okf/features/meal-responses.md)"""
+    return "breakfast" if hhmm < "11:00" else "lunch" if hhmm < "16:00" else "dinner"

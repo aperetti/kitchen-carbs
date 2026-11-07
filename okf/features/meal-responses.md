@@ -3,7 +3,7 @@ type: Feature
 title: "After meals: post-meal responses"
 description: "Every logged meal's glucose from 0 to 3 hours after eating, lined up at the meal time, with its rise, time to peak, where it was at 2 and 3 hours and the insulin typed for it; repeats of a food are grouped to compare."
 tags: [feature, nightscout]
-timestamp: 2026-11-04
+timestamp: 2026-11-07
 status: draft
 links:
   uses: [domain/meal.md, domain/insulin-effect.md, domain/meal-glucose.md, domain/glucose-reading.md, domain/target-range.md, domain/food.md]
@@ -14,6 +14,10 @@ Decided 4 Nov. A page reached from the Log ('After meals', shown when Nightscout
 It reports patterns only. It never suggests a dose, a ratio or a food change: the findings are for the family and the
 care team to read (okf/rules/descriptive-stats-only.md).
 - Period: the last 14, 30 or 90 days (30 to start), ending today.
+- Meal of the day (decided 7 Nov): All · Breakfast · Lunch · Dinner, each with its count, by the meal's logged time:
+  breakfast before 11:00, lunch 11:00 to 15:59, dinner from 16:00. Picking one limits the chart, the averages, the
+  by-food rows and the meal list to those meals; 'All' (the start) shows every meal. A meal with another within 3 h is
+  still left out of the averages even when that other meal is in a different part of the day.
 - For each meal with a reading at the meal time, from the same 3-hour window as the meal's own curve
   (okf/domain/meal-glucose.md):
   - the rise: the peak in the 3 hours minus the value at the meal time, and the minutes to the peak;
