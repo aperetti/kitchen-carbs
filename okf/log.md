@@ -149,3 +149,4 @@
 - 2026-11-05 — Copy for school: planned meals list each food's carbs without weights, then a Total line (features/export-log.md).
 - 2026-11-06 — An added portion shows its parent portion's photo (the one it's a multiple of, else the serving) instead of starting a Gemini estimate; labelled 'Same photo as another portion' (domain/portion.md, features/photo-pipeline.md, rules/estimated-photo-label.md).
 - 2026-11-07 — After meals: Breakfast / Lunch / Dinner buttons (before 11:00, 11:00–15:59, from 16:00) limit the chart, food rows and meal list (features/meal-responses.md).
+- 2026-11-08 — Log read view: each food shows its total weight and portion in brackets, e.g. (240 g · 2 cups) (design/components/log-details.md).

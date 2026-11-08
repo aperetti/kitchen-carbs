@@ -582,6 +582,14 @@ function portionCount(x) {   // { approx, num, unit }, kept apart so each sits i
   if (!q) return { approx: "<", num: "¼", unit: a ? unitFor(0.25, a.unit) : `× ${x.portion_label}` };
   return { approx: Math.abs(count - q) < 0.01 ? "" : "≈", num: fmtAmount(q), unit: a ? unitFor(q, a.unit) : `× ${x.portion_label}` };
 }
+/* A logged food's portion for the Log: counted from its weight when the portion's weight is known, else as saved
+   (okf/design/components/log-details.md) */
+function loggedPortion(i) {
+  const label = (i.portion_label || "").trim(), p = foodById(i.food_id)?.portions.find(x => x.id === i.portion_id);
+  if (!label || label === "Weighed") return "";
+  if (!p || /weight$/.test(label)) return ` · ${esc(label)}`;   // a cooked / dry weight, or a portion since removed
+  return ` · ${esc(pcountLabel({ grams: i.grams, qty: i.qty, portion_label: p.label, base: p.grams }))}`;
+}
 const pcountLabel = x => Object.values(portionCount(x)).join(" ").replace("≈", "about").replace("<", "under").trim();
 // the ≈ and the number have fixed widths, so the unit doesn't shift as the count changes (okf/domain/plate.md)
 const pcountHTML = x => { const c = portionCount(x);
@@ -1457,7 +1465,7 @@ async function renderMeal() {
   el.innerHTML = `${cardHead(`Meal at ${clk(m.time)}`)}
     <div class="mdh"><b>${clk(m.time)}</b><span class="c">${m.total} <small>g carbs</small></span>${detailTools([`<button type="button" data-act="pin-meal">Pin as favorite</button>`, ed && `<button type="button" data-act="del-meal">Delete meal</button>`].filter(Boolean))}</div>
     ${m.carbs_corrected != null ? `<p class="meta moved">Corrected from ${m.items_total} g, the foods' own total. The reason is in the comments.</p>` : ""}
-    ${edit && ed ? "" : `<span class="meta">${m.items.map(i => `${esc(i.food_name)}, ${i.carbs} g carbs (${i.entered_carbs != null ? "entered by hand" : fmtG(itemG(i))})`).join(" · ")}</span>`}
+    ${edit && ed ? "" : `<span class="meta">${m.items.map(i => `${esc(i.food_name)}, ${i.carbs} g carbs (${i.entered_carbs != null ? "entered by hand" : `${fmtG(itemG(i))}${loggedPortion(i)}`})`).join(" · ")}</span>`}
     <span class="meta">${esc(fiberLine(m))}</span>
     ${!edit ? `<p class="${detailSummary(m) ? "" : "meta"}">${esc(detailSummary(m)) || "No BG or insulin added"}</p>${modNote(m)}` : whenBox(m, "meals") + (!ed ? "" : foodEditBox() + `
     <div class="glab"><span class="label">Carbs</span></div>

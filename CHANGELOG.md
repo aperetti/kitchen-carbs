@@ -2,6 +2,7 @@
 Each version is what went to the family's kitchen on that date (okf/architecture/releases.md).
 
 ## Unreleased
+- Log: tapping a meal now shows each food's total weight and portion in brackets, like "Pasta, 45 g carbs (240 g · 2 cups)".
 
 ## v2026.11.07 · 7 Nov 2026
 - After meals: new Breakfast / Lunch / Dinner buttons show only those meals in the chart, food rows and list. Meals are sorted by the time they were logged: breakfast before 11 am, lunch 11 am–4 pm, dinner after 4 pm.

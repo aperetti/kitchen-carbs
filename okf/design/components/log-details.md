@@ -15,6 +15,10 @@ Decided 2 Nov: every meal opened with about ten sections, all of them forms, whi
   2 u bolus @ 5:50 PM, 10 min before the meal · eaten in 20 min', or 'No BG or insulin added'), the glucose chart, then the
   quick notes that are tapped after a meal: how fast it rose, how much was eaten, and comments. These still save
   through the 'Unsaved changes' bar.
+- Each food in the read view (decided 8 Nov): its name, carbs, then its total weight and portion in brackets,
+  'Pasta, 45 g carbs (240 g · 2 cups)'. The portion is how many of the logged portion that weight is, to the nearest
+  quarter ('about 1½ cups'), when the portion's weight is known and the food was weighed in the portion's own state;
+  otherwise the logged portion name as it was saved. Carbs entered by hand say so instead.
 - Beside the heading: 'Edit' and a '⋯' menu.
   - Edit shows the forms in place of the recorded line, in this order: date and time; Carbs, the meal's total ready
     to change (decided 3 Nov: no longer behind a 'Change total carbs' link), with 'Why it changed' appearing only once
