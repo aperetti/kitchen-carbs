@@ -60,8 +60,11 @@ def iob(url: str, token: str):
     try:
         p = _get(url, token, "/api/v2/properties/iob", {})
         x = p.get("iob") if isinstance(p, dict) else None
-        if isinstance(x, dict) and isinstance(x.get("iob"), (int, float)) and _ms(x.get("mills")):
-            return {"units": float(x["iob"]), "mills": _ms(x["mills"]), "source": x.get("source") or "Nightscout"}
+        # 'Care Portal' is worked out from the bolus treatments at the moment it's asked, so it comes without a time
+        care = isinstance(x, dict) and x.get("source") == "Care Portal"
+        t = isinstance(x, dict) and (_ms(x.get("mills")) or (care and int(time.time() * 1000)))
+        if isinstance(x, dict) and isinstance(x.get("iob"), (int, float)) and t:
+            return {"units": float(x["iob"]), "mills": t, "source": "Nightscout, from logged boluses" if care else x.get("source") or "Nightscout"}
     except NightscoutError:
         pass
     rows = _get(url, token, "/api/v1/devicestatus.json", {"count": 3})

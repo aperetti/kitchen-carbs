@@ -1,4 +1,5 @@
 """Meal summary dose (okf/features/meal-dose-summary.md), bounded by okf/rules/no-dosing.md."""
+import time
 from datetime import datetime
 
 import pytest
@@ -124,6 +125,13 @@ def test_nightscout_iob_shapes(monkeypatch):
     monkeypatch.setattr(nightscout, "_get", fake)
     answers["/api/v2/properties/iob"] = {"iob": {"iob": 1.25, "mills": 1793115000000, "source": "OpenAPS"}}
     assert nightscout.iob("u", "t") == {"units": 1.25, "mills": 1793115000000, "source": "OpenAPS"}
+    # worked out from bolus treatments as it's asked: no time comes with it, so it is as of now
+    answers["/api/v2/properties/iob"] = {"iob": {"iob": 0.067, "activity": 0.001, "source": "Care Portal", "display": "0.07"}}
+    i = nightscout.iob("u", "t")
+    assert i["units"] == 0.067 and i["source"] == "Nightscout, from logged boluses" and abs(i["mills"] - time.time() * 1000) < 5000
+    answers["/api/v2/properties/iob"] = {"iob": {"iob": 0.5, "source": "OpenAPS"}}   # any other source still needs its time
+    answers["/api/v1/devicestatus.json"] = []
+    assert nightscout.iob("u", "t") is None
     answers["/api/v2/properties/iob"] = nightscout.NightscoutError("404")
     answers["/api/v1/devicestatus.json"] = [{"created_at": "2026-10-27T18:28:00Z", "pump": {"iob": {"bolusiob": 0.8}}}]
     assert nightscout.iob("u", "t")["units"] == 0.8

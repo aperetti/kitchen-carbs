@@ -17,7 +17,9 @@ links:
   the latest entry (`/api/v1/entries/sgv.json?count=1`) and insulin on board from `/api/v2/properties/iob`
   (Nightscout's IOB plugin: from Loop, OpenAPS or the pump's device status, or bolus treatments), falling back to the
   newest `/api/v1/devicestatus.json` (`loop.iob.iob`, `openaps.iob.iob`, `pump.iob.bolusiob` / `pump.iob.iob`).
-  IOB older than 15 minutes counts as missing.
+  IOB older than 15 minutes counts as missing. The plugin's 'Care Portal' IOB (worked out from the bolus treatments
+  in Nightscout, for sites with no Loop, OpenAPS or pump status) comes without a time because it is calculated as it is
+  asked; it counts as now and shows as 'Nightscout, from logged boluses' (found 8 Nov: production showed none).
 - Profile (targets): `GET {site}/api/v1/profile.json`.
 - Insulin treatments (decided 4 Nov, for okf/domain/insulin-effect.md): the same job reads
   `GET {site}/api/v1/treatments.json?find[created_at][$gte]=…&find[created_at][$lt]=…&count=1000` in 3-day chunks
