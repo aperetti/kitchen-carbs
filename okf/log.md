@@ -151,3 +151,5 @@
 - 2026-11-07 — After meals: Breakfast / Lunch / Dinner buttons (before 11:00, 11:00–15:59, from 16:00) limit the chart, food rows and meal list (features/meal-responses.md).
 - 2026-11-08 — Log read view: each food shows its total weight and portion in brackets, e.g. (240 g · 2 cups) (design/components/log-details.md).
 - 2026-11-08 — Log: next day goes past today (up to 60 days) to show a future day's planned meals; nothing to add or edit there (features/review-log.md, features/plan-meal.md).
+- 2026-11-08 — Meal summary: the CGM source line and 'Check it against the pump' moved behind ⓘ popovers; 'Time to eat' removed from the summary and the log's Edit, saved values kept (features/meal-dose-summary.md, domain/meal.md).
+- 2026-11-08 — Plate: the time box is gone (set in the meal summary), and the 'Save to log shows the meal summary first' note is behind an ⓘ (features/build-plate.md).

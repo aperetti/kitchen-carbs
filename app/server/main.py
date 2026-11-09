@@ -1806,8 +1806,9 @@ def put_meal_details(mid: int, body: MealDetails, c=Depends(con)):
     require_editable(c, m)
     with c:
         mark_later(c, "meals", m)
-        c.execute(f"UPDATE meals SET {', '.join(k + ' = ?' for k in DETAILS)} WHERE id = ?", (*(getattr(body, k) for k in DETAILS), mid))
-    return {k: getattr(body, k) for k in DETAILS}
+        keys = [k for k in DETAILS if k != "eat_min" or "eat_min" in body.model_fields_set]   # the app no longer asks it; a saved one stays
+        c.execute(f"UPDATE meals SET {', '.join(k + ' = ?' for k in keys)} WHERE id = ?", (*(getattr(body, k) for k in keys), mid))
+    return {k: m[k] if k not in keys else getattr(body, k) for k in DETAILS}
 
 
 class CarbsFixIn(BaseModel):

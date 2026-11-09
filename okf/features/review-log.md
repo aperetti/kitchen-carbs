@@ -18,7 +18,7 @@ Day view; previous/next day.
 - Change when: every meal and entry's details have its date and time, editable on any day; a moved entry is marked
   with where it was first logged (okf/rules/same-day-edits.md, decided 28 Oct).
 - One Save for every change (decided 31 Oct, replacing the same day's 'Change' button and 'Not saved yet' line): a
-  meal's details are all editable in place: date and time, BG, insulin and its timing, time to eat, how much was
+  meal's details are all editable in place: date and time, BG, insulin and its timing, how much was
   eaten, the total carbs (with its reason) and a new comment. Nothing is saved as it is typed or tapped. As soon as
   anything differs from what is saved, the changed parts get a warn-coloured border and a bar floats at the bottom of
   the meal: 'Unsaved changes' with 'Save changes' and 'Discard'. Putting everything back by hand hides it.

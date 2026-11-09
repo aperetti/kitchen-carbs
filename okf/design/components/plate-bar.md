@@ -13,7 +13,7 @@ links:
 - Phones (under 900 px wide): a bottom bar with the item count, the total food weight and the carb total; 'Open plate'
   goes to the Plate screen.
 - Tablets and computers (decided 27 Oct): no separate Plate screen. The Foods screen is split, food grid on the left and
-  the whole plate (weight sliders, totals, time, Save to log) on the right, 50/50 to start. A vertical divider between
+  the whole plate (weight sliders, totals, Save to log) on the right, 50/50 to start. A vertical divider between
   them can be dragged (or moved with the arrow keys) from 30 % to 75 %; the split is remembered on that device.
 - Plate rows follow the pane's own width (decided 28 Oct, after names and carbs overlapped in a thin pane): up to
   760 px the slider takes its own line with the weight field and − / + on the next; up to 600 px the photo sits

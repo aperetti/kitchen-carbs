@@ -257,6 +257,9 @@ def test_meal_details_optional(app):
     # changed later: no insulin clears its kind and timing; a BG without a source is a meter reading
     d = client.put(f"/api/meals/{r['id']}/details", json={"bg": 140, "eat_min": 40}).json()
     assert d == {"bg": 140, "bg_source": "meter", "insulin": None, "insulin_kind": None, "insulin_offset_min": None, "eat_min": 40}
+    # the app no longer asks time to eat: details saved without it keep the meal's own
+    assert client.put(f"/api/meals/{r['id']}/details", json={"bg": 140}).json()["eat_min"] == 40
+    assert next(m for m in client.get("/api/log").json()["meals"] if m["id"] == r["id"])["eat_min"] == 40
     marks = client.get(f"/api/meals/{r['id']}/glucose").json()["entries"]
     assert {"ms": marks[-1]["ms"], "bg": 140}.items() <= marks[-1].items()
     csv_text = client.get("/api/export.csv?start=2026-10-27&end=2026-10-27").text

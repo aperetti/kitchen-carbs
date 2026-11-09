@@ -671,12 +671,10 @@ function renderPlate() {
         <button class="btn small usescale" data-act="use-scale" hidden>Use</button></div></div>`;
   }).join("") + `
     ${handAdd()}
-    <div class="total"><div><div class="label">Plate total</div><span class="n">${whole(plateExact())}</span> <span class="u">g carbs</span>
+    <div class="total"><div><div class="label">Plate total ${tip("Save to log shows the meal summary first, where the date and time are set. Enter the total in the pump or meter as usual.", "About saving")}</div><span class="n">${whole(plateExact())}</span> <span class="u">g carbs</span>
       <div class="meta" id="plateGrams">${fmtG(plateGrams())} of food</div></div>
-      <div class="right"><label class="timefield">Time <input type="time" id="plateTime" value="${S.plateTime}"></label>
-      <button class="btn primary" data-act="save">Save to log</button></div></div>
-    <p class="note">Save to log shows the meal summary first. Enter the total in the pump or meter as usual.
-      <span class="plinks"><button class="linkbtn" data-act="clear">Clear plate</button> · <button class="linkbtn" data-act="pin">Pin as favorite</button>
+      <div class="right"><button class="btn primary" data-act="save">Save to log</button></div></div>
+    <p class="note"><span class="plinks"><button class="linkbtn" data-act="clear">Clear plate</button> · <button class="linkbtn" data-act="pin">Pin as favorite</button>
         · <button class="linkbtn" data-act="plan-open">${S.plan ? "Update plan" : "Plan for later"}</button></span></p>
     <form class="cmtform" id="pinPlate" hidden style="margin-top:8px"><input id="pinName" maxlength="60" value="${suggestName(S.plateTime)}" aria-label="Favorite name"><button class="btn small">Pin</button></form>
     ${planForm()}`;
@@ -773,7 +771,6 @@ $("#plateView").addEventListener("submit", async e => {
   }
 });
 $("#plateView").addEventListener("change", e => {
-  if (e.target.id === "plateTime") { S.plateTime = e.target.value; S.plateAuto = false; }
   if (e.target.matches(".hName,.hCarbs")) {   // a hand-entered row changed: kept only when it still makes sense
     const x = S.plate.find(i => i.key === e.target.closest("[data-key]").dataset.key), v = e.target.value.trim();
     if (e.target.matches(".hName")) { if (v) x.food_name = v; else toast("Say what it was, so the log shows it."); }
@@ -852,8 +849,8 @@ function openSummary() {
       <div class="sumwhen"><span class="label">When</span>
         <input type="date" id="sumDay" value="${S.sum.day}" max="${localDay()}" required aria-label="Date">
         <input type="time" id="sumAt" value="${S.sum.at}" required aria-label="Time"></div>
-      <label class="field sumbg"><span>Blood glucose (mg/dL)</span>
-        <input id="sumBg" type="number" inputmode="numeric" min="20" max="600" step="1" placeholder="Meter reading"></label>
+      <div class="field sumbg"><span><label for="sumBg">Blood glucose (mg/dL)</label> <span id="sumBgTip"></span></span>
+        <input id="sumBg" type="number" inputmode="numeric" min="20" max="600" step="1" placeholder="Meter reading"></div>
       <div id="sumCalc" aria-live="polite"><p class="meta">Working it out…</p></div>
       <div class="sumgiven"><span class="label">What was given · optional</span>${detailFields({}, null, S.sum.at)}<p class="lowwarn" id="sumLow" role="alert" hidden></p></div>
       <div class="actions sumacts"><button class="btn primary" data-sum="save">Save to log</button><button class="btn quiet" data-sum="close">Back to plate</button></div>
@@ -878,7 +875,7 @@ async function loadDose() {
   if (!s.typed) $("#sumBg").value = s.data?.bg_source === "cgm" ? s.data.cgm.sgv : "";   // filled in only from a fresh reading
   if (S.plateAuto && s.day === localDay()) {   // the eat time follows the BG until it's changed by hand
     const at = eatAt($("#sumBg").value.trim());
-    if (at !== s.at) { s.at = S.plateTime = $("#sumAt").value = at; if ($("#plateTime")) $("#plateTime").value = at; $("#sumHead").textContent = sumHead(); return loadDose(); }
+    if (at !== s.at) { s.at = S.plateTime = $("#sumAt").value = at; $("#sumHead").textContent = sumHead(); return loadDose(); }
   }
   minFollow(doseDlg.querySelector(".mdet"), $("#sumBg").value.trim(), s.at);
   drawDose(); sumLow();
@@ -907,10 +904,19 @@ function bgNote(d) {
   if (S.sum.typed && c) return "No BG, so no correction is added.";
   return d.nightscout ? "No CGM reading. Type a meter reading." : "Nightscout isn't connected. Type a meter reading.";
 }
+/* Background that's there when wanted: an ⓘ that opens a small popover on tap (okf/features/meal-dose-summary.md) */
+const tip = (text, label) => `<span class="tipwrap"><button type="button" class="tip" aria-expanded="false" aria-label="${label}">i</button><span class="tipbox" role="note" hidden>${esc(text)}</span></span>`;
+document.addEventListener("click", e => {
+  const b = e.target.closest(".tip");
+  if (!b && e.target.closest(".tipbox")) return;
+  document.querySelectorAll(".tip[aria-expanded=true]").forEach(x => { if (x !== b) { x.setAttribute("aria-expanded", "false"); x.nextElementSibling.hidden = true; } });
+  if (b) { const open = b.getAttribute("aria-expanded") !== "true"; b.setAttribute("aria-expanded", open); b.nextElementSibling.hidden = !open; }
+});
 function drawDose() {
   const s = S.sum, d = s.data, el = $("#sumCalc"); if (!el) return;
+  $("#sumBgTip").innerHTML = d?.bg_source === "cgm" ? tip(bgNote(d), "Where the BG is from") : "";
   if (!d) { el.innerHTML = `<p class="err">${esc(s.err)}</p><p class="meta">No dose was worked out. The meal can still be saved.</p>`; return; }
-  const note = `<p class="meta bgnote">${esc(bgNote(d))}</p>`;
+  const note = d.bg_source === "cgm" ? "" : `<p class="meta bgnote">${esc(bgNote(d))}</p>`;
   if (!d.ready) { el.innerHTML = note + `<p class="sumnone">Insulin settings aren't set up, so no dose is worked out.
     <a href="#manage/settings" data-sum="settings">Add the carb ratio, correction factor and target in Manage → Settings</a>.</p>`; return; }
   const k = d.calc, i = d.iob;
@@ -921,7 +927,7 @@ function drawDose() {
     : !k.iob_used ? `${u2(i.units)} u (${esc(i.source)}, ${agoMin(i.age_min)}). Not used: BG is at or below target.`
     : `${u2(i.units)} u (${esc(i.source)}, ${agoMin(i.age_min)}): <b>−${u2(k.iob_off)} u</b> off the correction${k.iob_off < i.units ? ", which can't go below zero" : ""}.`;
   el.innerHTML = note + (k.bg != null && k.bg < LOW_BG ? `<p class="sumlow">BG is low: ${k.bg} mg/dL.${k.dose > 0 ? " Treat the low first and follow the care team's plan before giving a bolus." : ""}</p>` : "") + `
-    <div class="sumdose"><span class="label">Insulin for this meal</span><span class="n">${u2(k.dose)}</span> <span class="u">u</span></div>
+    <div class="sumdose"><span class="label">Insulin for this meal ${tip(`Worked out from your settings${d.updated ? ` (changed ${dayLabel(d.updated)})` : ""}. Check it against the pump before giving.`, "About this dose")}</span><span class="n">${u2(k.dose)}</span> <span class="u">u</span></div>
     <span class="label">How it's worked out</span>
     <dl class="sumcalc">
       <dt>Carbs</dt><dd>${k.carbs} g ÷ ${k.carb_ratio} g per u = <b>${u2(k.carb_u)} u</b></dd>
@@ -931,8 +937,7 @@ function drawDose() {
         ${corrSwitch(d)}</dd>
       <dt>Insulin on board</dt><dd>${iobLine}</dd>
       <dt>Total</dt><dd>${(+k.total_exact).toFixed(3).replace(/0$/, "")} u, rounded down to ${k.round_to ?? 0.05} u</dd>
-    </dl>
-    <p class="meta">Worked out from your settings${d.updated ? ` (changed ${esc(dayLabel(d.updated))})` : ""}. Check it against the pump before giving.</p>`;
+    </dl>`;
 }
 /* 'Add a BG correction', with a recent correction named and warned about (okf/features/meal-dose-summary.md) */
 const hm = m => m < 60 ? `${m} min` : `${Math.floor(m / 60)} h${m % 60 ? ` ${m % 60} min` : ""}`;
@@ -995,7 +1000,7 @@ function startPlateTime() {   // a new plate: 15 min ahead until a fresh CGM rea
   S.plateTime = eatAt(null); S.plateAuto = true;
   api("/api/nightscout").then(r => {
     const c = r.latest; if (!S.plateAuto || !S.plateTime || !c || Date.now() - c.date_ms > 15 * 60e3) return;
-    S.plateTime = eatAt(c.sgv); if ($("#plateTime")) $("#plateTime").value = S.plateTime;
+    S.plateTime = eatAt(c.sgv);
   }).catch(() => { });
 }
 const minusMin = (at, n) => { const m = ((+at.slice(0, 2) * 60 + +at.slice(3, 5) - n) % 1440 + 1440) % 1440; return `${pad2(Math.floor(m / 60))}:${pad2(m % 60)}`; };
@@ -1009,22 +1014,17 @@ function detailFields(d = {}, bg = null, at = "") {
     <div class="mrow"><label class="field"><span>Given</span><span class="unitin"><input class="dMin" type="number" inputmode="numeric" min="0" max="120" step="1"
         value="${legacy ? "" : off}" placeholder="0" data-at="${at}" ${saved ? "" : "data-auto=\"1\""} ${legacy ? `data-legacy="${off}"` : ""} aria-label="Minutes before the meal"> min before the meal</span></label>
       <span class="meta dMinNote">${legacy ? `Saved as ${-off} min after starting. Type the minutes to change it.` : minNote(off, at)}</span></div>
-    <div class="mrow"><label class="field"><span>Time to eat the meal</span><span class="unitin"><input class="dEat" type="number" inputmode="numeric" min="1" max="240" step="1" value="${d.eat_min ?? ""}" placeholder="Minutes"> min</span></label></div>
   </div>`;
 }
 function readDetails(root) {
   const v = sel => root.querySelector(sel).value.trim(), on = sel => root.querySelector(`${sel}.on`)?.dataset;
-  const out = { insulin: null, insulin_kind: null, insulin_offset_min: null, eat_min: null };
+  const out = { insulin: null, insulin_kind: null, insulin_offset_min: null };   // time to eat isn't asked any more; a saved one is kept
   if (v(".dIns") !== "") {
     const u = +v(".dIns");
     if (!(u > 0 && u <= 100) || Math.abs(u * 20 - Math.round(u * 20)) > 1e-6) throw new Error("Insulin is between 0.05 and 100 units, in steps of 0.05.");
     const min = v(".dMin"), legacy = root.querySelector(".dMin").dataset.legacy;   // a saved 'after starting' stays until changed
     if (!(Number.isInteger(+min) && +min >= 0 && +min <= 120)) throw new Error("Enter how many minutes before the meal the insulin was given, 0 to 120 (0 = at the meal time).");
     Object.assign(out, { insulin: u, insulin_kind: on("[data-dkind]").dkind, insulin_offset_min: min === "" && legacy ? +legacy : +min });
-  }
-  if (v(".dEat") !== "") {
-    if (!(Number.isInteger(+v(".dEat")) && +v(".dEat") >= 1 && +v(".dEat") <= 240)) throw new Error("Time to eat is between 1 and 240 minutes.");
-    out.eat_min = +v(".dEat");
   }
   return out;
 }
@@ -1478,7 +1478,7 @@ async function renderMeal() {
       <p class="meta" id="cfFoods" hidden>The foods' new total. To correct it, save the foods first.</p>
       <div id="cfWhy" hidden><label class="field"><span>Why it changed (needed to save)</span><input id="cfReason" maxlength="400" minlength="3" placeholder="e.g. only ate half the pasta, label was wrong" autocomplete="off"></label>
         <p class="meta">The foods keep their saved carbs; the meal's total, the day's totals and the export use the new number.</p></div></form>
-    <div class="glab"><span class="label">BG, insulin and time to eat</span></div>
+    <div class="glab"><span class="label">BG and insulin</span></div>
     <form id="mdetForm" class="mdetform"><label class="field"><span>Blood glucose (mg/dL)${m.bg != null && m.bg_source === "cgm" ? " · from the CGM" : ""}</span><input id="mdBg" type="number" inputmode="numeric" min="20" max="600" step="1" value="${m.bg ?? ""}" placeholder="Meter reading"></label>
         ${detailFields(m, m.bg, m.time)}</form>
     <div class="glab"><span class="label">Note</span><span class="meta">Added to the comments</span></div>

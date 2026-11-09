@@ -22,7 +22,7 @@ Decided 2 Nov: every meal opened with about ten sections, all of them forms, whi
 - Beside the heading: 'Edit' and a '⋯' menu.
   - Edit shows the forms in place of the recorded line, in this order: date and time; Carbs, the meal's total ready
     to change (decided 3 Nov: no longer behind a 'Change total carbs' link), with 'Why it changed' appearing only once
-    the number differs and needed to save it; BG, insulin and its minutes before the meal, time to eat; and Note,
+    the number differs and needed to save it; BG, insulin and its minutes before the meal (time to eat was removed 8 Nov; a saved one is kept); and Note,
     which is added to the meal's comments when saved (the comment box at the bottom moves up into it while editing). The bar on top reads 'Editing' with 'Done'. Saving or discarding the
     changes, or Done with nothing changed, goes back to the read view. On a read-only earlier day, Edit offers only
     the date and time (they can always change, okf/rules/same-day-edits.md).

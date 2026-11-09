@@ -526,8 +526,6 @@ body.signed-out .tabs, body.signed-out .platebar { display: none !important; }
 @container (max-width: 600px) {   /* the total: number, then time and Save to log sharing a line, each never squeezed */
   #plateView .total .n { font-size: 56px; }
   #plateView .total .right { margin-left: 0; width: 100%; flex-wrap: wrap; }
-  #plateView .total .timefield { flex: 1 1 140px; }
-  #plateView .total .timefield input { flex: 1; min-width: 0; }
   #plateView .total .right .btn.primary { flex: 1 1 140px; white-space: nowrap; }
 }
 @container (max-width: 600px) {
@@ -719,6 +717,16 @@ p.moved { margin: 6px 0 0; }
 .sumdose .n { font-size: 56px; font-weight: 500; line-height: 1; color: var(--accent); font-variant-numeric: tabular-nums; }
 .sumdose .u { font-size: 22px; color: var(--accent); }
 .sumlow { color: var(--warn); font-weight: 500; }
+/* ⓘ with a tap-to-open popover */
+.tipwrap { display: inline-block; vertical-align: middle; }
+.label:has(.tip), .field > span:has(.tip) { position: relative; }   /* the popover starts under the label, not the ⓘ, so it stays on screen */
+.tip { width: 22px; height: 22px; padding: 0; border: 1px solid var(--line); border-radius: 50%; background: var(--paper); color: var(--vein);
+  font: italic 500 13px/1 Georgia, serif; cursor: pointer; position: relative; }
+.tip::after { content: ""; position: absolute; inset: -11px; }   /* a 44 px tap target */
+.tip[aria-expanded=true] { border-color: var(--ink); color: var(--ink); }
+.tipbox { position: absolute; left: 0; top: calc(100% + 8px); z-index: 5; width: max-content; max-width: min(300px, calc(100vw - 48px));
+  padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--r); background: var(--paper); box-shadow: 0 6px 20px rgba(0, 0, 0, .12);
+  color: var(--ink); font: 400 15px/1.4 var(--sans); letter-spacing: 0; text-transform: none; white-space: normal; }
 /* a logged meal's foods in Edit (okf/design/components/log-details.md) */
 .ferow { display: grid; grid-template-columns: 32px minmax(0, 1fr) auto 3.2em 40px; gap: 8px; align-items: center; padding: 4px 0; border-bottom: 1px solid var(--line); font-size: 16px; }
 .fethumb { width: 32px; height: 32px; border-radius: 6px; object-fit: cover; background: var(--sunk); display: block; }

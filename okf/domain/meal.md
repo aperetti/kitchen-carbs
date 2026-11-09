@@ -38,7 +38,8 @@ Optional details that go with the meal (decided 29 Oct), each left empty unless 
   80 mg/dL, or 15 when the BG isn't known (decided 4 Nov, was 0), and follows the BG box until the minutes are typed; a saved one shows what was saved. A
   meal saved before 2 Nov with insulin after starting keeps it and says so, until the minutes are changed.
   This is the family's own timing rule as a starting value, not advice; the box can always be changed.
-- How long the meal took to eat, in minutes (1–240).
+- How long the meal took to eat, in minutes (1–240). No longer asked (8 Nov); meals that have it keep it, and it
+  still shows in the log and the export.
 They are entered in the meal summary when saving, and can be added or changed from the log, on earlier days too
 while the setting allows it (okf/rules/same-day-edits.md). The day's insulin totals include meal insulin; insulin and a meter BG show on the meal's
 glucose graph at their own times; the export has them on each of the meal's rows.

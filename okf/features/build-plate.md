@@ -12,3 +12,5 @@ links:
 # Build plate
 On phones a persistent bar shows the item count, total food weight and carb total, and opens the plate. On tablets and computers the plate sits beside the food grid (okf/design/components/plate-bar.md), so tapping a card and tuning its grams happen on one screen.
 Weights can come from a connected kitchen scale (okf/features/kitchen-scale.md).
+- No time box on the plate (decided 8 Nov): the meal's date and time are set in the meal summary. 'Save to log
+  shows the meal summary first… Enter the total in the pump or meter as usual.' is behind an ⓘ beside 'Plate total'.
