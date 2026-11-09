@@ -2,6 +2,7 @@
 Each version is what went to the family's kitchen on that date (okf/architecture/releases.md).
 
 ## Unreleased
+- Meal summary: "Add a BG correction" is now on the same line as the insulin amount, and greyed out when there's no BG.
 - Meal summary: a "Use 2.10 u" button beside Insulin given copies the worked-out dose into the box with one tap. The box still starts empty.
 - Meal summary: the blood glucose box is now smaller and sits in the worked-out steps, just above insulin on board.
 - Meal summary: the date and time are now at the bottom, just above Save to log.

@@ -28,7 +28,9 @@ Decided 29 Oct. 'Save to log' on the plate opens a modal before anything is save
   - Insulin on board: −0.60 u (off the correction only, never below zero)
   - Total 5.33 u → **5.30 u** (rounded down to 0.05 u, or the step set in the insulin settings: 5.00 u at 0.5 u)
 - BG below target: the negative correction lowers the carb dose, never below zero. Below 70 mg/dL the BG shows as low.
-- 'Add a BG correction' (decided 5 Nov): a switch beside the Correction step, shown when there is a BG above target.
+- 'Add a BG correction' (decided 5 Nov): a switch at the right end of the dose's line (moved 8 Nov from beside the
+  Correction step). Always there; greyed out and off when there is no BG, or the BG is at or under target (nothing to add).
+  Its recent-correction line and warning sit just under the dose.
   Off, the correction (and the insulin on board taken off it) is left out and the dose is the carbs' only; the
   Correction line says it was left out. A BG under target still lowers the dose either way. On to start with, unless a
   correction was given within the recent-correction window (okf/domain/insulin-settings.md, 3 hours until changed):

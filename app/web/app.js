@@ -934,14 +934,13 @@ function drawDose() {
     : !k.iob_used ? `${u2(i.units)} u (${esc(i.source)}, ${agoMin(i.age_min)}). Not used: BG is at or below target.`
     : `${u2(i.units)} u (${esc(i.source)}, ${agoMin(i.age_min)}): <b>−${u2(k.iob_off)} u</b> off the correction${k.iob_off < i.units ? ", which can't go below zero" : ""}.`;
   put((k.bg != null && k.bg < LOW_BG ? `<p class="sumlow">BG is low: ${k.bg} mg/dL.${k.dose > 0 ? " Treat the low first and follow the care team's plan before giving a bolus." : ""}</p>` : "") + `
-    <div class="sumdose"><span class="label">Insulin for this meal ${tip(`Worked out from your settings${d.updated ? ` (changed ${dayLabel(d.updated)})` : ""}. Check it against the pump before giving.`, "About this dose")}</span><span class="n">${u2(k.dose)}</span> <span class="u">u</span></div>
+    <div class="sumdose"><span class="label">Insulin for this meal ${tip(`Worked out from your settings${d.updated ? ` (changed ${dayLabel(d.updated)})` : ""}. Check it against the pump before giving.`, "About this dose")}</span><span class="n">${u2(k.dose)}</span> <span class="u">u</span>${corrSwitch(d)}</div>${corrNote(d)}
     <span class="label">How it's worked out</span>
     <dl class="sumcalc">
       <dt>Carbs</dt><dd>${k.carbs} g ÷ ${k.carb_ratio} g per u = <b>${u2(k.carb_u)} u</b></dd>
       <dt>Correction</dt><dd>${k.correction_u == null ? "No BG, so none added."
         : k.correction_left_out ? `Left out. (${k.bg} − ${k.target}) ÷ ${k.isf} isn't added.`
-        : `(${k.bg} − ${k.target}) ÷ ${k.isf} = <b>${k.correction_u < 0 ? "−" : ""}${u2(Math.abs(k.correction_u))} u</b>${k.correction_u < 0 ? " (BG under target lowers the dose)" : ""}`}
-        ${corrSwitch(d)}</dd>
+        : `(${k.bg} − ${k.target}) ÷ ${k.isf} = <b>${k.correction_u < 0 ? "−" : ""}${u2(Math.abs(k.correction_u))} u</b>${k.correction_u < 0 ? " (BG under target lowers the dose)" : ""}`}</dd>
       ${bgRow}
       <dt>Insulin on board</dt><dd>${iobLine}</dd>
       <dt>Total</dt><dd>${(+k.total_exact).toFixed(3).replace(/0$/, "")} u, rounded down to ${k.round_to ?? 0.05} u</dd>
@@ -949,13 +948,19 @@ function drawDose() {
 }
 /* 'Add a BG correction', with a recent correction named and warned about (okf/features/meal-dose-summary.md) */
 const hm = m => m < 60 ? `${m} min` : `${Math.floor(m / 60)} h${m % 60 ? ` ${m % 60} min` : ""}`;
+// The switch sits on the dose's line, off and greyed out with no BG or nothing to correct; its notes go under the dose
+const corrOff = k => k.correction_u == null || (k.correction_u <= 0 && !k.correction_left_out);
 function corrSwitch(d) {
+  const k = d.calc, none = corrOff(k), on = S.sum.correct !== false && !none;
+  return `<label class="corrsw ${none ? "off" : ""}" ${none ? `title="${k.correction_u == null ? "No BG, so there's nothing to correct" : "BG is at or under target, so there's nothing to add"}"` : ""}>
+    <input type="checkbox" data-sum="correct" ${on ? "checked" : ""} ${none ? "disabled" : ""}> Add a BG correction</label>`;
+}
+function corrNote(d) {
   const k = d.calc, r = d.recent_correction, on = S.sum.correct !== false;
-  if (k.correction_u == null || (k.correction_u <= 0 && !k.correction_left_out)) return "";
-  const when = r && `${fmtU(r.units)} correction at ${clk(new Date(r.ms).toTimeString().slice(0, 5))}, ${hm(r.age_min)} ago, ${r.source === "log" ? "in the log" : "from Nightscout"}`;
-  return `<label class="corrsw"><input type="checkbox" data-sum="correct" ${on ? "checked" : ""}> Add a BG correction</label>
-    ${r && !on ? `<p class="meta">${esc(cap(when))}, within ${r.hours} hour${r.hours > 1 ? "s" : ""}, so it starts off.</p>` : ""}
-    ${r && on ? `<p class="sumlow" role="alert">A correction was given recently: ${esc(when)}. It may still be acting.
+  if (corrOff(k) || !r) return "";
+  const when = `${fmtU(r.units)} correction at ${clk(new Date(r.ms).toTimeString().slice(0, 5))}, ${hm(r.age_min)} ago, ${r.source === "log" ? "in the log" : "from Nightscout"}`;
+  return `${!on ? `<p class="meta">${esc(cap(when))}, within ${r.hours} hour${r.hours > 1 ? "s" : ""}, so it starts off.</p>` : ""}
+    ${on ? `<p class="sumlow" role="alert">A correction was given recently: ${esc(when)}. It may still be acting.
       Check against the pump and the care team's plan before adding another.</p>` : ""}`;
 }
 doseDlg.addEventListener("change", e => {   // date or time of the meal: heading, plate time and the dose follow

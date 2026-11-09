@@ -156,3 +156,4 @@
 - 2026-11-08 — Meal summary: When (date and time) moved to the end, just above Save to log (features/meal-dose-summary.md).
 - 2026-11-08 — Meal summary: the BG box moved into 'How it's worked out', just above Insulin on board, at text size (features/meal-dose-summary.md).
 - 2026-11-08 — Meal summary: 'Use … u' beside Insulin given copies the worked-out dose into the box on one tap; the box still starts empty (rules/no-dosing.md, features/meal-dose-summary.md).
+- 2026-11-08 — Meal summary: 'Add a BG correction' moved to the right of the dose; greyed out with no BG or nothing to correct (features/meal-dose-summary.md).

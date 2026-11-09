@@ -743,6 +743,8 @@ p.moved { margin: 6px 0 0; }
   background: none; border: 0; border-bottom: 1px solid var(--line); font: inherit; font-size: 16px; color: inherit; cursor: pointer; }
 .fehit .fename { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .corrsw { display: flex; align-items: center; gap: 8px; min-height: 44px; font-weight: 500; }
+.sumdose .corrsw { margin-left: auto; align-self: center; font-size: 16px; }
+.corrsw.off { color: var(--vein); font-weight: 400; }
 .corrsw input { width: 22px; height: 22px; margin: 0; }
 .lowwarn { margin: 0; padding: 12px 14px; border: 2px solid var(--warn); border-radius: var(--r); color: var(--warn); font-weight: 500; background: var(--paper); }   /* okf/rules/low-bg-bolus-warning.md */
 .sumgiven .lowwarn { margin-top: 12px; }
