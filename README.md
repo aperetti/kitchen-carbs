@@ -27,51 +27,16 @@ report for the care team, and optionally send the log to Nightscout or Tidepool.
 
 ## Demo reels
 
-### Build a plate
-Foods are photo cards sorted by tags. Search, tap to add, pick a portion, then set the real weight with the
-slider or a Bluetooth kitchen scale; the plate adds up the carbs.
-
-![Build a plate](https://github.com/aperetti/kitchen-carbs/releases/download/demo-media/plate.gif) · [MP4](https://github.com/aperetti/kitchen-carbs/releases/download/demo-media/plate.mp4)
-
-### Meal summary
-Save to log opens a summary: date and time, BG from the CGM (or a meter reading), a dose worked out from the
-parent's own ratios (shown only here, never stored or sent), and what was actually given.
-
-![Meal summary](https://github.com/aperetti/kitchen-carbs/releases/download/demo-media/summary.gif) · [MP4](https://github.com/aperetti/kitchen-carbs/releases/download/demo-media/summary.mp4)
-
-### The log
-Each day with time in range, the glucose curve after each meal, edits with a floating Save bar, comments, and
-manual entries for juice, meter readings or long-acting insulin.
-
-![The log](https://github.com/aperetti/kitchen-carbs/releases/download/demo-media/log.gif) · [MP4](https://github.com/aperetti/kitchen-carbs/releases/download/demo-media/log.mp4)
-
-### After meals
-Every meal's glucose for three hours, lined up at the meal time, with its rise and the insulin given; look at just
-breakfasts, lunches or dinners, as a rise or in mg/dL. Patterns only, for the family and the care team.
-
-![After meals](https://github.com/aperetti/kitchen-carbs/releases/download/demo-media/after.gif) · [MP4](https://github.com/aperetti/kitchen-carbs/releases/download/demo-media/after.mp4)
-
-### Foods and photos
-Behind a parent PIN: each food's source and checked carbs, its portions, and photos styled by Gemini to match the
-family's own plates, each checked by a parent before use.
-
-![Foods and photos](https://github.com/aperetti/kitchen-carbs/releases/download/demo-media/manage.gif) · [MP4](https://github.com/aperetti/kitchen-carbs/releases/download/demo-media/manage.mp4)
-
-### Reports
-A formatted PDF (or CSV) of any date range: daily glucose traces with meals marked, time in range, and every meal
-and dose as logged.
-
-![PDF report](https://github.com/aperetti/kitchen-carbs/releases/download/demo-media/export.gif) · [MP4](https://github.com/aperetti/kitchen-carbs/releases/download/demo-media/export.mp4)
-
-### Settings and sync
-Insulin ratios by time of day, the log's rules, push notifications to parents' phones, and Tidepool sync.
-
-![Settings](https://github.com/aperetti/kitchen-carbs/releases/download/demo-media/settings.gif) · [MP4](https://github.com/aperetti/kitchen-carbs/releases/download/demo-media/settings.mp4)
-
-### On a phone
-The same app on a phone: add foods, open the plate, check the log.
-
-<img src="https://github.com/aperetti/kitchen-carbs/releases/download/demo-media/phone.gif" alt="On a phone" width="300"> · [MP4](https://github.com/aperetti/kitchen-carbs/releases/download/demo-media/phone.mp4)
+| Demo | What it shows | Watch |
+|---|---|---|
+| Build a plate | Search, pick a portion, set the real weight by slider or Bluetooth scale; the plate adds up the carbs. | [MP4](https://github.com/aperetti/kitchen-carbs/releases/download/demo-media/plate.mp4) · [GIF](https://github.com/aperetti/kitchen-carbs/releases/download/demo-media/plate.gif) |
+| Meal summary | BG from the CGM or a meter, a dose from the parent's own ratios (shown only, never stored or sent), and what was given. | [MP4](https://github.com/aperetti/kitchen-carbs/releases/download/demo-media/summary.mp4) · [GIF](https://github.com/aperetti/kitchen-carbs/releases/download/demo-media/summary.gif) |
+| The log | Each day's time in range, the glucose curve after each meal, edits, comments and manual entries. | [MP4](https://github.com/aperetti/kitchen-carbs/releases/download/demo-media/log.mp4) · [GIF](https://github.com/aperetti/kitchen-carbs/releases/download/demo-media/log.gif) |
+| After meals | Every meal's glucose for three hours, lined up; just breakfasts, lunches or dinners. | [MP4](https://github.com/aperetti/kitchen-carbs/releases/download/demo-media/after.mp4) · [GIF](https://github.com/aperetti/kitchen-carbs/releases/download/demo-media/after.gif) |
+| Foods and photos | Behind a parent PIN: each food's source and carbs, its portions, and parent-checked photos. | [MP4](https://github.com/aperetti/kitchen-carbs/releases/download/demo-media/manage.mp4) · [GIF](https://github.com/aperetti/kitchen-carbs/releases/download/demo-media/manage.gif) |
+| Reports | A PDF or CSV of any date range: glucose traces, time in range, every meal and dose. | [MP4](https://github.com/aperetti/kitchen-carbs/releases/download/demo-media/export.mp4) · [GIF](https://github.com/aperetti/kitchen-carbs/releases/download/demo-media/export.gif) |
+| Settings and sync | Insulin ratios by time of day, the log's rules, notifications and Tidepool sync. | [MP4](https://github.com/aperetti/kitchen-carbs/releases/download/demo-media/settings.mp4) · [GIF](https://github.com/aperetti/kitchen-carbs/releases/download/demo-media/settings.gif) |
+| On a phone | The same app on a phone: add foods, open the plate, check the log. | [MP4](https://github.com/aperetti/kitchen-carbs/releases/download/demo-media/phone.mp4) · [GIF](https://github.com/aperetti/kitchen-carbs/releases/download/demo-media/phone.gif) |
 
 ## Environments
 
