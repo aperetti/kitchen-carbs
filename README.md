@@ -45,6 +45,12 @@ manual entries for juice, meter readings or long-acting insulin.
 
 ![The log](https://github.com/aperetti/kitchen-carbs/releases/download/demo-media/log.gif) · [MP4](https://github.com/aperetti/kitchen-carbs/releases/download/demo-media/log.mp4)
 
+### After meals
+Every meal's glucose for three hours, lined up at the meal time, with its rise and the insulin given; look at just
+breakfasts, lunches or dinners, as a rise or in mg/dL. Patterns only, for the family and the care team.
+
+![After meals](https://github.com/aperetti/kitchen-carbs/releases/download/demo-media/after.gif) · [MP4](https://github.com/aperetti/kitchen-carbs/releases/download/demo-media/after.mp4)
+
 ### Foods and photos
 Behind a parent PIN: each food's source and checked carbs, its portions, and photos styled by Gemini to match the
 family's own plates, each checked by a parent before use.

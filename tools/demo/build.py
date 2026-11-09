@@ -21,51 +21,60 @@ ff("-f", "lavfi", "-i", "color=c=0xE9EAE7:s=1280x800:r=30:d=13", "-loop", "1", "
    "[b][3]overlay=0:0:enable='lt(t,6)':shortest=1[c];[c][4]overlay=0:0:enable='gte(t,6)':shortest=1[v]",
    "-map", "[v]", "-t", "13", *X264, f"{D}/export.mp4")
 
-# each reel on its own, without the blank first second
-for n in ("plate", "summary", "log", "manage", "settings", "phone"):
-    ff("-ss", "1.2", "-i", f"{D}/{n}.webm", "-vf", "fps=30", *X264, f"{OUT}/{n}.mp4")
+REELS = ("plate", "summary", "log", "after", "manage", "settings", "phone")
+logs = {n: json.load(open(f"{D}/{n}.json")) for n in REELS}
+
+# each reel on its own, from just before its first caption, at 30 fps
+for n in REELS:
+    first = min([c["t"] for c in logs[n]["caps"]] + [c["start"] for c in logs[n]["clips"].values()])
+    ff("-ss", f"{max(0, first - .6):.2f}", "-i", f"{D}/{n}.webm", "-vf", f"fps=30", *X264, f"{OUT}/{n}.mp4")
 ff("-i", f"{D}/export.mp4", *X264, f"{OUT}/export.mp4")
 
-# the sizzle: cards and the key moments, cut at the captions (index, offset in seconds), a little faster,
-# each sliding in from the right over the one before
-marks = {n: [m["t"] for m in json.load(open(f"{D}/{n}.json"))] for n in ("plate", "summary", "log", "manage", "settings", "phone")}
-marks["export"] = [0.3, 12.5]
-CARD_S = 2.6   # each section card, swipes included
-CUTS = [("card", "title", 3.4), ("card", "plate", CARD_S), ("plate", (2, -.4), (5, 0), 1.35),
-        ("card", "summary", CARD_S), ("summary", (0, -.2), (1, -.1), 1.3), ("summary", (3, -.7), (4, 0), 1.2), ("summary", (5, -.4), (6, -.2), 1.2),
-        ("card", "log", CARD_S), ("log", (0, -.2), (1, -1.7), 1.4), ("log", (2, -.2), (3, 4.6), 1.4), ("log", (4, -.2), (5, -.1), 1.4),
-        ("card", "manage", CARD_S), ("manage", (0, -.1), (1, -.3), 1.4), ("manage", (2, -.2), (2, 6.4), 1.4),
-        ("card", "export", CARD_S), ("export", (0, 0), (1, 0), 1.6),
-        ("card", "settings", CARD_S), ("settings", (1, -.2), (2, -.1), 1.4),
-        ("card", "phone", CARD_S), ("phone", (0, -.3), (3, -.3), 1.6), ("card", "end", 4.5)]
+# The sizzle: section cards and named clips (reels.js marks where each starts and ends on a still frame), a little
+# faster. A section card slides in; clips within a section cross-fade.
+CARD_S, SPEED = 2.2, 1.3
+CUTS = [("card", "title", 3.2),
+        ("card", "plate", CARD_S), ("plate", "search"), ("plate", "portion"), ("plate", "weigh"),
+        ("card", "summary", CARD_S), ("summary", "open"), ("summary", "bg"), ("summary", "given"),
+        ("card", "log", CARD_S), ("log", "day"), ("log", "meal"), ("log", "edit"),
+        ("card", "after", CARD_S), ("after", "after"),
+        ("card", "manage", CARD_S), ("manage", "food"), ("manage", "photos"),
+        ("card", "export", CARD_S), ("export", (0.3, 12.5)),
+        ("card", "settings", CARD_S), ("settings", "settings"),
+        ("phone", "phone"),
+        ("card", "end", 4.5)]
 parts = []
 for i, c in enumerate(CUTS):
     seg = f"{D}/seg/{i:02d}.mp4"
     if c[0] == "card":
-        d = c[2]
-        ff("-loop", "1", "-t", str(d), "-i", f"{D}/cards/card-{c[1]}.png",
-           "-vf", "fps=30,format=yuv420p", *X264, seg)
+        ff("-loop", "1", "-t", str(c[2]), "-i", f"{D}/cards/card-{c[1]}.png", "-vf", "fps=30,format=yuv420p", *X264, seg)
+    elif c[0] == "export":
+        a, b = c[1]
+        ff("-ss", f"{a:.2f}", "-t", f"{b - a:.2f}", "-i", f"{D}/export.mp4", "-vf", f"setpts=PTS/1.5,fps=30,format=yuv420p", *X264, seg)
+    elif c[0] == "phone":   # the phone beside its title, not lost in the middle of a wide frame
+        cl = logs["phone"]["clips"]["phone"]; a, b = cl["start"], cl["end"]
+        ff("-ss", f"{a:.2f}", "-t", f"{b - a:.2f}", "-i", f"{D}/phone.webm", "-loop", "1", "-i", f"{D}/cards/phone-bg.png", "-filter_complex",
+           f"[0]setpts=PTS/1.6,scale=-2:740:flags=lanczos,pad=iw+4:ih+4:2:2:color=0xC9CCC8[ph];[1][ph]overlay=x=840:y=28:shortest=1,fps=30,format=yuv420p", *X264, seg)
     else:
-        n, (i0, o0), (i1, o1), speed = c
-        a, b = marks[n][i0] + o0, marks[n][i1] + o1; d = (b - a) / speed
-        fit = f"scale=-2:800,pad=1280:800:(ow-iw)/2:0:color={BG}" if n == "phone" else "scale=1280:800"
-        ff("-ss", f"{a:.2f}", "-t", f"{b - a:.2f}", "-i", f"{D}/export.mp4" if n == "export" else f"{D}/{n}.webm", "-vf",
-           f"setpts=PTS/{speed},{fit},fps=30,format=yuv420p", *X264, seg)
-    parts.append((seg, float(subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", seg],
-                                            capture_output=True, text=True, check=True).stdout)))
-SWIPE = 0.45
+        n, name = c; cl = logs[n]["clips"][name]; a, b = cl["start"], cl["end"]
+        ff("-ss", f"{a:.2f}", "-t", f"{b - a:.2f}", "-i", f"{D}/{n}.webm", "-vf",
+           f"setpts=PTS/{SPEED},fps=30,format=yuv420p", *X264, seg)
+    parts.append((seg, c[0] == "card", float(subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", seg],
+                                                          capture_output=True, text=True, check=True).stdout)))
 chain, last, t = [], "0:v", 0.0
 for k in range(1, len(parts)):
-    t += parts[k - 1][1] - SWIPE   # the next clip starts sliding in this long before the last one ends
-    chain.append(f"[{last}][{k}:v]xfade=transition=slideleft:duration={SWIPE}:offset={t:.3f}[x{k}]"); last = f"x{k}"
-ff(*[a for seg, _ in parts for a in ("-i", seg)], "-filter_complex", ";".join(chain), "-map", f"[{last}]", *X264, f"{OUT}/sizzle.mp4")
+    slide = parts[k][1] or parts[k - 1][1]
+    d = 0.45 if slide else 0.3
+    t += parts[k - 1][2] - d   # the next part starts this long before the last one ends
+    chain.append(f"[{last}][{k}:v]xfade=transition={'slideleft' if slide else 'fade'}:duration={d}:offset={t:.3f}[x{k}]"); last = f"x{k}"
+ff(*[a for seg, _, _ in parts for a in ("-i", seg)], "-filter_complex", ";".join(chain), "-map", f"[{last}]", *X264, f"{OUT}/sizzle.mp4")
 
 # GIFs for the README: GitHub plays GIFs inline, MP4s only as links
 def gif(src, dst, width, fps, colors=128):
     ff("-i", src, "-vf", f"fps={fps},scale={width}:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors={colors}:stats_mode=diff[p];"
        "[b][p]paletteuse=dither=bayer:bayer_scale=5:diff_mode=rectangle", dst)
-gif(f"{OUT}/sizzle.mp4", f"{OUT}/sizzle.gif", 720, 8, 96)
-for n in ("plate", "summary", "log", "manage", "export", "settings"):
+gif(f"{OUT}/sizzle.mp4", f"{OUT}/sizzle.gif", 640, 8, 96)   # under GitHub's 10 MB inline limit
+for n in ("plate", "summary", "log", "after", "manage", "export", "settings"):
     gif(f"{OUT}/{n}.mp4", f"{OUT}/{n}.gif", 640, 8)
 gif(f"{OUT}/phone.mp4", f"{OUT}/phone.gif", 300, 8)
 print("built", OUT)

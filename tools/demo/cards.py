@@ -13,9 +13,9 @@ def caption(text, out, w=1280, h=800):
     d.text((w / 2, y0 + bh / 2), text, font=f, fill="white", anchor="mm")
     im.save(out)
 
-def card(lines, out, w=1280, h=800):
-    """lines: (text, size, weight, colour) top to bottom, centred."""
-    im = Image.new("RGB", (w, h), BG); d = ImageDraw.Draw(im)
+def card(lines, out, w=1280, h=800, pad_to=None):
+    """lines: (text, size, weight, colour) top to bottom, centred in the first w pixels (pad_to: the full width)."""
+    im = Image.new("RGB", (pad_to or w, h), BG); d = ImageDraw.Draw(im)
     fonts = [ImageFont.truetype(FONT.format(wt), sz) for _, sz, wt, _ in lines]
     gaps = [sz * 0.9 for _, sz, _, _ in lines]
     total = sum(f.size + g for f, g in zip(fonts, gaps)) - gaps[-1]
@@ -35,11 +35,13 @@ def main(out):
     for key, title, sub in [("plate", "Build a plate", "Photo cards, real weights, carbs added up"),
                             ("summary", "Meal summary", "BG, the parent's own ratios, what was given"),
                             ("log", "The log", "CGM curves, edits, comments, manual entries"),
+                            ("after", "After meals", "Every meal's glucose, side by side"),
                             ("manage", "Foods and photos", "Checked carbs, portions, styled photos"),
                             ("export", "Reports", "A PDF for the care team"),
                             ("settings", "Settings and sync", "Notifications and Tidepool"),
                             ("phone", "On a phone", "The same app, in your pocket")]:
         card([(title, 54, "SemiBold", INK), (sub, 26, "Regular", MUTED)], f"{out}/card-{key}.png")
+    card([("On a phone", 54, "SemiBold", INK), ("The same app, in your pocket", 26, "Regular", MUTED)], f"{out}/phone-bg.png", w=760, pad_to=1280)
 
 
 if __name__ == "__main__":
