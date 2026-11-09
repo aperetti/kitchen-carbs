@@ -591,9 +591,6 @@ body.signed-out .tabs, body.signed-out .platebar { display: none !important; }
 /* When: date and time on any day (okf/rules/same-day-edits.md) */
 .whenform { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .whenform input { height: 44px; border: 1px solid var(--line); border-radius: 10px; background: var(--paper); padding: 0 10px; font-size: 16px; color: var(--ink); }
-.sumwhen { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 16px 0 4px; padding-top: 12px; border-top: 1px solid var(--line); }
-.sumwhen .label { flex: 1 1 100%; }
-.sumwhen input { height: 48px; border: 1px solid var(--line); border-radius: 10px; background: var(--paper); padding: 0 10px; font-size: 17px; color: var(--ink); }
 .dirty input, .dirty select, .dirty textarea { border: 2px solid var(--warn) !important; }
 .check.dirty { color: var(--warn); }   /* a switch changed in Settings */
 .seg.dirty { outline: 2px solid var(--warn); outline-offset: 2px; }
@@ -711,19 +708,35 @@ p.moved { margin: 6px 0 0; }
 .sumbgin { display: inline-flex; align-items: center; gap: 6px; color: var(--vein); }
 .sumbgin input { width: 6em; height: 40px; border: 1px solid var(--line); border-radius: 10px; background: var(--paper); padding: 0 10px;
   font: inherit; color: var(--ink); font-variant-numeric: tabular-nums; }
-.sumcalc .bgnote, .sumcalc .sumlow { margin: 4px 0 0; }
 .sumbgin input.check { border: 2px solid var(--warn); color: var(--warn); }
-.sumcalc { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 8px 16px; margin: 4px 0 0; font-size: 16px; }
-.sumcalc dt { color: var(--vein); }
-.sumcalc dd { margin: 0; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
-.sumdose { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; padding: 4px 0 8px; border-bottom: 1px solid var(--line); margin-bottom: 4px; }
+/* the meal summary in three parts: the dose, how it's worked out, what was given (okf/features/meal-dose-summary.md) */
+.sumsec { padding: 14px 0; border-top: 1px solid var(--line); min-width: 0; }
+.sumh { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-bottom: 8px; }
+.sumrows { display: grid; grid-template-columns: max-content minmax(0, 1fr) max-content; gap: 8px 14px; align-items: baseline; font-size: 16px; }
+.bdrow { display: contents; }
+.bdl { color: var(--vein); }
+.bdf { min-width: 0; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.bda { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.bdnote { grid-column: 2 / -1; margin-top: -4px; }
+.bdnote p { margin: 0 0 2px; }
+.bdsep { grid-column: 1 / -1; border-top: 1px solid var(--line); }
+.sumwarn { margin: 6px 0 0; color: var(--warn); font-weight: 500; font-size: 15px; }
+.sumdetails { margin-top: 10px; } .sumdetails p { margin: 0 0 4px; }
+.sumdet { display: grid; gap: 12px; }
+.sumdet .seg { justify-self: start; }
+.srow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; }
+.srow > label, .spair > label { width: 4.2em; color: var(--vein); }
+.spair { display: inline-flex; align-items: center; gap: 10px; }
+.spair + .spair > label { width: auto; margin-left: 6px; }
+.srow input[type="date"], .srow input[type="time"] { height: 44px; border: 1px solid var(--line); border-radius: 10px; background: var(--paper); padding: 0 10px; font-size: 16px; color: var(--ink); }
+.sumdose { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
 .sumdose .label { flex: 1 1 100%; }
 .sumdose .n { font-size: 56px; font-weight: 500; line-height: 1; color: var(--accent); font-variant-numeric: tabular-nums; }
 .sumdose .u { font-size: 22px; color: var(--accent); }
 .sumlow { color: var(--warn); font-weight: 500; }
 /* ⓘ with a tap-to-open popover */
 .tipwrap { display: inline-block; vertical-align: middle; }
-.label:has(.tip), .sumcalc dt:has(.tip) { position: relative; }   /* the popover starts under the label, not the ⓘ, so it stays on screen */
+.label:has(.tip), .bdl:has(.tip) { position: relative; }   /* the popover starts under the label, not the ⓘ, so it stays on screen */
 .tip { width: 22px; height: 22px; padding: 0; border: 1px solid var(--line); border-radius: 50%; background: var(--paper); color: var(--vein);
   font: italic 500 13px/1 Georgia, serif; cursor: pointer; position: relative; }
 .tip::after { content: ""; position: absolute; inset: -11px; }   /* a 44 px tap target */
@@ -752,7 +765,7 @@ p.moved { margin: 6px 0 0; }
 .sumnone a { color: var(--accent); }
 .dosedlg .sumacts { position: sticky; bottom: -20px; z-index: 2; background: var(--surface); padding: 12px 0; border-top: 1px solid var(--line); }
 @media (max-width: 680px) { .dosedlg { width: 100vw; max-width: 100vw; } }
-@media (max-width: 420px) { .sumcalc { grid-template-columns: 1fr; gap: 2px; } .sumcalc dd { margin-bottom: 8px; } .sumdose .n { font-size: 48px; } }
+@media (max-width: 420px) { .sumrows { gap: 8px 10px; font-size: 15px; } .sumdose .n { font-size: 48px; } .spair + .spair > label { width: 4.2em; margin-left: 0; } }
 /* insulin settings form */
 .doseset { border: 0; padding: 0; margin: 0; display: grid; gap: 8px; }
 .doseset legend { font-weight: 500; margin-bottom: 6px; }
@@ -774,7 +787,7 @@ p.moved { margin: 6px 0 0; }
 .mdet .unitin input, .tphours .unitin input { width: 96px; height: 44px; border: 1px solid var(--line); border-radius: 10px; background: var(--paper); padding: 0 10px; font-size: 18px; color: var(--ink); }
 .mdet .unitin[hidden] { display: none; }
 .mdet .seg button { min-height: 44px; }
-.sumgiven { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--line); }
+
 .mdetform { display: grid; gap: 8px; }
 .mdet, .mdetform, .sumgiven { min-width: 0; max-width: 100%; }
 .mdet .seg { max-width: 100%; }

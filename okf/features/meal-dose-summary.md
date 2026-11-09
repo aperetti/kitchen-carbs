@@ -12,6 +12,17 @@ links:
 ---
 # Meal summary and dose
 Decided 29 Oct. 'Save to log' on the plate opens a modal before anything is saved.
+- Layout (decided 8 Nov, to cut clutter), in three parts under the meal:
+  1. The dose: 'Insulin for this meal', large, with 'Add a BG correction' at the right of the same line. Under it, one
+     short ⚠ line for each thing that limits it (BG low; Nightscout unreachable or not connected, or no or old insulin
+     on board, when a correction would have had it taken off), and the recent-correction line.
+  2. 'How it's worked out': one row each, label, sum and amount (+1.47 u): Carbs, Correction, Blood glucose (the box),
+     Insulin on board (−0.35 u, or 'Unavailable' −0.00 u), a rule, then Total with the exact sum, the rounding step and
+     the dose. 'Details ▾' opens the long reasons for the correction and insulin on board; closed to start with.
+  3. 'What was given' (optional): Bolus / Basal, Dose (with 'Use … u'), Timing (minutes before, and the clock time),
+     Date and Time. Then Save to log and Back to plate.
+  The parent's mock-up said 'Recommended dose' and 'Match recommended'; the app keeps 'Insulin for this meal' and 'Use
+  … u', because it describes the sum and doesn't advise (okf/rules/no-dosing.md).
 - The meal: each food with its weight and carbs, the time, and the carb total.
 - BG: the latest CGM reading with its trend arrow and age, filled in only if it is under 15 minutes old. Otherwise
   the box is empty and says why. It can always be overwritten with a meter reading; the numbers update as it is typed.

@@ -160,3 +160,4 @@
 - 2026-11-08 — Insulin on board: Nightscout's 'Care Portal' IOB (from logged boluses, no time attached) is used as of now instead of counted as missing (architecture/nightscout-client.md).
 - 2026-11-08 — Meal summary: a CGM reading over 15 minutes old isn't shown beside a typed BG or in the 'too old' line (features/meal-dose-summary.md).
 - 2026-11-08 — Meal summary: a typed BG of 400 mg/dL or more is flagged 'High BG check' to catch typos (features/meal-dose-summary.md).
+- 2026-11-08 — Meal summary laid out in three parts: the dose with compact ⚠ lines, a breakdown table with Details, and What was given with the date and time (features/meal-dose-summary.md).
