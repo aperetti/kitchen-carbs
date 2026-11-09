@@ -463,11 +463,14 @@ function usePlan(p, btn) {
   toast(gone.length ? `${p.name} is on the plate. Left out: ${gone.join(", ")} (no longer in the food list).` : `${p.name} is on the plate. Check each weight before saving.`);
   if (location.hash.slice(1).split("/")[0] === (splitMode() ? "foods" : "plate")) renderPlate(); else location.hash = splitMode() ? "foods" : "plate";
 }
-// the log's 'Planned' list, on today only: the log can't go past today, so future plans are listed here
-const planList = d => d.day !== localDay() || !S.plans.length ? "" : `<div class="plans"><div class="glab"><span class="label">Planned</span><span class="meta">Not counted until saved to the log</span></div>
-  ${S.plans.map(p => `<button class="lrow plan ${p.id === S.log.selPlan ? "on" : ""}" data-plan="${p.id}">
+// the log's 'Planned' list: today lists every plan as an overview; a future day lists only its own
+function planList(d) {
+  const today = localDay(), plans = d.day === today ? S.plans : d.day > today ? S.plans.filter(p => p.day === d.day) : [];
+  return !plans.length ? "" : `<div class="plans"><div class="glab"><span class="label">Planned</span><span class="meta">Not counted until saved to the log</span></div>
+  ${plans.map(p => `<button class="lrow plan ${p.id === S.log.selPlan ? "on" : ""}" data-plan="${p.id}">
     <span class="tm">${clk(p.time)}</span><span class="it"><b>${esc(p.name)}</b><span>${p.day < localDay() ? `<span class="warn">Overdue</span> · ` : ""}${esc(cap(planWhen(p)))} · ${esc(p.foods)}</span></span>
     <span class="c">${p.carbs}</span></button>`).join("")}</div>`;
+}
 /* Details read first; Edit shows the forms, ⋯ holds rare actions (okf/design/components/log-details.md) */
 const editKey = () => S.log.selPlan ? `p${S.log.selPlan}` : S.log.selEntry ? `e${S.log.selEntry}` : `m${S.log.sel}`;
 const editing = () => S.log.edit === editKey();
@@ -1074,7 +1077,7 @@ async function syncQueue() {
 /* ---------- log (okf/features/review-log.md, annotate-meal.md, glucose-*.md) ---------- */
 async function loadLog(day) {
   S.log.day = day;
-  try { [S.log.data] = await Promise.all([api("/api/log?day=" + day), day === localDay() && loadPlans()]); setClock(S.log.data.clock_12h); }
+  try { [S.log.data] = await Promise.all([api("/api/log?day=" + day), day >= localDay() && loadPlans()]); setClock(S.log.data.clock_12h); }
   catch (err) { $("#logList").innerHTML = `<div class="empty">${esc(err.message)}</div>`; $("#mealDetail").innerHTML = ""; return; }
   const meals = S.log.data.meals;
   if (S.log.selEntry && !S.log.data.entries.some(e => e.id === S.log.selEntry)) S.log.selEntry = null;
@@ -1098,10 +1101,10 @@ function statsStrip(g, label) {
 }
 
 function renderLog() {
-  const d = S.log.data, isToday = d.day === localDay();
+  const d = S.log.data, isToday = d.day === localDay(), isFuture = d.day > localDay();
   const period = S.log.period;
   let strip = "";
-  if (S.session?.glucose && S.log.statsOpen) {
+  if (S.session?.glucose && S.log.statsOpen && !isFuture) {
     const g = period === "day" ? d.glucose : S.log.stats?.glucose;
     const label = period === "day" ? (isToday ? "Today so far" : "This day") : `${period} days`;
     strip = `<div class="periods" role="group" aria-label="Statistics period">${[["day", "Day"], [7, "7 days"], [14, "14 days"]].map(([k, l]) =>
@@ -1110,16 +1113,16 @@ function renderLog() {
   }
   $("#logList").innerHTML = `
     <div class="daynav"><button data-day="-1" aria-label="Previous day">‹</button><b>${isToday ? "Today, " : ""}${dayLabel(d.day)}</b>
-      <span class="meta">${d.total} g</span><button data-day="1" aria-label="Next day" ${isToday ? "disabled" : ""}>›</button></div>
-    ${statLine(d)}
+      <span class="meta">${d.total} g</span><button data-day="1" aria-label="Next day" ${d.day >= shiftDay(localDay(), PLAN_DAYS) ? "disabled" : ""}>›</button></div>
+    ${isFuture ? "" : statLine(d)}
     ${strip}
-    ${S.session?.glucose ? `<a class="linkbtn aftlink" href="#after">After meals: how glucose went in the 3 hours after each meal ›</a>` : ""}
+    ${S.session?.glucose && !isFuture ? `<a class="linkbtn aftlink" href="#after">After meals: how glucose went in the 3 hours after each meal ›</a>` : ""}
     ${planList(d)}
     ${d.editable ? `<button class="btn small addentry ${S.log.adding ? "on" : ""}" data-act="add-entry">Add entry${isToday ? "" : ` to ${dayLabel(d.day)}`}: carbs, BG or insulin</button>` : ""}
     ${logRows(d)}
     ${deletedList(d)}
     <div class="dayfoot">
-      ${isToday ? "" : `<p class="meta">${d.editable ? "Changes to an earlier day are marked ✎ Modified." : "Earlier days are read-only. A parent can allow changes in Manage → Settings."} <button class="linkbtn" data-day="today">Go to today</button></p>`}
+      ${isToday ? "" : `<p class="meta">${isFuture ? "A future day shows only its planned meals." : d.editable ? "Changes to an earlier day are marked ✎ Modified." : "Earlier days are read-only. A parent can allow changes in Manage → Settings."} <button class="linkbtn" data-day="today">Go to today</button></p>`}
       ${S.log.exportOpen ? `<div class="exportrow"><span class="meta">Export</span>
         <input type="date" id="exFrom" value="${shiftDay(d.day, -13)}" aria-label="From"><input type="date" id="exTo" value="${d.day}" aria-label="To">
         <button class="btn small" data-act="export" data-fmt="pdf">PDF</button><button class="btn small quiet" data-act="export" data-fmt="csv">CSV</button>
@@ -1258,7 +1261,8 @@ const rowFacts = m => { const f = [m.bg != null || m.two_h != null ? [m.bg != nu
   return f.length ? `<span>${f.join(" · ")}</span>` : ""; };
 function logRows(d) {
   const rows = [...d.meals.map(m => ({ t: m.time, m })), ...d.entries.map(e => ({ t: e.time, e }))].sort((a, b) => a.t.localeCompare(b.t));
-  if (!rows.length) return `<div class="empty">Nothing logged${d.day === localDay() ? " yet today" : " this day"}.</div>`;
+  if (!rows.length) return d.day > localDay() ? (S.plans.some(p => p.day === d.day) ? "" : `<div class="empty">Nothing planned for this day.</div>`)
+    : `<div class="empty">Nothing logged${d.day === localDay() ? " yet today" : " this day"}.</div>`;
   return rows.map(({ m, e }) => m
     ? `<button class="lrow ${m.id === S.log.sel && !S.log.selEntry && !S.log.adding ? "on" : ""}" data-meal="${m.id}">
       <span class="tm">${clk(m.time)}${modMark(m)}</span><span class="it"><b>${esc(m.items.map(i => `${i.food_name} ${i.carbs} g carbs${i.entered_carbs != null ? " (by hand)" : ""}`).join(" · "))}</b>

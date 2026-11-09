@@ -2,6 +2,7 @@
 Each version is what went to the family's kitchen on that date (okf/architecture/releases.md).
 
 ## Unreleased
+- Log: the › arrow now goes past today, so you can look at tomorrow and later days to see the meals planned for them.
 
 ## v2026.11.08 · 8 Nov 2026
 - Log: tapping a meal now shows each food's total weight and portion in brackets, like "Pasta, 45 g carbs (240 g · 2 cups)".

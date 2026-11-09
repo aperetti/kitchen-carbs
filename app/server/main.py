@@ -2105,7 +2105,7 @@ def get_log(day: str | None = None, c=Depends(con)):
         fail(400, "Use a date like 2026-10-27.")
     meals = meals_for_days(c, day, day)
     glucose = None
-    if has_glucose(c):
+    if has_glucose(c) and day <= today():   # a future day (its planned meals) has no readings
         low, high = targets(c)
         start, end = day_bounds_ms(day)
         end_now = min(end, int(now().timestamp() * 1000))

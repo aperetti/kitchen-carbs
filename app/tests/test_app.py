@@ -4,7 +4,7 @@ import re
 import json
 import os
 import sqlite3
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import pytest
 from fastapi.testclient import TestClient
@@ -268,6 +268,10 @@ def test_log_snapshots_values(app):
                                                 "source_kind": "usda", "source_ref": "x"})
     log = client.get("/api/log").json()
     assert log["meals"][0]["items"][0]["carbs"] == 65 and log["total"] == 65
+    # a future day can be opened for its planned meals: nothing logged, nothing editable, no glucose
+    nxt = (datetime.fromisoformat(log["day"]) + timedelta(days=1)).date().isoformat()
+    fut = client.get(f"/api/log?day={nxt}").json()
+    assert (fut["meals"], fut["entries"], fut["editable"], fut["glucose"], fut["total"]) == ([], [], False, None, 0)
 
 
 def test_half_steps_only(app):

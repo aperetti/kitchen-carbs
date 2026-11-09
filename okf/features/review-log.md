@@ -11,6 +11,8 @@ links:
 ---
 # Review log
 Day view; previous/next day.
+- Next day goes past today, up to the 60 days plans can be made ahead (decided 8 Nov): a future day shows only its
+  planned meals, with nothing to add or edit and no glucose. Today still lists every plan as an overview.
 - Each meal shows its fiber beside the carbs, in the list and the meal's details, and the foods without fiber
   (okf/domain/meal.md, decided 2 Nov).
 - Change when: every meal and entry's details have its date and time, editable on any day; a moved entry is marked

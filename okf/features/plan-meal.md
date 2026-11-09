@@ -15,8 +15,8 @@ Decided 2 Nov.
 - Plate → 'Plan for later' (beside Clear plate and Pin as favorite): a date (today by default, up to 60 days ahead),
   a time and a name, then 'Plan'. The plate is cleared and the plan shows in the log.
 - In the log: today's view starts with a 'Planned' list of every plan, overdue first, then by date and time, each
-  with its day, name and carbs in a dashed outline. The log can't go past today, so future plans live in this list
-  rather than on their own day. They aren't in any day's total. Opening one shows its foods and carbs, a form to
+  with its day, name and carbs in a dashed outline. A future day's view (next day goes past today) lists that
+  day's plans too (decided 8 Nov). They aren't in any day's total. Opening one shows its foods and carbs, a form to
   change the name, date and time, 'Put on the plate', and 'Delete plan' (tapped twice).
 - The empty plate lists today's plans and overdue ones, each with 'Put on the plate', so mealtime starts there.
 - 'Put on the plate' fills the plate from the plan with each food's current values, the time set to now. If the plate
