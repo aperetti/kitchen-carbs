@@ -846,13 +846,13 @@ function openSummary() {
       <ul class="summeal">${S.plate.map(x => `<li><span class="t">${esc(x.food_name)}<small>${x.entered != null ? "Entered by hand" : fmtG(x.grams) + stateLabel(x)}</small></span>
         <span class="c">${whole(x.entered ?? exact(x.grams, x.carbs_per_100g, x.qty))} g</span></li>`).join("")}
         <li class="sumtotal"><span class="t">Total carbs</span><span class="c">${S.sum.carbs} g</span></li></ul>
-      <div class="sumwhen"><span class="label">When</span>
-        <input type="date" id="sumDay" value="${S.sum.day}" max="${localDay()}" required aria-label="Date">
-        <input type="time" id="sumAt" value="${S.sum.at}" required aria-label="Time"></div>
       <div class="field sumbg"><span><label for="sumBg">Blood glucose (mg/dL)</label> <span id="sumBgTip"></span></span>
         <input id="sumBg" type="number" inputmode="numeric" min="20" max="600" step="1" placeholder="Meter reading"></div>
       <div id="sumCalc" aria-live="polite"><p class="meta">Working it out…</p></div>
       <div class="sumgiven"><span class="label">What was given · optional</span>${detailFields({}, null, S.sum.at)}<p class="lowwarn" id="sumLow" role="alert" hidden></p></div>
+      <div class="sumwhen"><span class="label">When</span>
+        <input type="date" id="sumDay" value="${S.sum.day}" max="${localDay()}" required aria-label="Date">
+        <input type="time" id="sumAt" value="${S.sum.at}" required aria-label="Time"></div>
       <div class="actions sumacts"><button class="btn primary" data-sum="save">Save to log</button><button class="btn quiet" data-sum="close">Back to plate</button></div>
     </div>`;
   doseDlg.showModal(); loadDose();

@@ -591,7 +591,7 @@ body.signed-out .tabs, body.signed-out .platebar { display: none !important; }
 /* When: date and time on any day (okf/rules/same-day-edits.md) */
 .whenform { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .whenform input { height: 44px; border: 1px solid var(--line); border-radius: 10px; background: var(--paper); padding: 0 10px; font-size: 16px; color: var(--ink); }
-.sumwhen { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 14px 0 4px; }
+.sumwhen { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 16px 0 4px; padding-top: 12px; border-top: 1px solid var(--line); }
 .sumwhen .label { flex: 1 1 100%; }
 .sumwhen input { height: 48px; border: 1px solid var(--line); border-radius: 10px; background: var(--paper); padding: 0 10px; font-size: 17px; color: var(--ink); }
 .dirty input, .dirty select, .dirty textarea { border: 2px solid var(--warn) !important; }

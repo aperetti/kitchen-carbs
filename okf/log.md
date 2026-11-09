@@ -153,3 +153,4 @@
 - 2026-11-08 — Log: next day goes past today (up to 60 days) to show a future day's planned meals; nothing to add or edit there (features/review-log.md, features/plan-meal.md).
 - 2026-11-08 — Meal summary: the CGM source line and 'Check it against the pump' moved behind ⓘ popovers; 'Time to eat' removed from the summary and the log's Edit, saved values kept (features/meal-dose-summary.md, domain/meal.md).
 - 2026-11-08 — Plate: the time box is gone (set in the meal summary), and the 'Save to log shows the meal summary first' note is behind an ⓘ (features/build-plate.md).
+- 2026-11-08 — Meal summary: When (date and time) moved to the end, just above Save to log (features/meal-dose-summary.md).

@@ -47,7 +47,7 @@ Decided 29 Oct. 'Save to log' on the plate opens a modal before anything is save
   out again from that moment, and it follows the BG box (CGM or typed) until someone changes the time in the summary
   (the plate's own time box was removed 8 Nov: the time is set here); after that it stays as set. A wait that would cross midnight leaves the time at now.
   A meal set up to 120 minutes ahead still takes the CGM's current reading as its BG: it is the BG at the bolus.
-- When (decided 31 Oct): a date and a time under the meal list, starting at today and the plate's time, so a meal
+- When (decided 31 Oct; moved 8 Nov to last, just above 'Save to log'): a date and a time, starting at today and the plate's time, so a meal
   saved late (after the bolus, or the next morning) goes in at the right moment. The date can't be in the future.
   Changing the time works the dose out again with that time's ratios, keeps the plate's time in step, and shows in the
   heading. When the meal is set more than 15 minutes before now (or more than 120 after), the BG box isn't filled in from the CGM (that reading
