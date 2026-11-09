@@ -846,9 +846,9 @@ function openSummary() {
       <ul class="summeal">${S.plate.map(x => `<li><span class="t">${esc(x.food_name)}<small>${x.entered != null ? "Entered by hand" : fmtG(x.grams) + stateLabel(x)}</small></span>
         <span class="c">${whole(x.entered ?? exact(x.grams, x.carbs_per_100g, x.qty))} g</span></li>`).join("")}
         <li class="sumtotal"><span class="t">Total carbs</span><span class="c">${S.sum.carbs} g</span></li></ul>
-      <div class="field sumbg"><span><label for="sumBg">Blood glucose (mg/dL)</label> <span id="sumBgTip"></span></span>
-        <input id="sumBg" type="number" inputmode="numeric" min="20" max="600" step="1" placeholder="Meter reading"></div>
-      <div id="sumCalc" aria-live="polite"><p class="meta">Working it out…</p></div>
+      <div id="sumCalc" aria-live="polite"><dl class="sumcalc"><dt><label for="sumBg">Blood glucose</label></dt><dd id="sumBgSlot">
+        <span class="unitin sumbgin"><input id="sumBg" type="number" inputmode="numeric" min="20" max="600" step="1" placeholder="Meter"> mg/dL</span></dd></dl>
+        <p class="meta">Working it out…</p></div>
       <div class="sumgiven"><span class="label">What was given · optional</span>${detailFields({}, null, S.sum.at)}<p class="lowwarn" id="sumLow" role="alert" hidden></p></div>
       <div class="sumwhen"><span class="label">When</span>
         <input type="date" id="sumDay" value="${S.sum.day}" max="${localDay()}" required aria-label="Date">
@@ -914,11 +914,14 @@ document.addEventListener("click", e => {
 });
 function drawDose() {
   const s = S.sum, d = s.data, el = $("#sumCalc"); if (!el) return;
-  $("#sumBgTip").innerHTML = d?.bg_source === "cgm" ? tip(bgNote(d), "Where the BG is from") : "";
-  if (!d) { el.innerHTML = `<p class="err">${esc(s.err)}</p><p class="meta">No dose was worked out. The meal can still be saved.</p>`; return; }
-  const note = d.bg_source === "cgm" ? "" : `<p class="meta bgnote">${esc(bgNote(d))}</p>`;
-  if (!d.ready) { el.innerHTML = note + `<p class="sumnone">Insulin settings aren't set up, so no dose is worked out.
-    <a href="#manage/settings" data-sum="settings">Add the carb ratio, correction factor and target in Manage → Settings</a>.</p>`; return; }
+  // the BG box sits in the steps, just above insulin on board; the same box is moved into each redraw so typing isn't lost
+  const box = $("#sumBg").parentElement, typing = document.activeElement === box.firstElementChild;
+  const bgRow = `<dt><label for="sumBg">Blood glucose</label> ${d?.bg_source === "cgm" ? tip(bgNote(d), "Where the BG is from") : ""}</dt>
+    <dd id="sumBgSlot">${d && d.bg_source !== "cgm" ? `<p class="meta bgnote">${esc(bgNote(d))}</p>` : ""}</dd>`;
+  const put = html => { el.innerHTML = html; $("#sumBgSlot").prepend(box); if (typing) box.firstElementChild.focus(); };
+  if (!d) return put(`<dl class="sumcalc">${bgRow}</dl><p class="err">${esc(s.err)}</p><p class="meta">No dose was worked out. The meal can still be saved.</p>`);
+  if (!d.ready) return put(`<dl class="sumcalc">${bgRow}</dl><p class="sumnone">Insulin settings aren't set up, so no dose is worked out.
+    <a href="#manage/settings" data-sum="settings">Add the carb ratio, correction factor and target in Manage → Settings</a>.</p>`);
   const k = d.calc, i = d.iob;
   const iobLine = k.correction_left_out && i ? `${u2(i.units)} u. Not used: the correction is left out.` : !d.nightscout ? "Nightscout isn't connected, so nothing is taken off."
     : !i ? `Not available from Nightscout${d.ns_error ? ` (${esc(d.ns_error)})` : ""}, so nothing is taken off.`
@@ -926,7 +929,7 @@ function drawDose() {
     : k.correction_u == null ? `${u2(i.units)} u (${esc(i.source)}, ${agoMin(i.age_min)}). No correction to take it off.`
     : !k.iob_used ? `${u2(i.units)} u (${esc(i.source)}, ${agoMin(i.age_min)}). Not used: BG is at or below target.`
     : `${u2(i.units)} u (${esc(i.source)}, ${agoMin(i.age_min)}): <b>−${u2(k.iob_off)} u</b> off the correction${k.iob_off < i.units ? ", which can't go below zero" : ""}.`;
-  el.innerHTML = note + (k.bg != null && k.bg < LOW_BG ? `<p class="sumlow">BG is low: ${k.bg} mg/dL.${k.dose > 0 ? " Treat the low first and follow the care team's plan before giving a bolus." : ""}</p>` : "") + `
+  put((k.bg != null && k.bg < LOW_BG ? `<p class="sumlow">BG is low: ${k.bg} mg/dL.${k.dose > 0 ? " Treat the low first and follow the care team's plan before giving a bolus." : ""}</p>` : "") + `
     <div class="sumdose"><span class="label">Insulin for this meal ${tip(`Worked out from your settings${d.updated ? ` (changed ${dayLabel(d.updated)})` : ""}. Check it against the pump before giving.`, "About this dose")}</span><span class="n">${u2(k.dose)}</span> <span class="u">u</span></div>
     <span class="label">How it's worked out</span>
     <dl class="sumcalc">
@@ -935,9 +938,10 @@ function drawDose() {
         : k.correction_left_out ? `Left out. (${k.bg} − ${k.target}) ÷ ${k.isf} isn't added.`
         : `(${k.bg} − ${k.target}) ÷ ${k.isf} = <b>${k.correction_u < 0 ? "−" : ""}${u2(Math.abs(k.correction_u))} u</b>${k.correction_u < 0 ? " (BG under target lowers the dose)" : ""}`}
         ${corrSwitch(d)}</dd>
+      ${bgRow}
       <dt>Insulin on board</dt><dd>${iobLine}</dd>
       <dt>Total</dt><dd>${(+k.total_exact).toFixed(3).replace(/0$/, "")} u, rounded down to ${k.round_to ?? 0.05} u</dd>
-    </dl>`;
+    </dl>`);
 }
 /* 'Add a BG correction', with a recent correction named and warned about (okf/features/meal-dose-summary.md) */
 const hm = m => m < 60 ? `${m} min` : `${Math.floor(m / 60)} h${m % 60 ? ` ${m % 60} min` : ""}`;

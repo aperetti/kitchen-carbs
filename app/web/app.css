@@ -708,7 +708,10 @@ p.moved { margin: 6px 0 0; }
 .summeal .c { flex: none; color: var(--accent); font-weight: 500; font-variant-numeric: tabular-nums; }
 .summeal .sumtotal { border-bottom: 0; font-weight: 500; }
 .summeal .sumtotal .c { font-size: 24px; }
-.sumbg input { height: 56px; font-size: 22px; max-width: 220px; font-variant-numeric: tabular-nums; }
+.sumbgin { display: inline-flex; align-items: center; gap: 6px; color: var(--vein); }
+.sumbgin input { width: 6em; height: 40px; border: 1px solid var(--line); border-radius: 10px; background: var(--paper); padding: 0 10px;
+  font: inherit; color: var(--ink); font-variant-numeric: tabular-nums; }
+.sumcalc .bgnote { margin: 4px 0 0; }
 .sumcalc { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 8px 16px; margin: 4px 0 0; font-size: 16px; }
 .sumcalc dt { color: var(--vein); }
 .sumcalc dd { margin: 0; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
@@ -719,7 +722,7 @@ p.moved { margin: 6px 0 0; }
 .sumlow { color: var(--warn); font-weight: 500; }
 /* ⓘ with a tap-to-open popover */
 .tipwrap { display: inline-block; vertical-align: middle; }
-.label:has(.tip), .field > span:has(.tip) { position: relative; }   /* the popover starts under the label, not the ⓘ, so it stays on screen */
+.label:has(.tip), .sumcalc dt:has(.tip) { position: relative; }   /* the popover starts under the label, not the ⓘ, so it stays on screen */
 .tip { width: 22px; height: 22px; padding: 0; border: 1px solid var(--line); border-radius: 50%; background: var(--paper); color: var(--vein);
   font: italic 500 13px/1 Georgia, serif; cursor: pointer; position: relative; }
 .tip::after { content: ""; position: absolute; inset: -11px; }   /* a 44 px tap target */

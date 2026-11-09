@@ -2,6 +2,7 @@
 Each version is what went to the family's kitchen on that date (okf/architecture/releases.md).
 
 ## Unreleased
+- Meal summary: the blood glucose box is now smaller and sits in the worked-out steps, just above insulin on board.
 - Meal summary: the date and time are now at the bottom, just above Save to log.
 - Meal summary: shorter. Where the BG came from and "Check it against the pump" are now behind small ⓘ buttons; tap one to read it.
 - Meal summary and log: the "Time to eat" box is gone. Meals that already have one keep it.

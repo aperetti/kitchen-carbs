@@ -20,7 +20,9 @@ Decided 29 Oct. 'Save to log' on the plate opens a modal before anything is save
   keep the summary short). The other BG lines (too old, the meal set away from now, typed in, no CGM) stay in view,
   because they say why the box isn't the CGM's.
 - Insulin on board from Nightscout, with its age. Shown even when it isn't used (BG at or below target).
-- The dose, large, right under the BG (decided 29 Oct: on a phone it was below the fold), then 'How it's worked out', one line each:
+- The dose, large, right under the meal (decided 29 Oct: on a phone it was below the fold), then 'How it's worked out', one line each.
+  The BG box is one of those lines, just above Insulin on board, the same size as the text around it (decided 8 Nov;
+  it was a large box above the dose):
   - Carbs: 62 g ÷ 15 = 4.13 u
   - Correction: (210 − 120) ÷ 50 = 1.80 u
   - Insulin on board: −0.60 u (off the correction only, never below zero)
