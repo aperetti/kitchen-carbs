@@ -2,6 +2,8 @@
 Each version is what went to the family's kitchen on that date (okf/architecture/releases.md).
 
 ## Unreleased
+
+## v2026.11.09 · 9 Nov 2026
 - Meal summary: simpler layout. The dose and the correction switch at the top with short warnings, a tidy breakdown table (with Details for the long explanations), then what was given, including the date and time.
 - Meal summary: a typed BG of 400 or more is highlighted with a "High BG check" so a typo (488 for 188) is caught before using the dose.
 - Meal summary: an old CGM reading (like "182 mg/dL, 13 days ago") is no longer shown; it just says there's no CGM reading in the last 15 minutes.
