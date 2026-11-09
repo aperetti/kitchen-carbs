@@ -855,6 +855,8 @@ function openSummary() {
         <input type="time" id="sumAt" value="${S.sum.at}" required aria-label="Time"></div>
       <div class="actions sumacts"><button class="btn primary" data-sum="save">Save to log</button><button class="btn quiet" data-sum="close">Back to plate</button></div>
     </div>`;
+  // 'Use 2.10 u': the worked-out dose goes in the insulin box only on a tap, never by itself (okf/rules/no-dosing.md)
+  doseDlg.querySelector(".sumgiven .mrow").insertAdjacentHTML("beforeend", `<button type="button" class="btn small quiet" id="sumUse" data-sum="use-dose" hidden></button>`);
   doseDlg.showModal(); loadDose();
 }
 let doseTimer = null;
@@ -914,6 +916,8 @@ document.addEventListener("click", e => {
 });
 function drawDose() {
   const s = S.sum, d = s.data, el = $("#sumCalc"); if (!el) return;
+  const use = $("#sumUse"), dose = d?.ready && d.calc.dose > 0 ? u2(d.calc.dose) : null;
+  use.hidden = !dose; if (dose) { use.textContent = `Use ${dose} u`; use.dataset.u = dose; }
   // the BG box sits in the steps, just above insulin on board; the same box is moved into each redraw so typing isn't lost
   const box = $("#sumBg").parentElement, typing = document.activeElement === box.firstElementChild;
   const bgRow = `<dt><label for="sumBg">Blood glucose</label> ${d?.bg_source === "cgm" ? tip(bgNote(d), "Where the BG is from") : ""}</dt>
@@ -974,6 +978,7 @@ doseDlg.addEventListener("click", async e => {
   const t = e.target.closest("[data-sum]"); if (!t) return;
   if (t.dataset.sum === "close") doseDlg.close();
   else if (t.dataset.sum === "settings") doseDlg.close();
+  else if (t.dataset.sum === "use-dose") { doseDlg.querySelector(".mdet .dIns").value = +t.dataset.u; doseDlg.querySelector(".mdet [data-dkind=bolus]").click(); }
   else if (t.dataset.sum === "save") {
     let extra;
     try {

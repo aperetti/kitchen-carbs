@@ -38,7 +38,7 @@ Decided 29 Oct. 'Save to log' on the plate opens a modal before anything is save
   insulin entry in the log with no carbs. The switch isn't saved; it resets each time the summary opens.
 - No BG: carbs only, and it says no correction was added. No settings: the summary shows the meal, says the ratios
   aren't set up, and links to Manage → Settings.
-- 'What was given (optional)', under the steps (decided 29 Oct): insulin given (empty, never filled in from the dose),
+- 'What was given (optional)', under the steps (decided 29 Oct): insulin given (empty, with a 'Use 2.10 u' button that copies the dose in on a tap, decided 8 Nov; never pre-filled),
   Bolus or Basal, how many minutes before the meal's time it was given (0 = at the meal time; starts at BG ÷ 10, 0
   under 80 mg/dL, 15 with no BG, see okf/domain/meal.md). How long the meal took to eat was asked here until 8 Nov;
   it was removed as not useful.

@@ -155,3 +155,4 @@
 - 2026-11-08 — Plate: the time box is gone (set in the meal summary), and the 'Save to log shows the meal summary first' note is behind an ⓘ (features/build-plate.md).
 - 2026-11-08 — Meal summary: When (date and time) moved to the end, just above Save to log (features/meal-dose-summary.md).
 - 2026-11-08 — Meal summary: the BG box moved into 'How it's worked out', just above Insulin on board, at text size (features/meal-dose-summary.md).
+- 2026-11-08 — Meal summary: 'Use … u' beside Insulin given copies the worked-out dose into the box on one tap; the box still starts empty (rules/no-dosing.md, features/meal-dose-summary.md).
