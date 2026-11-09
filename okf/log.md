@@ -158,3 +158,5 @@
 - 2026-11-08 — Meal summary: 'Use … u' beside Insulin given copies the worked-out dose into the box on one tap; the box still starts empty (rules/no-dosing.md, features/meal-dose-summary.md).
 - 2026-11-08 — Meal summary: 'Add a BG correction' moved to the right of the dose; greyed out with no BG or nothing to correct (features/meal-dose-summary.md).
 - 2026-11-08 — Insulin on board: Nightscout's 'Care Portal' IOB (from logged boluses, no time attached) is used as of now instead of counted as missing (architecture/nightscout-client.md).
+- 2026-11-08 — Meal summary: a CGM reading over 15 minutes old isn't shown beside a typed BG or in the 'too old' line (features/meal-dose-summary.md).
+- 2026-11-08 — Meal summary: a typed BG of 400 mg/dL or more is flagged 'High BG check' to catch typos (features/meal-dose-summary.md).

@@ -2,6 +2,8 @@
 Each version is what went to the family's kitchen on that date (okf/architecture/releases.md).
 
 ## Unreleased
+- Meal summary: a typed BG of 400 or more is highlighted with a "High BG check" so a typo (488 for 188) is caught before using the dose.
+- Meal summary: an old CGM reading (like "182 mg/dL, 13 days ago") is no longer shown; it just says there's no CGM reading in the last 15 minutes.
 - Meal summary: insulin on board now comes through from Nightscout when it's worked out from logged boluses. Before, it said "Not available".
 - Meal summary: "Add a BG correction" is now on the same line as the insulin amount, and greyed out when there's no BG.
 - Meal summary: a "Use 2.10 u" button beside Insulin given copies the worked-out dose into the box with one tap. The box still starts empty.

@@ -18,7 +18,9 @@ Decided 29 Oct. 'Save to log' on the plate opens a modal before anything is save
   When the box holds a fresh CGM reading, where it came from ('From the CGM: 217 mg/dL ↑, just now. Type over it to
   use a meter reading.') is behind an ⓘ beside the BG label, shown in a small popover when tapped (decided 8 Nov, to
   keep the summary short). The other BG lines (too old, the meal set away from now, typed in, no CGM) stay in view,
-  because they say why the box isn't the CGM's.
+  because they say why the box isn't the CGM's. They leave out an old reading's value and age (decided 8 Nov:
+  '182 mg/dL, 13 days ago' was clutter): 'No CGM reading in the last 15 minutes', and a typed BG names the CGM only
+  when its reading is fresh.
 - Insulin on board from Nightscout, with its age. Shown even when it isn't used (BG at or below target).
 - The dose, large, right under the meal (decided 29 Oct: on a phone it was below the fold), then 'How it's worked out', one line each.
   The BG box is one of those lines, just above Insulin on board, the same size as the text around it (decided 8 Nov;
@@ -27,6 +29,10 @@ Decided 29 Oct. 'Save to log' on the plate opens a modal before anything is save
   - Correction: (210 − 120) ÷ 50 = 1.80 u
   - Insulin on board: −0.60 u (off the correction only, never below zero)
   - Total 5.33 u → **5.30 u** (rounded down to 0.05 u, or the step set in the insulin settings: 5.00 u at 0.5 u)
+- High BG check (decided 8 Nov): a typed BG of 400 mg/dL or more gets a warn-coloured box and 'High BG check: 488
+  mg/dL was typed in. Make sure it's the right number before using the dose.', so a slip (488 for 188) is caught before
+  its large correction is used. It never blocks saving and says nothing about the dose. A CGM reading isn't flagged:
+  it wasn't typed.
 - BG below target: the negative correction lowers the carb dose, never below zero. Below 70 mg/dL the BG shows as low.
 - 'Add a BG correction' (decided 5 Nov): a switch at the right end of the dose's line (moved 8 Nov from beside the
   Correction step). Always there; greyed out and off when there is no BG, or the BG is at or under target (nothing to add).

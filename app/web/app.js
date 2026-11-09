@@ -884,7 +884,7 @@ async function loadDose() {
 }
 /* A bolus typed while the BG is under 70 gets a warning (okf/rules/low-bg-bolus-warning.md). It never blocks saving
    and says nothing about the amount. */
-const LOW_BG = 70;
+const LOW_BG = 70, HIGH_BG_CHECK = 400;
 function lowBolus(el, bg, cgm, bolus) {   // cgm: the reading used when no BG was typed
   if (!el) return;
   const on = bolus && bg != null && bg !== "" && +bg >= 20 && +bg < LOW_BG;
@@ -901,8 +901,9 @@ function bgNote(d) {
   const c = d.cgm, cgm = c ? `${c.sgv} mg/dL ${ARROWS[c.direction] || ""}` : "";
   if (d.bg_source === "cgm") return `From the CGM: ${cgm}, ${agoMin(c.age_min)}. Type over it to use a meter reading.`;
   if (!S.sum.typed && sumAway()) return `The meal is set for ${S.sum.day === localDay() ? "" : dayLabel(S.sum.day) + ", "}${S.sum.at}, so the CGM reading from now isn't used. Type the meter reading from then. Insulin on board is from now.`;
-  if (d.bg_source === "typed") return c ? `Typed in. The CGM showed ${cgm}, ${agoMin(c.age_min)}.` : "Typed in.";
-  if (c && !d.cgm_fresh) return `The last CGM reading was ${agoMin(c.age_min)} (${cgm}), too old to use. Type a meter reading.`;
+  // an old reading is left out: next to a typed BG it's only clutter (okf/features/meal-dose-summary.md)
+  if (d.bg_source === "typed") return c && d.cgm_fresh ? `Typed in. The CGM shows ${cgm}, ${agoMin(c.age_min)}.` : "Typed in.";
+  if (c && !d.cgm_fresh) return "No CGM reading in the last 15 minutes. Type a meter reading.";
   if (S.sum.typed && c) return "No BG, so no correction is added.";
   return d.nightscout ? "No CGM reading. Type a meter reading." : "Nightscout isn't connected. Type a meter reading.";
 }
@@ -920,8 +921,12 @@ function drawDose() {
   use.hidden = !dose; if (dose) { use.textContent = `Use ${dose} u`; use.dataset.u = dose; }
   // the BG box sits in the steps, just above insulin on board; the same box is moved into each redraw so typing isn't lost
   const box = $("#sumBg").parentElement, typing = document.activeElement === box.firstElementChild;
+  // a typed BG this high is checked for a slip (488 for 188) before its correction is relied on; it never blocks
+  const high = d?.bg_source === "typed" && +s.bg >= HIGH_BG_CHECK;
+  box.firstElementChild.classList.toggle("check", high);
   const bgRow = `<dt><label for="sumBg">Blood glucose</label> ${d?.bg_source === "cgm" ? tip(bgNote(d), "Where the BG is from") : ""}</dt>
-    <dd id="sumBgSlot">${d && d.bg_source !== "cgm" ? `<p class="meta bgnote">${esc(bgNote(d))}</p>` : ""}</dd>`;
+    <dd id="sumBgSlot">${d && d.bg_source !== "cgm" ? `<p class="meta bgnote">${esc(bgNote(d))}</p>` : ""}
+      ${high ? `<p class="sumlow" role="alert">High BG check: ${+s.bg} mg/dL was typed in. Make sure it's the right number before using the dose.</p>` : ""}</dd>`;
   const put = html => { el.innerHTML = html; $("#sumBgSlot").prepend(box); if (typing) box.firstElementChild.focus(); };
   if (!d) return put(`<dl class="sumcalc">${bgRow}</dl><p class="err">${esc(s.err)}</p><p class="meta">No dose was worked out. The meal can still be saved.</p>`);
   if (!d.ready) return put(`<dl class="sumcalc">${bgRow}</dl><p class="sumnone">Insulin settings aren't set up, so no dose is worked out.

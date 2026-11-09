@@ -711,7 +711,8 @@ p.moved { margin: 6px 0 0; }
 .sumbgin { display: inline-flex; align-items: center; gap: 6px; color: var(--vein); }
 .sumbgin input { width: 6em; height: 40px; border: 1px solid var(--line); border-radius: 10px; background: var(--paper); padding: 0 10px;
   font: inherit; color: var(--ink); font-variant-numeric: tabular-nums; }
-.sumcalc .bgnote { margin: 4px 0 0; }
+.sumcalc .bgnote, .sumcalc .sumlow { margin: 4px 0 0; }
+.sumbgin input.check { border: 2px solid var(--warn); color: var(--warn); }
 .sumcalc { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 8px 16px; margin: 4px 0 0; font-size: 16px; }
 .sumcalc dt { color: var(--vein); }
 .sumcalc dd { margin: 0; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
