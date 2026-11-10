@@ -736,7 +736,7 @@ p.moved { margin: 6px 0 0; }
 .sumlow { color: var(--warn); font-weight: 500; }
 /* ⓘ with a tap-to-open popover */
 .tipwrap { display: inline-block; vertical-align: middle; }
-.label:has(.tip), .bdl:has(.tip) { position: relative; }   /* the popover starts under the label, not the ⓘ, so it stays on screen */
+.label:has(.tip), .bdl:has(.tip), .aftitle:has(.tip) { position: relative; }   /* the popover starts under the label, not the ⓘ, so it stays on screen */
 .tip { width: 22px; height: 22px; padding: 0; border: 1px solid var(--line); border-radius: 50%; background: var(--paper); color: var(--vein);
   font: italic 500 13px/1 Georgia, serif; cursor: pointer; position: relative; }
 .tip::after { content: ""; position: absolute; inset: -11px; }   /* a 44 px tap target */

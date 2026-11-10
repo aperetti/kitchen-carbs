@@ -162,3 +162,4 @@
 - 2026-11-08 — Meal summary: a typed BG of 400 mg/dL or more is flagged 'High BG check' to catch typos (features/meal-dose-summary.md).
 - 2026-11-08 — Meal summary laid out in three parts: the dose with compact ⚠ lines, a breakdown table with Details, and What was given with the date and time (features/meal-dose-summary.md).
 - 2026-11-09 — After meals: tapping a line on the chart picks that meal and shows its date, time, foods and rise, with Open in log (features/meal-responses.md).
+- 2026-11-09 — After meals: the note under the chart moved behind an ⓘ beside its title (features/meal-responses.md).

@@ -1629,14 +1629,12 @@ function renderAfter() {
     <p class="meta">${dayLabel(d.from)} to ${dayLabel(d.to)} · ${d.meals.length} ${d.meals.length === 1 ? MEALS_OF_DAY[AF.meal === "all" ? "" : AF.meal]?.toLowerCase() || "meal" : MEALS_PLURAL[AF.meal]}, ${d.meals.filter(m => !m.left_out).length} with a full 3 hours of readings</p>
     ${!d.glucose ? `<div class="empty">No glucose readings yet. Connect Nightscout in Manage → Settings.</div>` : `
     <section class="afchart">
-      <div class="afbar"><b>${g ? esc(g.name) : AF.meal === "all" ? "All meals" : `All ${MEALS_PLURAL[AF.meal]}`}</b>${g ? `<button class="linkbtn" data-afall>All meals</button>` : ""}
+      <div class="afbar"><b class="aftitle">${g ? esc(g.name) : AF.meal === "all" ? "All meals" : `All ${MEALS_PLURAL[AF.meal]}`}${drawn.length ? ` ${tip(afNote(drawn), "About this chart")}` : ""}</b>${g ? `<button class="linkbtn" data-afall>All meals</button>` : ""}
         <div class="seg neutral" role="group" aria-label="Draw as">${[["rise", "Rise"], ["mgdl", "mg/dL"], ["net", "Insulin backed out"]].map(([k, l]) =>
           `<button data-afmode="${k}" class="${AF.mode === k ? "on" : ""}" aria-pressed="${AF.mode === k}" ${k === "net" && !d.effect_ready ? "disabled" : ""}>${l}</button>`).join("")}</div></div>
       ${!d.effect_ready ? `<p class="meta">Insulin backed out needs the correction factor in <a href="#manage/settings">Manage → Settings</a>.</p>` : ""}
       ${afSvg(drawn, d)}${afPicked(drawn)}
-      <p class="note">${drawn.length ? `Thin lines: each meal (${drawn.length}). Thick line: their average, every 5 minutes. Tap a line to see its meal. ${AF.mode === "rise" ? "Drawn as the change from the meal-time reading." : AF.mode === "net"
-        ? "Drawn as the change from the meal-time reading with the insulin's estimated effect added back. An estimate from the correction factor and a standard rapid-acting insulin curve (peak 75 min, 6 h), counting boluses from Nightscout (pump, Loop or pen apps) and this log, once each. Temp basals and basal aren't included. For spotting patterns with the care team, not for working out doses."
-        : "The pale band is the target range."}${drawn.some(m => m.estimated.length) ? " Dashed: estimated across a sensor gap; the numbers use only real readings." : ""}` : "No meal here has a full 3 hours of readings yet."}</p>
+      ${drawn.length ? "" : `<p class="note">No meal here has a full 3 hours of readings yet.</p>`}
     </section>
     <h3 class="label afsub">By food</h3>
     ${d.foods.length ? `<div class="afoods">${d.foods.map(f => `<button class="affood ${f.key === AF.food ? "on" : ""}" data-affood="${esc(f.key)}" aria-pressed="${f.key === AF.food}">
@@ -1652,6 +1650,10 @@ function renderAfter() {
       : `<p class="meta">No ${MEALS_PLURAL[AF.meal]} logged in these ${AF.days} days.</p>`}`}
     <p class="note">Patterns only, to share with the care team. Each curve also depends on the insulin and its timing, activity, illness and what came before.</p>`;
 }
+/* what the lines mean, behind the chart's ⓘ (okf/features/meal-responses.md) */
+const afNote = rows => `Thin lines: each meal (${rows.length}). Thick line: their average, every 5 minutes. Tap a line to see its meal. ${AF.mode === "rise" ? "Drawn as the change from the meal-time reading." : AF.mode === "net"
+  ? "Drawn as the change from the meal-time reading with the insulin's estimated effect added back. An estimate from the correction factor and a standard rapid-acting insulin curve (peak 75 min, 6 h), counting boluses from Nightscout (pump, Loop or pen apps) and this log, once each. Temp basals and basal aren't included. For spotting patterns with the care team, not for working out doses."
+  : "The pale band is the target range."}${rows.some(m => m.estimated.length) ? " Dashed: estimated across a sensor gap; the numbers use only real readings." : ""}`;
 function afSvg(rows, d) {
   if (!rows.length) return "";
   const rise = AF.mode !== "mgdl", W = PHONE_MQ.matches ? 360 : 760, H = PHONE_MQ.matches ? 230 : 260, L = 44, R = 14, T = 14, B = 28;
