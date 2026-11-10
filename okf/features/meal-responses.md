@@ -34,7 +34,7 @@ care team to read (okf/rules/descriptive-stats-only.md).
   did. In that mode each meal also shows 'Without the insulin (estimate): rise +X · insulin lowered about Y by 3 h' (adding 'including insulin
   from earlier still acting' when a dose from more than an hour before counts)
   and each food 'without the insulin, average rise +X (estimate)'; a meal with no insulin in the log says its curve is
-  unchanged. The note under the chart says it is an estimate from the correction factor and a standard rapid-acting
+  unchanged. The chart's ⓘ says it is an estimate from the correction factor and a standard rapid-acting
   curve, counting boluses from Nightscout and the log but not
   temp basals. Without a correction factor, the button says it needs one in Manage →
   Settings. Each meal is a thin graphite line; the average of the measured ones, every 5 minutes,
