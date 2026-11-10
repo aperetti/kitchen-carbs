@@ -1592,7 +1592,7 @@ function curveSvg(w) {
 
 /* ---------- After meals (okf/features/meal-responses.md): each meal's 0-3 h lined up at the meal time, beside the
    insulin typed for it. Measured, never judged, and never turned into advice (okf/rules/descriptive-stats-only.md). */
-const AF = { days: 30, meal: "all", data: null, food: null, mode: "rise" };
+const AF = { days: 30, meal: "all", data: null, food: null, mode: "rise", pick: null };
 const MEALS_OF_DAY = { all: "All", breakfast: "Breakfast", lunch: "Lunch", dinner: "Dinner" };
 const MEALS_PLURAL = { all: "meals", breakfast: "breakfasts", lunch: "lunches", dinner: "dinners" };   // by logged time (okf/features/meal-responses.md)
 async function loadAfter() {
@@ -1633,8 +1633,8 @@ function renderAfter() {
         <div class="seg neutral" role="group" aria-label="Draw as">${[["rise", "Rise"], ["mgdl", "mg/dL"], ["net", "Insulin backed out"]].map(([k, l]) =>
           `<button data-afmode="${k}" class="${AF.mode === k ? "on" : ""}" aria-pressed="${AF.mode === k}" ${k === "net" && !d.effect_ready ? "disabled" : ""}>${l}</button>`).join("")}</div></div>
       ${!d.effect_ready ? `<p class="meta">Insulin backed out needs the correction factor in <a href="#manage/settings">Manage → Settings</a>.</p>` : ""}
-      ${afSvg(drawn, d)}
-      <p class="note">${drawn.length ? `Thin lines: each meal (${drawn.length}). Thick line: their average, every 5 minutes. ${AF.mode === "rise" ? "Drawn as the change from the meal-time reading." : AF.mode === "net"
+      ${afSvg(drawn, d)}${afPicked(drawn)}
+      <p class="note">${drawn.length ? `Thin lines: each meal (${drawn.length}). Thick line: their average, every 5 minutes. Tap a line to see its meal. ${AF.mode === "rise" ? "Drawn as the change from the meal-time reading." : AF.mode === "net"
         ? "Drawn as the change from the meal-time reading with the insulin's estimated effect added back. An estimate from the correction factor and a standard rapid-acting insulin curve (peak 75 min, 6 h), counting boluses from Nightscout (pump, Loop or pen apps) and this log, once each. Temp basals and basal aren't included. For spotting patterns with the care team, not for working out doses."
         : "The pale band is the target range."}${drawn.some(m => m.estimated.length) ? " Dashed: estimated across a sensor gap; the numbers use only real readings." : ""}` : "No meal here has a full 3 hours of readings yet."}</p>
     </section>
@@ -1668,9 +1668,10 @@ function afSvg(rows, d) {
     o.push(`<text x="${X(t)}" y="${H - 8}" text-anchor="${t === 180 ? "end" : t ? "middle" : "start"}" class="ax">${l}</text>`);
   }
   const path = pts => { let s = "", prev = null; for (const [t, v] of pts) { s += `${prev == null || t - prev > 10 ? "M" : "L"}${X(t).toFixed(1)},${Y(v).toFixed(1)} `; prev = t; } return s; };
-  const op = rows.length > 1 ? .28 : 1;
+  const op = rows.length > 1 ? .28 : 1, line = m => path(m.points.map(([t, v]) => [t, val(m, t, v)]));
   for (const m of rows) {
-    o.push(`<path d="${path(m.points.map(([t, v]) => [t, val(m, t, v)]))}" fill="none" stroke="var(--ink)" stroke-opacity="${op}" stroke-width="1.5" stroke-linejoin="round"><title>${dayLabel(m.day)}, ${clk(m.time)}</title></path>`);
+    if (m.id === AF.pick) continue;   // drawn on top, below
+    o.push(`<path d="${line(m)}" fill="none" stroke="var(--ink)" stroke-opacity="${op}" stroke-width="1.5" stroke-linejoin="round"><title>${dayLabel(m.day)}, ${clk(m.time)}</title></path>`);
     for (const seg of m.estimated) o.push(`<path d="${seg.map(([t, v], i) => `${i ? "L" : "M"}${X(t).toFixed(1)},${Y(val(m, t, v)).toFixed(1)}`).join(" ")}" fill="none" stroke="var(--ink)" stroke-opacity="${op}" stroke-width="1.5" stroke-dasharray="4 4"><title>Estimated across a sensor gap</title></path>`);
   }
   if (rows.length > 1) {   // the average every 5 minutes, from the meals with a reading within 3 minutes of it
@@ -1679,14 +1680,25 @@ function afSvg(rows, d) {
       const vs = rows.map(m => [...m.points, ...m.estimated.flat()].find(p => Math.abs(p[0] - t) <= 3)).map((p, i) => p && val(rows[i], ...p)).filter(v => v != null);
       if (vs.length * 2 >= rows.length) avg.push([t, vs.reduce((a, b) => a + b, 0) / vs.length]);
     }
-    o.push(`<path d="${path(avg)}" fill="none" stroke="var(--ink)" stroke-width="3.5" stroke-linejoin="round"/>`);
+    o.push(`<path d="${path(avg)}" fill="none" stroke="var(--ink)" stroke-opacity="${rows.some(m => m.id === AF.pick) ? .35 : 1}" stroke-width="3.5" stroke-linejoin="round"/>`);   // faded while a meal is picked
   }
+  const pm = rows.find(m => m.id === AF.pick);
+  if (pm) o.push(`<path d="${line(pm)}" fill="none" stroke="var(--accent)" stroke-width="3" stroke-linejoin="round"/>`);
   for (const m of rows) for (const [t, v] of m.points) if (v < d.low) o.push(`<circle cx="${X(t)}" cy="${Y(val(m, t, v))}" r="3" fill="var(--warn)"><title>${v} mg/dL</title></circle>`);
+  for (const m of rows) o.push(`<path class="afhit" data-afpick="${m.id}" d="${line(m)}"><title>${dayLabel(m.day)}, ${clk(m.time)}</title></path>`);   // a wide, invisible edge to tap
   o.push("</svg>");
   return o.join("");
 }
+/* the tapped line's meal, under the chart (okf/features/meal-responses.md) */
+function afPicked(rows) {
+  const m = rows.find(x => x.id === AF.pick); if (!m) return "";
+  return `<p class="afpick"><b>${dayLabel(m.day)}, ${clk(m.time)}</b> · ${esc(m.foods.join(" · "))} · ${m.carbs} g carbs${m.rise != null ? ` · rise ${signed(m.rise)} mg/dL` : ""}
+    <button class="linkbtn" data-afmeal="${m.id}" data-afday="${m.day}">Open in log ›</button></p>`;
+}
 $("#v-after").addEventListener("click", e => {
-  const t = e.target.closest("[data-afdays],[data-afmeals],[data-afmode],[data-affood],[data-afall],[data-afmeal]"); if (!t) return;
+  const t = e.target.closest("[data-afdays],[data-afmeals],[data-afmode],[data-affood],[data-afall],[data-afmeal],[data-afpick],.afsvg"); if (!t) return;
+  if (t.matches(".afsvg,[data-afpick]")) { const id = +t.dataset.afpick || null; AF.pick = id === AF.pick ? null : id; renderAfter(); return; }
+  if (!t.dataset.afmeal) AF.pick = null;
   if (t.dataset.afdays) { AF.days = +t.dataset.afdays; loadAfter(); return; }
   if (t.dataset.afmeals) { AF.meal = t.dataset.afmeals; loadAfter(); return; }
   if (t.dataset.afmode) AF.mode = t.dataset.afmode;

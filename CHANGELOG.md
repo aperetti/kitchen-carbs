@@ -2,6 +2,7 @@
 Each version is what went to the family's kitchen on that date (okf/architecture/releases.md).
 
 ## Unreleased
+- After meals: tap a line on the chart to see which meal it is (date, time, foods, carbs and rise), with a link to open it in the log.
 
 ## v2026.11.09 · 9 Nov 2026
 - Meal summary: simpler layout. The dose and the correction switch at the top with short warnings, a tidy breakdown table (with Details for the long explanations), then what was given, including the date and time.

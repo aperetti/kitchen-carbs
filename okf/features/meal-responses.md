@@ -3,7 +3,7 @@ type: Feature
 title: "After meals: post-meal responses"
 description: "Every logged meal's glucose from 0 to 3 hours after eating, lined up at the meal time, with its rise, time to peak, where it was at 2 and 3 hours and the insulin typed for it; repeats of a food are grouped to compare."
 tags: [feature, nightscout]
-timestamp: 2026-11-07
+timestamp: 2026-11-09
 status: draft
 links:
   uses: [domain/meal.md, domain/insulin-effect.md, domain/meal-glucose.md, domain/glucose-reading.md, domain/target-range.md, domain/food.md]
@@ -39,6 +39,10 @@ care team to read (okf/rules/descriptive-stats-only.md).
   temp basals. Without a correction factor, the button says it needs one in Manage →
   Settings. Each meal is a thin graphite line; the average of the measured ones, every 5 minutes,
   is a thicker line. No colour grades a meal.
+- Tapping a line (decided 9 Nov) picks that meal: its line is drawn on top, thicker in the accent colour with the average faded, and under the chart
+  a line gives its date and time, foods, carbs and rise, with 'Open in log ›'. Tapping it again, or the chart away
+  from any line, lets it go; changing the period, meal of the day, food or mode does too. Each line has a wider
+  invisible edge so a finger can hit it. The chart's note says 'Tap a line to see its meal.' The picked line is marked by weight, not a grading colour.
 - By food: a food (or a carb entered by hand, by its name) that is in 2 or more measured meals gets a row, most meals
   first: 'Pizza, 4 meals: average rise +110 mg/dL, peak at 75 min on average, in range by 3 h in 2 of 4'. Tapping a
   row draws only those meals and lists them; 'All meals' goes back. A meal usually has other foods too, so each listed

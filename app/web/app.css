@@ -920,6 +920,10 @@ button.statline { cursor: pointer; min-height: 44px; }
 .afsub { margin: 26px 0 8px; }
 .afoods { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 8px; }
 .afsvg { max-width: none; }
+.afsvg .afhit { fill: none; stroke: transparent; stroke-width: 16; stroke-linejoin: round; pointer-events: stroke; cursor: pointer; }
+.afpick { margin: 8px 0 0; font-size: 15px; color: var(--vein); }
+.afpick b { color: var(--ink); font-weight: 500; }
+.afpick .linkbtn { margin-left: 6px; }
 .affood { display: grid; align-content: start; gap: 4px; text-align: left; padding: 12px 14px; min-height: 44px; border: 1px solid var(--line); border-radius: var(--r); background: var(--surface); color: var(--vein); font: inherit; font-size: 15px; cursor: pointer; }
 .affood b { color: var(--ink); font-weight: 500; }
 .affood.on { border-color: var(--ink); background: var(--sunk); }
