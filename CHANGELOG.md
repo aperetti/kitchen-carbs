@@ -2,6 +2,7 @@
 Each version is what went to the family's kitchen on that date (okf/architecture/releases.md).
 
 ## Unreleased
+- After meals: "Insulin backed out" is now a tick box beside Rise · mg/dL. With mg/dL, each meal starts at its real BG instead of 0, so you can see where glucose would have gone from there without the insulin.
 
 ## v2026.11.09.2 · 9 Nov 2026
 - After meals: the explanation under the chart is now behind an ⓘ beside the chart's title.

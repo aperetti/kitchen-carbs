@@ -29,9 +29,11 @@ care team to read (okf/rules/descriptive-stats-only.md).
     as much on the insulin and its timing as on the food, so it is always shown beside the numbers.
 - The chart: the curves lined up at the meal time, 0 to 3 hours along the bottom. 'Rise' (the start) draws each as
   the change from its meal-time value, so meals starting at different BGs compare; 'mg/dL' draws the readings with the
-  target range as the pale band. 'Insulin backed out' (decided 4 Nov) draws each as its rise with the estimated
-  insulin effect added back (okf/domain/insulin-effect.md), so meals given different insulin compare by what the food
-  did. In that mode each meal also shows 'Without the insulin (estimate): rise +X · insulin lowered about Y by 3 h' (adding 'including insulin
+  target range as the pale band. 'Insulin backed out' (decided 4 Nov) adds the estimated insulin effect back
+  (okf/domain/insulin-effect.md), so meals given different insulin compare by what the food did. Since 9 Nov it is a
+  switch beside Rise · mg/dL rather than a third choice, so it works both ways: with Rise each starts at 0; with mg/dL
+  each starts at its real meal-time reading, over the target band, showing where glucose would have gone from there.
+  With the switch on each meal also shows 'Without the insulin (estimate): rise +X · insulin lowered about Y by 3 h' (adding 'including insulin
   from earlier still acting' when a dose from more than an hour before counts)
   and each food 'without the insulin, average rise +X (estimate)'; a meal with no insulin in the log says its curve is
   unchanged. The chart's ⓘ says it is an estimate from the correction factor and a standard rapid-acting

@@ -1592,7 +1592,7 @@ function curveSvg(w) {
 
 /* ---------- After meals (okf/features/meal-responses.md): each meal's 0-3 h lined up at the meal time, beside the
    insulin typed for it. Measured, never judged, and never turned into advice (okf/rules/descriptive-stats-only.md). */
-const AF = { days: 30, meal: "all", data: null, food: null, mode: "rise", pick: null };
+const AF = { days: 30, meal: "all", data: null, food: null, zero: true, net: false, pick: null };   // Rise or mg/dL; insulin backed out or not
 const MEALS_OF_DAY = { all: "All", breakfast: "Breakfast", lunch: "Lunch", dinner: "Dinner" };
 const MEALS_PLURAL = { all: "meals", breakfast: "breakfasts", lunch: "lunches", dinner: "dinners" };   // by logged time (okf/features/meal-responses.md)
 async function loadAfter() {
@@ -1620,7 +1620,7 @@ const afInsulin = r => r.insulin.length ? r.insulin.map(i => `${fmtU(i.units)} $
   ? (i.min < 0 ? `, ${-i.min} min before the meal` : " at the meal time") : ` at ${i.min < 0 ? `${-i.min} min before` : `${i.min} min after`} the meal`}`).join(" · ") : "No insulin added";
 function renderAfter() {
   const d = AF.data, g = d.foods.find(x => x.key === AF.food);
-  if (AF.mode === "net" && !d.effect_ready) AF.mode = "rise";
+  if (!d.effect_ready) AF.net = false;
   const rows = g ? d.meals.filter(m => g.meals.includes(m.id)) : d.meals, drawn = rows.filter(m => !m.left_out);
   $("#afterView").innerHTML = afHead() + `
     <div class="periods" role="group" aria-label="Period">${[14, 30, 90].map(n => `<button data-afdays="${n}" class="${n === AF.days ? "on" : ""}">${n} days</button>`).join("")}</div>
@@ -1630,39 +1630,39 @@ function renderAfter() {
     ${!d.glucose ? `<div class="empty">No glucose readings yet. Connect Nightscout in Manage → Settings.</div>` : `
     <section class="afchart">
       <div class="afbar"><b class="aftitle">${g ? esc(g.name) : AF.meal === "all" ? "All meals" : `All ${MEALS_PLURAL[AF.meal]}`}${drawn.length ? ` ${tip(afNote(drawn), "About this chart")}` : ""}</b>${g ? `<button class="linkbtn" data-afall>All meals</button>` : ""}
-        <div class="seg neutral" role="group" aria-label="Draw as">${[["rise", "Rise"], ["mgdl", "mg/dL"], ["net", "Insulin backed out"]].map(([k, l]) =>
-          `<button data-afmode="${k}" class="${AF.mode === k ? "on" : ""}" aria-pressed="${AF.mode === k}" ${k === "net" && !d.effect_ready ? "disabled" : ""}>${l}</button>`).join("")}</div></div>
+        <label class="check afnet"><input type="checkbox" data-afnet ${AF.net ? "checked" : ""} ${d.effect_ready ? "" : "disabled"}><span>Insulin backed out</span></label>
+        <div class="seg neutral" role="group" aria-label="Draw as">${[["rise", "Rise"], ["mgdl", "mg/dL"]].map(([k, l]) =>
+          `<button data-afmode="${k}" class="${AF.zero === (k === "rise") ? "on" : ""}" aria-pressed="${AF.zero === (k === "rise")}">${l}</button>`).join("")}</div></div>
       ${!d.effect_ready ? `<p class="meta">Insulin backed out needs the correction factor in <a href="#manage/settings">Manage → Settings</a>.</p>` : ""}
       ${afSvg(drawn, d)}${afPicked(drawn)}
       ${drawn.length ? "" : `<p class="note">No meal here has a full 3 hours of readings yet.</p>`}
     </section>
     <h3 class="label afsub">By food</h3>
     ${d.foods.length ? `<div class="afoods">${d.foods.map(f => `<button class="affood ${f.key === AF.food ? "on" : ""}" data-affood="${esc(f.key)}" aria-pressed="${f.key === AF.food}">
-      <b>${esc(f.name)}, ${f.measured} meals</b><span>average rise ${signed(f.avg_rise)} mg/dL, peak at ${f.avg_to_peak_min} min on average, in range by 3 h in ${f.in_range_by_3h} of ${f.measured}</span>${AF.mode === "net" ? `<span>without the insulin, average rise ${signed(netAvg(f))} mg/dL (estimate)</span>` : ""}</button>`).join("")}</div>`
+      <b>${esc(f.name)}, ${f.measured} meals</b><span>average rise ${signed(f.avg_rise)} mg/dL, peak at ${f.avg_to_peak_min} min on average, in range by 3 h in ${f.in_range_by_3h} of ${f.measured}</span>${AF.net ? `<span>without the insulin, average rise ${signed(netAvg(f))} mg/dL (estimate)</span>` : ""}</button>`).join("")}</div>`
       : `<p class="meta">No food is in 2 or more meals with a full 3 hours of readings yet.</p>`}
     <h3 class="label afsub">${g ? `Meals with ${esc(g.name)}` : "Each meal"}</h3>
     ${rows.length ? `<ul class="afmeals">${rows.map(m => `<li><button data-afmeal="${m.id}" data-afday="${m.day}">
       <span class="when">${dayLabel(m.day)}, ${clk(m.time)}</span><span class="what">${esc(m.foods.join(" · "))} · ${m.carbs} g carbs</span>
       ${m.rise != null ? `<span class="nums">Rise <b>${signed(m.rise)}</b> (${m.at_meal} → ${m.peak})${m.to_peak_min != null ? `, peak at ${m.to_peak_min} min` : ""}${afRange(m) ? ` · ${afRange(m)}` : ""}${m.lowest != null && m.lowest < d.low ? ` · <span class="warn">lowest ${m.lowest}</span>` : ""}</span>` : ""}
       <span class="ins">${afInsulin(m)}</span>
-      ${AF.mode === "net" && m.at_meal != null && m.points.length ? `<span>${m.insulin_effect ? `Without the insulin (estimate): rise <b>${signed(netRise(m))}</b> · insulin lowered about ${m.insulin_effect[36][1]} by 3 h${m.earlier_insulin ? ", including insulin from earlier still acting" : ""}` : "No rapid-acting insulin in Nightscout or the log, so its curve is unchanged"}</span>` : ""}
+      ${AF.net && m.at_meal != null && m.points.length ? `<span>${m.insulin_effect ? `Without the insulin (estimate): rise <b>${signed(netRise(m))}</b> · insulin lowered about ${m.insulin_effect[36][1]} by 3 h${m.earlier_insulin ? ", including insulin from earlier still acting" : ""}` : "No rapid-acting insulin in Nightscout or the log, so its curve is unchanged"}</span>` : ""}
       ${m.left_out ? `<span class="meta">Not in the averages: ${m.left_out === "coverage" ? `sensor ${Math.round(m.coverage * 100)}%` : LEFT_OUT[m.left_out]}</span>` : ""}</button></li>`).join("")}</ul>`
       : `<p class="meta">No ${MEALS_PLURAL[AF.meal]} logged in these ${AF.days} days.</p>`}`}
     <p class="note">Patterns only, to share with the care team. Each curve also depends on the insulin and its timing, activity, illness and what came before.</p>`;
 }
 /* what the lines mean, behind the chart's ⓘ (okf/features/meal-responses.md) */
-const afNote = rows => `Thin lines: each meal (${rows.length}). Thick line: their average, every 5 minutes. Tap a line to see its meal. ${AF.mode === "rise" ? "Drawn as the change from the meal-time reading." : AF.mode === "net"
-  ? "Drawn as the change from the meal-time reading with the insulin's estimated effect added back. An estimate from the correction factor and a standard rapid-acting insulin curve (peak 75 min, 6 h), counting boluses from Nightscout (pump, Loop or pen apps) and this log, once each. Temp basals and basal aren't included. For spotting patterns with the care team, not for working out doses."
-  : "The pale band is the target range."}${rows.some(m => m.estimated.length) ? " Dashed: estimated across a sensor gap; the numbers use only real readings." : ""}`;
+const afNote = rows => `Thin lines: each meal (${rows.length}). Thick line: their average, every 5 minutes. Tap a line to see its meal. ${AF.zero ? "Drawn as the change from the meal-time reading." : "Drawn in mg/dL; the pale band is the target range."}${AF.net
+  ? " With the insulin's estimated effect added back. An estimate from the correction factor and a standard rapid-acting insulin curve (peak 75 min, 6 h), counting boluses from Nightscout (pump, Loop or pen apps) and this log, once each. Temp basals and basal aren't included. For spotting patterns with the care team, not for working out doses." : ""}${rows.some(m => m.estimated.length) ? " Dashed: estimated across a sensor gap; the numbers use only real readings." : ""}`;
 function afSvg(rows, d) {
   if (!rows.length) return "";
-  const rise = AF.mode !== "mgdl", W = PHONE_MQ.matches ? 360 : 760, H = PHONE_MQ.matches ? 230 : 260, L = 44, R = 14, T = 14, B = 28;
-  const val = (m, t, v) => !rise ? v : v - m.at_meal + (AF.mode === "net" ? effAt(m, t) : 0), all = rows.flatMap(m => m.points.map(p => val(m, ...p)));
+  const rise = AF.zero, W = PHONE_MQ.matches ? 360 : 760, H = PHONE_MQ.matches ? 230 : 260, L = 44, R = 14, T = 14, B = 28;
+  const val = (m, t, v) => v - (rise ? m.at_meal : 0) + (AF.net ? effAt(m, t) : 0), all = rows.flatMap(m => m.points.map(p => val(m, ...p)));
   const maxV = rise ? Math.max(150, ...all) + 10 : Math.max(300, ...all) + 10, minV = rise ? Math.min(-60, ...all) - 10 : Math.min(40, ...all) - 10;
   const X = t => L + t / 180 * (W - L - R), Y = v => T + (1 - (v - minV) / (maxV - minV)) * (H - T - B);
   const o = [`<svg class="gcurve afsvg" viewBox="0 0 ${W} ${H}" role="img" aria-label="Glucose in the 3 hours after each meal, ${rise ? "change from the meal time" : "mg/dL"}">`];
   if (!rise) o.push(`<rect x="${L}" y="${Y(d.high)}" width="${W - L - R}" height="${Y(d.low) - Y(d.high)}" fill="var(--sunk)"/>`);
-  const ticks = rise ? [-50, 0, 50, 100, 150, 200, 250].filter(v => v > minV && v < maxV) : [d.low, d.high, 250];
+  const ticks = rise ? [-50, 0, 50, 100, 150, 200, 250].filter(v => v > minV && v < maxV) : [d.low, d.high, 250, 300, 400, 500].filter(v => v < maxV);
   for (const v of ticks) o.push(`<text x="${L - 6}" y="${Y(v) + 4}" text-anchor="end" class="ax">${rise ? signed(v) : v}</text>`);
   if (rise) o.push(`<line x1="${L}" x2="${W - R}" y1="${Y(0)}" y2="${Y(0)}" stroke="var(--line)"/>`);
   for (const [t, l] of [[0, "meal"], [60, "1 h"], [120, "2 h"], [180, "3 h"]]) {
@@ -1698,12 +1698,13 @@ function afPicked(rows) {
     <button class="linkbtn" data-afmeal="${m.id}" data-afday="${m.day}">Open in log ›</button></p>`;
 }
 $("#v-after").addEventListener("click", e => {
-  const t = e.target.closest("[data-afdays],[data-afmeals],[data-afmode],[data-affood],[data-afall],[data-afmeal],[data-afpick],.afsvg"); if (!t) return;
+  const t = e.target.closest("[data-afdays],[data-afmeals],[data-afmode],[data-afnet],[data-affood],[data-afall],[data-afmeal],[data-afpick],.afsvg"); if (!t) return;
   if (t.matches(".afsvg,[data-afpick]")) { const id = +t.dataset.afpick || null; AF.pick = id === AF.pick ? null : id; renderAfter(); return; }
   if (!t.dataset.afmeal) AF.pick = null;
   if (t.dataset.afdays) { AF.days = +t.dataset.afdays; loadAfter(); return; }
   if (t.dataset.afmeals) { AF.meal = t.dataset.afmeals; loadAfter(); return; }
-  if (t.dataset.afmode) AF.mode = t.dataset.afmode;
+  if (t.dataset.afmode) AF.zero = t.dataset.afmode === "rise";
+  else if (t.hasAttribute("data-afnet")) AF.net = t.checked;
   else if (t.dataset.affood) AF.food = AF.food === t.dataset.affood ? null : t.dataset.affood;
   else if (t.hasAttribute("data-afall")) AF.food = null;
   else {   // open that meal in the Log
