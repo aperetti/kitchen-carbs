@@ -3,7 +3,7 @@ type: Feature
 title: "After meals: post-meal responses"
 description: "Every logged meal's glucose from 0 to 3 hours after eating, lined up at the meal time, with its rise, time to peak, where it was at 2 and 3 hours and the insulin typed for it; repeats of a food are grouped to compare."
 tags: [feature, nightscout]
-timestamp: 2026-11-09
+timestamp: 2026-11-10
 status: draft
 links:
   uses: [domain/meal.md, domain/insulin-effect.md, domain/meal-glucose.md, domain/glucose-reading.md, domain/target-range.md, domain/food.md]
@@ -18,6 +18,10 @@ care team to read (okf/rules/descriptive-stats-only.md).
   breakfast before 11:00, lunch 11:00 to 15:59, dinner from 16:00. Picking one limits the chart, the averages, the
   by-food rows and the meal list to those meals; 'All' (the start) shows every meal. A meal with another within 3 h is
   still left out of the averages even when that other meal is in a different part of the day.
+- Days (decided 10 Nov): Every day · Weekdays · Weekends & holidays, each with its count, beside the meal of the day
+  and working with it (weekend lunches, school-day breakfasts). A day off is a Saturday or Sunday, a US federal holiday
+  (okf/domain/days-off.md) or a day the family added in Manage → Settings → Days off. In the meal list a meal on a day
+  off says why after its time: 'Saturday', 'Thanksgiving', 'Winter break'. 'Every day' is the start.
 - For each meal with a reading at the meal time, from the same 3-hour window as the meal's own curve
   (okf/domain/meal-glucose.md):
   - the rise: the peak in the 3 hours minus the value at the meal time, and the minutes to the peak;

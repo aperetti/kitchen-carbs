@@ -4,9 +4,11 @@ Grounded in okf/domain/carb-value.md, okf/rules/whole-gram-rounding.md,
 okf/domain/glucose-stats.md and okf/domain/meal-glucose.md.
 No insulin maths here: the meal summary's dose lives in dose.py alone (okf/rules/no-dosing.md).
 """
+import functools
 import math
 import re
 import statistics
+from datetime import date, timedelta
 
 READING_MS = 5 * 60 * 1000          # CGM interval used to judge coverage
 WINDOW_BEFORE_MS = 30 * 60 * 1000
@@ -223,3 +225,35 @@ def meal_window(readings, meal_ms: int, now_ms: int, other_meals_ms=()) -> dict:
 def meal_of_day(hhmm):
     """breakfast before 11:00, lunch to 15:59, dinner from 16:00 (okf/features/meal-responses.md)"""
     return "breakfast" if hhmm < "11:00" else "lunch" if hhmm < "16:00" else "dinner"
+
+
+@functools.lru_cache(maxsize=32)
+def us_holidays(year: int) -> dict:
+    """US federal holidays by date, with the Friday or Monday they're observed on (okf/domain/days-off.md)."""
+    def nth(month, weekday, n):   # the nth weekday of the month; n = -1 for the last
+        if n > 0:
+            d = date(year, month, 1)
+            return d + timedelta(days=(weekday - d.weekday()) % 7 + 7 * (n - 1))
+        d = date(year, month + 1, 1) - timedelta(days=1)
+        return d - timedelta(days=(d.weekday() - weekday) % 7)
+    days = {date(year, 1, 1): "New Year's Day", nth(1, 0, 3): "Martin Luther King Jr. Day", nth(2, 0, 3): "Presidents' Day",
+            nth(5, 0, -1): "Memorial Day", date(year, 6, 19): "Juneteenth", date(year, 7, 4): "Independence Day",
+            nth(9, 0, 1): "Labor Day", nth(10, 0, 2): "Columbus Day", date(year, 11, 11): "Veterans Day",
+            nth(11, 3, 4): "Thanksgiving", date(year, 12, 25): "Christmas"}
+    for d, name in list(days.items()):
+        if d.weekday() == 5:
+            days.setdefault(d - timedelta(days=1), name)
+        elif d.weekday() == 6:
+            days.setdefault(d + timedelta(days=1), name)
+    return days
+
+
+def day_off(day: str, own: list) -> str | None:
+    """Why a day is off: the family's name for it, a US federal holiday, or Saturday / Sunday. None on a weekday."""
+    d = date.fromisoformat(day)
+    for o in own:
+        if o["start"] <= day <= o["end"]:
+            return o["name"]
+    # New Year's Day on a Saturday is observed on 31 Dec of the year before
+    return us_holidays(d.year).get(d) or us_holidays(d.year + 1).get(d) or (d.strftime("%A") if d.weekday() >= 5 else None)
+

@@ -1428,7 +1428,40 @@ def get_settings(c=Depends(con)):
     return {"off_contact": off_contact(c), "off_contact_default": default_contact(c),
             "off_country": off_country(c), "countries": lookup.COUNTRIES,
             "fatsecret": "set up" if lookup.fatsecret_ready() else "not set up", "past_edits": past_edits(c),
-            "clock_12h": clock_12h(c)}
+            "clock_12h": clock_12h(c), "days_off": days_off(c)}
+
+
+class DayOff(BaseModel):
+    name: str = Field(min_length=1, max_length=40)
+    start: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}$")
+    end: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}$")
+
+    @model_validator(mode="after")
+    def a_short_range(self):
+        try:
+            a, b = date.fromisoformat(self.start), date.fromisoformat(self.end)
+        except ValueError:
+            raise ValueError("Use dates like 2026-12-21.")
+        if not 0 <= (b - a).days < 30:
+            raise ValueError(f"{self.name.strip()}: the last day is on or after the first, and up to 30 days in all.")
+        return self
+
+
+class DaysOffIn(BaseModel):
+    days: list[DayOff] = Field(max_length=60)
+
+
+def days_off(c) -> list:
+    """The family's own days off, earliest first (okf/domain/days-off.md)."""
+    return json.loads(db.get_setting(c, "days_off") or "[]")
+
+
+@app.put("/api/settings/days-off", dependencies=[Depends(parent)])
+def set_days_off(body: DaysOffIn, c=Depends(con)):
+    days = sorted(({"name": d.name.strip(), "start": d.start, "end": d.end} for d in body.days), key=lambda d: (d["start"], d["end"]))
+    with c:
+        db.set_setting(c, "days_off", json.dumps(days))
+    return get_settings(c)
 
 
 @app.put("/api/settings", dependencies=[Depends(parent)])
@@ -2190,7 +2223,8 @@ def range_word(v, low, high):
 
 
 @app.get("/api/responses")
-def responses(days: int = 30, meal: Literal["all", "breakfast", "lunch", "dinner"] = "all", c=Depends(con)):
+def responses(days: int = 30, meal: Literal["all", "breakfast", "lunch", "dinner"] = "all",
+              daytype: Literal["all", "weekdays", "off"] = "all", c=Depends(con)):
     """Each meal's glucose 0-3 h after eating, lined up at the meal time, beside the insulin typed for it; foods in two
     or more measured meals are grouped. Measured, never judged or turned into advice (okf/features/meal-responses.md)."""
     if days not in (14, 30, 90):
@@ -2222,6 +2256,7 @@ def responses(days: int = 30, meal: Literal["all", "breakfast", "lunch", "dinner
             rapid.append((u, t))
     out, groups, at = [], {}, [t for t, _ in rs]
     counts = {"breakfast": 0, "lunch": 0, "dinner": 0}
+    own, day_counts = days_off(c), {"weekdays": 0, "off": 0}   # okf/domain/days-off.md
     for m, ms in zip(meals, times):
         lo, hi = bisect.bisect_left(at, ms - core.WINDOW_BEFORE_MS), bisect.bisect_right(at, ms + core.WINDOW_AFTER_MS)
         w = core.meal_window(rs[lo:hi], ms, now_ms, times)
@@ -2247,10 +2282,13 @@ def responses(days: int = 30, meal: Literal["all", "breakfast", "lunch", "dinner
             given = [(u, (t - ms) / 60000) for u, t in rapid if -360 * 60000 <= t - ms <= core.WINDOW_AFTER_MS]
             r["insulin_effect"] = core.insulin_effect(given, dose.block_at(factors, m["time"])) if given else None
             r["earlier_insulin"] = any(g < -60 for _, g in given)   # still acting, from more than an hour before
-        r["meal_of_day"] = core.meal_of_day(m["time"])
-        counts[r["meal_of_day"]] += 1
-        if meal != "all" and r["meal_of_day"] != meal:   # still counted above for overlaps and the buttons
-            continue
+        r["meal_of_day"], r["off"] = core.meal_of_day(m["time"]), core.day_off(m["day"], own)
+        if daytype == "all" or (daytype == "off") == bool(r["off"]):   # each set of buttons counts within the other's choice
+            counts[r["meal_of_day"]] += 1
+        if meal == "all" or r["meal_of_day"] == meal:
+            day_counts["off" if r["off"] else "weekdays"] += 1
+        if meal != "all" and r["meal_of_day"] != meal or daytype != "all" and (daytype == "off") != bool(r["off"]):
+            continue   # still counted above for overlaps and the buttons
         out.append(r)
         for key, name in {(i["food_id"] or "hand:" + i["food_name"].strip().lower()): i["food_name"] for i in m["items"]}.items():
             groups.setdefault(key, {"key": key, "name": name, "meals": []})["meals"].append(r["id"])
@@ -2266,7 +2304,8 @@ def responses(days: int = 30, meal: Literal["all", "breakfast", "lunch", "dinner
     foods.sort(key=lambda g: (-g["measured"], g["name"].lower()))
     return {"from": first.isoformat(), "to": last.isoformat(), "days": days, "low": low, "high": high,
             "glucose": has_glucose(c), "meals": out[::-1], "foods": foods, "effect_ready": bool(factors),
-            "meal": meal, "counts": {"all": len(meals), **counts}}
+            "meal": meal, "counts": {"all": sum(counts.values()), **counts},
+            "daytype": daytype, "day_counts": {"all": sum(day_counts.values()), **day_counts}}
 
 
 @app.get("/api/stats")

@@ -427,6 +427,16 @@ def test_meal_responses_line_up_and_group(app):
     dinner = client.get("/api/responses?days=14&meal=dinner").json()
     assert len(dinner["meals"]) == 1 and dinner["foods"] == [] and dinner["counts"] == r["counts"]
     assert client.get("/api/responses?days=14&meal=brunch").status_code == 422
+    # okf/domain/days-off.md: 25 Oct is a Sunday; the 26th and 27th are weekdays until the family adds a day off
+    assert [m["off"] for m in r["meals"]] == [None, None, "Sunday"] and r["day_counts"] == {"all": 3, "weekdays": 2, "off": 1}
+    off = client.get("/api/responses?days=14&daytype=off").json()
+    assert [m["day"] for m in off["meals"]] == ["2026-10-25"] and off["counts"] == {"all": 1, "breakfast": 0, "lunch": 1, "dinner": 0}
+    assert client.get("/api/responses?days=14&meal=lunch&daytype=weekdays").json()["day_counts"] == {"all": 2, "weekdays": 1, "off": 1}
+    bad = client.put("/api/settings/days-off", json={"days": [{"name": "Long", "start": "2026-10-01", "end": "2026-11-15"}]})
+    assert bad.status_code == 422 and "up to 30 days" in str(bad.json())
+    st = client.put("/api/settings/days-off", json={"days": [{"name": " Teacher day ", "start": "2026-10-26", "end": "2026-10-26"}]}).json()
+    assert st["days_off"] == [{"name": "Teacher day", "start": "2026-10-26", "end": "2026-10-26"}]
+    assert [m["off"] for m in client.get("/api/responses?days=14&daytype=off").json()["meals"]] == ["Teacher day", "Sunday"]
     # okf/domain/insulin-effect.md: backed out only with a correction factor, and only for logged rapid-acting insulin
     assert not r["effect_ready"] and "insulin_effect" not in a
     blocks = lambda v: [{"start": "00:00", "value": v}]
@@ -1967,3 +1977,15 @@ def test_shared_plate(app):
     assert client.put("/api/plate", json={"items": [{**row, "key": f"k{i}"} for i in range(31)]}).status_code == 422
     empty = client.put("/api/plate", json={"items": [], "plan": plan_}).json()   # saved to the log: empty, and no plan
     assert (empty["version"], empty["items"], empty["plan"]) == (2, [], None)
+
+
+def test_us_holidays():
+    """okf/domain/days-off.md: worked out for any year, with the observed Friday or Monday."""
+    from server import core
+    h = core.us_holidays(2026)
+    assert h[datetime(2026, 11, 26).date()] == "Thanksgiving" and h[datetime(2026, 1, 19).date()] == "Martin Luther King Jr. Day"
+    assert h[datetime(2026, 7, 3).date()] == "Independence Day"   # 4 July 2026 is a Saturday
+    assert core.day_off("2027-12-31", []) == "New Year's Day" and core.day_off("2027-12-24", []) == "Christmas"
+    assert core.day_off("2026-05-25", []) == "Memorial Day" and core.day_off("2026-11-10", []) is None
+    assert core.day_off("2026-11-14", []) == "Saturday"
+    assert core.day_off("2026-11-26", [{"name": "Thanksgiving break", "start": "2026-11-25", "end": "2026-11-27"}]) == "Thanksgiving break"

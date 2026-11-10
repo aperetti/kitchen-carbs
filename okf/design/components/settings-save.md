@@ -19,7 +19,7 @@ for the log's save bar instead.
   bottom of the settings column.
 - Covered: Food lookup (contact email and region), Tags (renaming), Photo style (speed and the style description),
   Family accounts, Change parent PIN (current and new PIN both
-  typed), Insulin settings, Log (earlier days, 12-hour clock), Nightscout connection and target range, and the
+  typed), Insulin settings, Log (earlier days, 12-hour clock), Days off (adding, changing and removing a row), Nightscout connection and target range, and the
   Send to Nightscout and Tidepool options once they're on.
 - Save changes saves each changed section in page order. A problem stops there and shows in the bar, named by its
   section, and that section stays changed; the ones before it are saved. The Nightscout connection is still tested

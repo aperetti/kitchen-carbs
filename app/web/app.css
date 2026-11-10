@@ -931,5 +931,9 @@ button.statline { cursor: pointer; min-height: 44px; }
 .afmeals { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
 .afmeals button { display: grid; gap: 3px; width: 100%; text-align: left; padding: 12px 0; border: 0; border-bottom: 1px solid var(--line); background: none; font: inherit; font-size: 15px; color: var(--vein); cursor: pointer; }
 .afmeals .when { color: var(--ink); font-weight: 500; }
+.afmeals .afoff { color: var(--vein); font-weight: 400; }
+.offrow { display: flex; flex-wrap: wrap; align-items: end; gap: 8px 12px; }
+.offrow .field { flex: 1 1 140px; }
+.offrow .linkbtn { min-height: var(--touch); }
 .afmeals .nums b { color: var(--ink); font-weight: 500; font-variant-numeric: tabular-nums; }
 @media (max-width: 680px) { .after.pad { padding: 16px 16px 40px; } .afchart { padding: 10px; } .afbar .afnet { margin-left: 0; } }

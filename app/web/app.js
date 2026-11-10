@@ -1634,12 +1634,13 @@ function curveSvg(w) {
 
 /* ---------- After meals (okf/features/meal-responses.md): each meal's 0-3 h lined up at the meal time, beside the
    insulin typed for it. Measured, never judged, and never turned into advice (okf/rules/descriptive-stats-only.md). */
-const AF = { days: 30, meal: "all", data: null, food: null, zero: true, net: false, pick: null };   // Rise or mg/dL; insulin backed out or not
+const AF = { days: 30, meal: "all", daytype: "all", data: null, food: null, zero: true, net: false, pick: null };   // Rise or mg/dL; insulin backed out or not
 const MEALS_OF_DAY = { all: "All", breakfast: "Breakfast", lunch: "Lunch", dinner: "Dinner" };
+const DAYTYPES = { all: "Every day", weekdays: "Weekdays", off: "Weekends & holidays" };   // okf/domain/days-off.md
 const MEALS_PLURAL = { all: "meals", breakfast: "breakfasts", lunch: "lunches", dinner: "dinners" };   // by logged time (okf/features/meal-responses.md)
 async function loadAfter() {
   if (!AF.data) $("#afterView").innerHTML = `<p class="meta">Loading…</p>`;
-  try { AF.data = await api(`/api/responses?days=${AF.days}&meal=${AF.meal}`); }
+  try { AF.data = await api(`/api/responses?days=${AF.days}&meal=${AF.meal}&daytype=${AF.daytype}`); }
   catch (err) { $("#afterView").innerHTML = `${afHead()}<div class="empty">${esc(err.message)}</div>`; return; }
   if (AF.food && !AF.data.foods.some(g => g.key === AF.food)) AF.food = null;
   renderAfter();
@@ -1668,6 +1669,8 @@ function renderAfter() {
     <div class="periods" role="group" aria-label="Period">${[14, 30, 90].map(n => `<button data-afdays="${n}" class="${n === AF.days ? "on" : ""}">${n} days</button>`).join("")}</div>
     <div class="periods" role="group" aria-label="Meal of the day">${Object.entries(MEALS_OF_DAY).map(([k, l]) =>
       `<button data-afmeals="${k}" class="${k === AF.meal ? "on" : ""}" aria-pressed="${k === AF.meal}">${l} · ${d.counts[k]}</button>`).join("")}</div>
+    <div class="periods" role="group" aria-label="Days">${Object.entries(DAYTYPES).map(([k, l]) =>
+      `<button data-afdaytype="${k}" class="${k === AF.daytype ? "on" : ""}" aria-pressed="${k === AF.daytype}">${l} · ${d.day_counts[k]}</button>`).join("")}</div>
     <p class="meta">${dayLabel(d.from)} to ${dayLabel(d.to)} · ${d.meals.length} ${d.meals.length === 1 ? MEALS_OF_DAY[AF.meal === "all" ? "" : AF.meal]?.toLowerCase() || "meal" : MEALS_PLURAL[AF.meal]}, ${d.meals.filter(m => !m.left_out).length} with a full 3 hours of readings</p>
     ${!d.glucose ? `<div class="empty">No glucose readings yet. Connect Nightscout in Manage → Settings.</div>` : `
     <section class="afchart">
@@ -1685,12 +1688,12 @@ function renderAfter() {
       : `<p class="meta">No food is in 2 or more meals with a full 3 hours of readings yet.</p>`}
     <h3 class="label afsub">${g ? `Meals with ${esc(g.name)}` : "Each meal"}</h3>
     ${rows.length ? `<ul class="afmeals">${rows.map(m => `<li><button data-afmeal="${m.id}" data-afday="${m.day}">
-      <span class="when">${dayLabel(m.day)}, ${clk(m.time)}</span><span class="what">${esc(m.foods.join(" · "))} · ${m.carbs} g carbs</span>
+      <span class="when">${dayLabel(m.day)}, ${clk(m.time)}${m.off ? ` <span class="afoff">· ${esc(m.off)}</span>` : ""}</span><span class="what">${esc(m.foods.join(" · "))} · ${m.carbs} g carbs</span>
       ${m.rise != null ? `<span class="nums">Rise <b>${signed(m.rise)}</b> (${m.at_meal} → ${m.peak})${m.to_peak_min != null ? `, peak at ${m.to_peak_min} min` : ""}${afRange(m) ? ` · ${afRange(m)}` : ""}${m.lowest != null && m.lowest < d.low ? ` · <span class="warn">lowest ${m.lowest}</span>` : ""}</span>` : ""}
       <span class="ins">${afInsulin(m)}</span>
       ${AF.net && m.at_meal != null && m.points.length ? `<span>${m.insulin_effect ? `Without the insulin (estimate): rise <b>${signed(netRise(m))}</b> · insulin lowered about ${m.insulin_effect[36][1]} by 3 h${m.earlier_insulin ? ", including insulin from earlier still acting" : ""}` : "No rapid-acting insulin in Nightscout or the log, so its curve is unchanged"}</span>` : ""}
       ${m.left_out ? `<span class="meta">Not in the averages: ${m.left_out === "coverage" ? `sensor ${Math.round(m.coverage * 100)}%` : LEFT_OUT[m.left_out]}</span>` : ""}</button></li>`).join("")}</ul>`
-      : `<p class="meta">No ${MEALS_PLURAL[AF.meal]} logged in these ${AF.days} days.</p>`}`}
+      : `<p class="meta">No ${MEALS_PLURAL[AF.meal]} logged ${AF.daytype === "all" ? "" : `on ${DAYTYPES[AF.daytype].toLowerCase()} `}in these ${AF.days} days.</p>`}`}
     <p class="note">Patterns only, to share with the care team. Each curve also depends on the insulin and its timing, activity, illness and what came before.</p>`;
 }
 /* what the lines mean, behind the chart's ⓘ (okf/features/meal-responses.md) */
@@ -1740,11 +1743,12 @@ function afPicked(rows) {
     <button class="linkbtn" data-afmeal="${m.id}" data-afday="${m.day}">Open in log ›</button></p>`;
 }
 $("#v-after").addEventListener("click", e => {
-  const t = e.target.closest("[data-afdays],[data-afmeals],[data-afmode],[data-afnet],[data-affood],[data-afall],[data-afmeal],[data-afpick],.afsvg"); if (!t) return;
+  const t = e.target.closest("[data-afdays],[data-afmeals],[data-afdaytype],[data-afmode],[data-afnet],[data-affood],[data-afall],[data-afmeal],[data-afpick],.afsvg"); if (!t) return;
   if (t.matches(".afsvg,[data-afpick]")) { const id = +t.dataset.afpick || null; AF.pick = id === AF.pick ? null : id; renderAfter(); return; }
   if (!t.dataset.afmeal) AF.pick = null;
   if (t.dataset.afdays) { AF.days = +t.dataset.afdays; loadAfter(); return; }
   if (t.dataset.afmeals) { AF.meal = t.dataset.afmeals; loadAfter(); return; }
+  if (t.dataset.afdaytype) { AF.daytype = t.dataset.afdaytype; loadAfter(); return; }
   if (t.dataset.afmode) AF.zero = t.dataset.afmode === "rise";
   else if (t.hasAttribute("data-afnet")) AF.net = t.checked;
   else if (t.dataset.affood) AF.food = AF.food === t.dataset.affood ? null : t.dataset.affood;
@@ -2478,6 +2482,11 @@ const mClick = async e => {
   if (t.dataset.act === "m-list") { S.m.food = null; S.m.scan = null; S.m.review = null; mNav(); return; }
   if (t.dataset.act === "food-cancel") { mCancel(() => { S.m.food = null; }); return; }
   if (t.dataset.act === "form-reset") { t.closest("form").reset(); scanMath(); return; }
+  if (t.dataset.act === "off-add" || t.dataset.act === "off-rm") {
+    const rows = daysOffCollect();
+    if (t.dataset.act === "off-add") rows.push({ name: "", start: "", end: "" }); else rows.splice(+t.dataset.i, 1);
+    $("#offBox").innerHTML = daysOffForm(rows); setDirty(); return;
+  }
   if (t.dataset.act === "dose-add" || t.dataset.act === "dose-rm") {
     const d = doseCollect(), k = t.closest(".doseset").dataset.k;
     if (t.dataset.act === "dose-add") d[k].push({ start: "", value: "" }); else d[k].splice(+t.dataset.i, 1);
@@ -3358,7 +3367,7 @@ function doseForm() {
 const setBar = `<div class="savebar" id="setSave" hidden role="region" aria-label="Unsaved changes">
     <span class="sbtext">Unsaved changes</span><p class="err" id="setErr" role="alert"></p>
     <div class="actions"><button type="button" class="btn primary" data-act="set-save">Save changes</button><button type="button" class="btn quiet" data-act="set-discard">Discard</button></div></div>`;
-const SET_FORMS = ["offContact", "tagsForm", "qualityForm", "styleForm", "accountsForm", "pinChange", "doseForm", "logSet", "nsForm", "tgForm", "nsSendForm", "tpForm"];   // page order
+const SET_FORMS = ["offContact", "tagsForm", "qualityForm", "styleForm", "accountsForm", "pinChange", "doseForm", "logSet", "daysOff", "nsForm", "tgForm", "nsSendForm", "tpForm"];   // page order
 const setEls = f => [...f.querySelectorAll("input, select, textarea, [data-tpserver], [data-quality]")];
 const setVals = f => setEls(f).map(i => i.matches("[data-tpserver], [data-quality]") ? i.classList.contains("on") : i.type === "checkbox" ? i.checked : i.value);
 function setBase(...ids) {   // what's saved, read from the boxes just drawn
@@ -3423,6 +3432,12 @@ const SET_SAVE = {   // each throws with the reason it couldn't be saved; a retu
     if ($("#pastEdits").checked !== S.settings.past_edits) S.settings = await api("/api/settings/past-edits", { method: "PUT", parent: true, body: { allowed: $("#pastEdits").checked } });
     if ($("#clock12").checked !== S.settings.clock_12h) { S.settings = await api("/api/settings/clock", { method: "PUT", parent: true, body: { h12: $("#clock12").checked } }); setClock(S.settings.clock_12h); }
   },
+  daysOff: async () => {
+    const days = daysOffCollect();
+    if (days.some(o => !o.name || !o.start)) throw new Error("Each day off needs a name and its first day.");
+    S.settings = await api("/api/settings/days-off", { method: "PUT", parent: true, body: { days } });
+    $("#offBox").innerHTML = daysOffForm(); AF.data = null;
+  },
   nsForm: async () => {   // still tested with Nightscout before it's kept
     const r = await api("/api/nightscout", { method: "POST", parent: true, body: { url: $("#nsUrl").value.trim(), token: $("#nsToken").value.trim() } });
     S.session.glucose = true;
@@ -3466,6 +3481,18 @@ function doseCollect() {
   return out;
 }
 
+/* Days off for After meals: weekends and US holidays count already (okf/domain/days-off.md) */
+function daysOffForm(rows = S.settings.days_off) {
+  return `<form class="form" id="daysOff"><h2>Days off</h2>
+    <p class="meta">For After meals' Weekends & holidays. Saturdays, Sundays and US federal holidays count already; add school breaks, vacations and other days off here.</p>
+    ${rows.map((o, i) => `<div class="offrow"><label class="field"><span>Name</span><input class="oName" maxlength="40" value="${esc(o.name)}" placeholder="Winter break"></label>
+      <label class="field"><span>First day</span><input type="date" class="oStart" value="${o.start}"></label>
+      <label class="field"><span>Last day</span><input type="date" class="oEnd" value="${o.end}"></label>
+      <button type="button" class="linkbtn" data-act="off-rm" data-i="${i}">Remove</button></div>`).join("")}
+    <button type="button" class="linkbtn" data-act="off-add">+ Add days off</button></form>`;
+}
+const daysOffCollect = () => [...document.querySelectorAll("#daysOff .offrow")].map(r => ({ name: r.querySelector(".oName").value.trim(),
+  start: r.querySelector(".oStart").value, end: r.querySelector(".oEnd").value || r.querySelector(".oStart").value }));
 async function renderSettings() {
   try { S.settings = await api("/api/settings", { parent: true }); setClock(S.settings.clock_12h); } catch { S.settings = null; }
   try { const d = await api("/api/dose-settings"); S.doseEdit = d.settings || { carb_ratio: [], isf: [], target: [] }; S.doseUpdated = d.updated; } catch { S.doseEdit = null; }
@@ -3492,6 +3519,7 @@ async function renderSettings() {
         Off: earlier days are read-only. Moving a meal or entry to another date and time works either way.</p>
       <label class="check"><input type="checkbox" id="clock12" ${st.clock_12h ? "checked" : ""}>Show times as 12-hour (6:30 PM)</label>
       <p class="meta">For everyone in the family, in the log and the PDF export. Off: 24-hour (18:30). The CSV export stays 24-hour.</p></form>` : ""}
+    ${st ? `<div id="offBox">${daysOffForm()}</div>` : ""}
     <div id="nsBox"></div>
     <div id="tidepoolBox"></div>
     <div id="pushBox"></div>
@@ -3503,7 +3531,7 @@ async function renderSettings() {
         ChromeOS, Windows or a Mac.${window.isSecureContext ? "" : " It also needs the secure address (the https name, or localhost)."}</p>`}</section>
     </div>${setBar}</div></div>`;
   setNav();   // the order the family asked for (okf/design/components/settings-nav.md)
-  S.setBase = {}; setBase("offContact", "pinChange", "doseForm", "logSet");
+  S.setBase = {}; setBase("offContact", "pinChange", "doseForm", "logSet", "daysOff");
   renderTags(); loadStyle();
   S.accounts = null; renderAccounts(); renderPush(); renderTidepool(); renderNightscout();
 }
