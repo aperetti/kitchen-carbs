@@ -2,6 +2,8 @@
 Each version is what went to the family's kitchen on that date (okf/architecture/releases.md).
 
 ## Unreleased
+
+## v2026.11.09.2 · 9 Nov 2026
 - After meals: the explanation under the chart is now behind an ⓘ beside the chart's title.
 - After meals: tap a line on the chart to see which meal it is (date, time, foods, carbs and rise), with a link to open it in the log.
 
