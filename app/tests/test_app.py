@@ -1947,3 +1947,23 @@ def test_added_portion_shows_parent_photo(app):
     assert p["photo"]["styled"] == (base["photo"]["styled"] or base["photo"]["original"])
     assert p["photo"]["copied"] and p["photo"]["estimated"] and not p["photo"]["original"] and not p["job"]
     assert not base["photo"]["copied"]
+
+
+def test_shared_plate(app):
+    """okf/architecture/shared-plate.md: one plate on the server; the last one sent wins and the version goes up."""
+    client, _ = app
+    assert client.get("/api/plate").json() == {"items": [], "plan": None, "version": 0, "updated_at": None}
+    row = {"key": "k1", "food_id": "pasta", "portion_id": 1, "food_name": "Pasta, cooked", "portion_label": "1 cup",
+           "grams": 140, "carbs_per_100g": 30.9, "base": 140, "photo": "candidate/pasta.jpg"}
+    hand = {"key": "k2", "food_name": "Party cake", "entered": 25}
+    plan_ = {"id": 7, "name": "School lunch", "day": "2026-10-28", "time": "12:00"}
+    p = client.put("/api/plate", json={"items": [row, hand], "plan": plan_}).json()
+    assert p["version"] == 1 and p["plan"] == plan_ and [i["key"] for i in p["items"]] == ["k1", "k2"]
+    assert p["items"][1] == {"food_name": "Party cake", "entered": 25, "qty": 1, "locked": False, "portion_label": "", "key": "k2"}
+    assert client.get("/api/plate").json() == p
+    for bad in ("//evil.example/x.jpg", "https://evil.example/x.jpg", "../app.db", "a/../../x"):
+        assert client.put("/api/plate", json={"items": [{**row, "photo": bad}]}).status_code == 422
+    assert client.put("/api/plate", json={"items": [{**row, "grams": None}]}).status_code == 422
+    assert client.put("/api/plate", json={"items": [{**row, "key": f"k{i}"} for i in range(31)]}).status_code == 422
+    empty = client.put("/api/plate", json={"items": [], "plan": plan_}).json()   # saved to the log: empty, and no plan
+    assert (empty["version"], empty["items"], empty["plan"]) == (2, [], None)

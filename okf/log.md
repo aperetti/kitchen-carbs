@@ -164,3 +164,4 @@
 - 2026-11-09 — After meals: tapping a line on the chart picks that meal and shows its date, time, foods and rise, with Open in log (features/meal-responses.md).
 - 2026-11-09 — After meals: the note under the chart moved behind an ⓘ beside its title (features/meal-responses.md).
 - 2026-11-09 — After meals: 'Insulin backed out' became a switch beside Rise · mg/dL, so it can also be drawn from the real meal-time reading (features/meal-responses.md).
+- 2026-11-10 — The plate is shared by every signed-in device, kept on the server (domain/plate.md, architecture/shared-plate.md).

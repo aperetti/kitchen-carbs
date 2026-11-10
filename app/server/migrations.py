@@ -242,12 +242,19 @@ def m021_ns_insulin(con):
     con.execute("CREATE INDEX ns_insulin_date ON ns_insulin(date_ms)")
 
 
+
+def m022_shared_plate(con):
+    """One plate for the family, shared by every device (okf/architecture/shared-plate.md)."""
+    con.execute("""CREATE TABLE plate (
+      id INTEGER PRIMARY KEY CHECK (id = 1), items TEXT NOT NULL, plan TEXT, version INTEGER NOT NULL, updated_at TEXT NOT NULL)""")
+
+
 MIGRATIONS = [m001_schema, m002_sessions, m003_cooked_state, m004_moved_from, m005_portion_labels, m006_fiber,
               m007_food_confirmations, m008_meal_details, m009_barcode,
               m010_entered_carbs, m011_edited_later,
               m012_soft_delete, m013_carbs_corrected, m014_favorite_photo,
               m015_push_subscriptions, m016_tidepool_sent, m017_nightscout_sent, m018_meal_rating, m019_meal_fiber,
-              m020_planned_meals, m021_ns_insulin]
+              m020_planned_meals, m021_ns_insulin, m022_shared_plate]
 LATEST = len(MIGRATIONS)
 
 

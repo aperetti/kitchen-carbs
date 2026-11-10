@@ -2,6 +2,7 @@
 Each version is what went to the family's kitchen on that date (okf/architecture/releases.md).
 
 ## Unreleased
+- Plate: one plate for the whole family. Whatever is put on it, weighed or removed on the tablet shows on the phones within a few seconds, and the other way round. Saving it to the log empties it everywhere.
 - After meals: "Insulin backed out" is now a tick box beside Rise · mg/dL. With mg/dL, each meal starts at its real BG instead of 0, so you can see where glucose would have gone from there without the insulin.
 
 ## v2026.11.09.2 · 9 Nov 2026

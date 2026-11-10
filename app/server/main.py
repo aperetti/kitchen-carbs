@@ -1119,6 +1119,46 @@ def update_plan(pid: int, body: PlanUpdate, c=Depends(con)):
     return plan_out(get_plan(c, pid))
 
 
+# ----- the shared plate (okf/architecture/shared-plate.md) -----
+class PlateRow(PlanItem):
+    key: str = Field(min_length=1, max_length=64)
+    photo: str | None = Field(default=None, max_length=300, pattern=r"^[\w-]+(/[\w-][\w.-]*)*$")   # a path in the app's own photos
+
+
+class PlateFrom(PlanWhen):
+    id: int
+
+
+class PlateIn(BaseModel):
+    items: list[PlateRow] = Field(max_length=30)
+    plan: PlateFrom | None = None
+
+
+def plate_out(c) -> dict:
+    p = c.execute("SELECT * FROM plate WHERE id = 1").fetchone()
+    if not p:
+        return {"items": [], "plan": None, "version": 0, "updated_at": None}
+    return {"items": json.loads(p["items"]), "plan": json.loads(p["plan"]) if p["plan"] else None,
+            "version": p["version"], "updated_at": p["updated_at"]}
+
+
+@app.get("/api/plate")
+def get_plate(c=Depends(con)):
+    return plate_out(c)
+
+
+@app.put("/api/plate")
+def put_plate(body: PlateIn, c=Depends(con)):
+    """The whole plate; the last one sent wins."""
+    items = json.dumps([i.model_dump(exclude_none=True) for i in body.items])
+    plan = json.dumps(body.plan.model_dump()) if body.plan and body.items else None
+    with c:
+        c.execute("""INSERT INTO plate(id, items, plan, version, updated_at) VALUES (1, ?, ?, 1, ?)
+                     ON CONFLICT(id) DO UPDATE SET items = excluded.items, plan = excluded.plan, version = plate.version + 1,
+                     updated_at = excluded.updated_at""", (items, plan, now().strftime("%Y-%m-%d %H:%M:%S")))
+    return plate_out(c)
+
+
 @app.delete("/api/plans/{pid}")
 def delete_plan(pid: int, c=Depends(con)):
     get_plan(c, pid)

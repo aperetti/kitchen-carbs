@@ -3,14 +3,16 @@ type: Entity
 title: "Plate"
 description: "The meal being assembled right now: foods with their weighed grams, a running carb total and the total food weight."
 tags: [domain]
-timestamp: 2026-10-26
+timestamp: 2026-11-10
 status: draft
 links:
   contains: [domain/portion.md]
   becomes: [domain/meal.md]
 ---
 # Plate
-Temporary; lives on the tablet until saved.
+Temporary until saved. One plate for the family (decided 10 Nov, replacing one per tablet): every signed-in device
+shows the same plate, kept on the server (okf/architecture/shared-plate.md). Adding, weighing, removing, clearing,
+putting a plan on it and saving it to the log show on the other devices within a few seconds.
 - Each item starts at its portion's weight and is tuned to what was actually served (decided 27 Oct, replacing the
   ×½ / ×1 / ×1½ / ×2 steps): drag anywhere on its row left or right (decided 27 Oct: the whole row, not only the slider), or type the scale
   reading. Each row labels its numbers plainly: 'g carbs' beside the carb figure, 'Weight' beside the grams.

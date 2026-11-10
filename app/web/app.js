@@ -492,9 +492,10 @@ function renderPlan(p) {
 }
 
 /* ---------- plate (okf/features/build-plate.md) ---------- */
-function savePlate() {
+function savePlate(shared = false) {   // shared: it came from the server, so it isn't sent back
   if (!S.plate.length) S.plan = null;   // emptied: the plan stays as it was
   store.set("plate", S.plate); store.set("planFrom", S.plan); renderPlatebar();
+  if (!shared) pushPlate();
   if (splitMode() && $("#platePane").contains($("#plateView"))) renderPlate();
   refreshBadges();   // the 'On plate' badges follow the plate, quietly
 }
@@ -552,6 +553,47 @@ function addToPlate(foodId, portionId) {
   S.justAdded = (same || S.plate[S.plate.length - 1]).key;
   savePlate(); toast(`Added ${f.name}, ${p.label}`);
 }
+/* One plate for the family: sent to the server a moment after each change, read every few seconds
+   (okf/architecture/shared-plate.md) */
+const PS = { ver: store.get("plateVer", 0), dirty: store.get("plateDirty", false), edits: 0, timer: 0, busy: false, down: false };
+const plateRow = x => ({ ...planRow(x), key: x.key, ...(x.photo ? { photo: x.photo } : {}) });
+const sharedRow = r => r.entered != null ? { food_id: null, portion_id: null, grams: 0, qty: 1, ...r } : r;
+function pushPlate() {
+  PS.edits++; PS.dirty = true; store.set("plateDirty", true);
+  clearTimeout(PS.timer); PS.timer = setTimeout(sendPlate, 600);   // a drag or quick taps go as one
+}
+async function sendPlate() {
+  if (PS.busy) return;   // the one on its way sends again when it's back
+  PS.busy = true; const n = PS.edits;
+  try {
+    const r = await api("/api/plate", { method: "PUT", body: { items: S.plate.map(plateRow), plan: S.plate.length ? S.plan : null } });
+    PS.ver = r.version; store.set("plateVer", PS.ver);
+    if (PS.edits === n) { PS.dirty = false; store.set("plateDirty", false); }
+  } catch (e) {
+    if (e.status >= 400 && e.status !== 401) { PS.dirty = false; store.set("plateDirty", false); toast(`The plate couldn't be shared: ${e.message}`); }
+  }   // can't reach the server: kept, and sent on the next check
+  finally { PS.busy = false; if (PS.dirty && PS.edits !== n) sendPlate(); }
+}
+/* busy on this device: a weight being dragged or typed, or the meal summary open */
+const plateBusy = () => PS.down || doseDlg.open || !!document.activeElement?.closest("#plateView input, #platePane input");
+async function pollPlate() {
+  if (document.hidden || S.signedOut || !S.session) return;
+  if (PS.dirty) return PS.busy ? undefined : sendPlate();
+  if (plateBusy()) return;
+  let r; try { r = await api("/api/plate"); } catch { return; }
+  if (PS.dirty || plateBusy()) return;   // changed while asking
+  if (!r.version) { if (S.plate.length) pushPlate(); return; }   // the first start after the update: this device's own plate
+  if (r.version === PS.ver) return;
+  PS.ver = r.version; store.set("plateVer", PS.ver);
+  if (JSON.stringify(r.items) === JSON.stringify(S.plate.map(plateRow)) && JSON.stringify(r.plan) === JSON.stringify(S.plate.length ? S.plan : null)) return;
+  S.plate = r.items.map(sharedRow); S.plan = r.plan; if (!S.plate.length) S.plateTime = null;
+  syncPlate(); savePlate(true);
+  if (["foods", "plate"].includes(location.hash.slice(1).split("/")[0] || "foods")) { if (!splitMode() && location.hash.startsWith("#plate")) renderPlate(); toast("The plate was changed on another device."); }
+}
+setInterval(pollPlate, 4000);
+document.addEventListener("visibilitychange", pollPlate);
+addEventListener("pointerdown", () => PS.down = true, true);
+for (const ev of ["pointerup", "pointercancel"]) addEventListener(ev, () => PS.down = false, true);
 const r1 = g => Math.round(g * 10) / 10;
 const startState = (basis, ratio) => !basis || basis === "as-sold" ? null : ratio && basis === "raw" ? "cooked" : basis;
 /* Dry / raw or cooked: the same food weighed another way, so the grams convert and the carbs stay (okf/domain/plate.md) */
@@ -3722,7 +3764,7 @@ async function start() {
   catch (err) { S.session = null; if (err.signin) return; }   // the sign-in screen is showing
   await loadFoods(); pickMealFilter();
   renderStatus(); route(); watchJobs(); offerInstall();
-  syncQueue();
+  syncQueue(); pollPlate();
   setInterval(async () => {
     syncQueue();
     try { S.session = await api("/api/session"); } catch { }
