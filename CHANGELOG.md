@@ -2,6 +2,7 @@
 Each version is what went to the family's kitchen on that date (okf/architecture/releases.md).
 
 ## Unreleased
+- Meal summary: the "Use 2.05 u" button is now "← Fill in 2.05 u", outlined so it looks like a button, with the arrow pointing at the Dose box. Tapping it fills the box (which flashes) and the button turns into "✓ Filled in".
 - Meal summary: clearer labels at the bottom. "Given … min before the meal" for when the insulin went in, and "Meal eaten" for the meal's day and time. The day is now a short link (Today, Yesterday or the date); tap it to pick another day.
 
 ## v2026.11.10 · 10 Nov 2026

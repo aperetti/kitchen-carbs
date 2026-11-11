@@ -13,8 +13,9 @@ Until 29 Oct the app never calculated insulin. On 29 Oct the parent decided the 
 (okf/features/meal-dose-summary.md). Everywhere else the old rule stands.
 - Only the meal summary calculates. The log, stats, food cards and manual entries never suggest, check or pre-fill a dose;
   insulin in the log is still only what a parent typed (okf/domain/manual-entry.md, okf/domain/meal.md). The insulin box
-  in the meal summary starts empty. Beside it, 'Use 2.10 u' copies the calculated dose in with one tap (decided 8 Nov,
-  instead of pre-filling: nothing is logged as given unless someone taps it or types it). Once in the box it is an
+  in the meal summary starts empty. Beside it, '← Fill in 2.10 u' copies the calculated dose in with one tap (decided 8 Nov,
+  instead of pre-filling: nothing is logged as given unless someone taps it or types it; called 'Use 2.10 u' until
+  10 Nov, when it confused a family member). Once in the box it is an
   ordinary typed amount: it doesn't follow later changes to the dose, and can be changed or cleared before saving.
 - A warning when a bolus is typed with a BG under 70 mg/dL (okf/rules/low-bg-bolus-warning.md, decided 3 Nov) is not a
   dose check: it says nothing about the amount and never blocks saving.
@@ -26,4 +27,4 @@ Until 29 Oct the app never calculated insulin. On 29 Oct the parent decided the 
 - Insulin on board comes from Nightscout and is taken off the correction only. If Nightscout has none, the summary says
   plainly that nothing was taken off.
 - The app never gives the dose to the pump, never writes it to Nightscout (okf/rules/nightscout-sends-what-was-logged.md) and never
-  logs it as given unless a parent puts it in the insulin box ('Use … u' or typing). It says to check it against the pump before giving.
+  logs it as given unless a parent puts it in the insulin box ('Fill in … u' or typing). It says to check it against the pump before giving.

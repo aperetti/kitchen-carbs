@@ -896,7 +896,7 @@ function openSummary() {
           <div class="seg neutral" role="group" aria-label="Insulin type">${["bolus", "basal"].map((k, n) =>
             `<button type="button" data-dkind="${k}" class="${n ? "" : "on"}" aria-pressed="${!n}">${cap(k)}</button>`).join("")}</div>
           <div class="srow"><label for="sumIns">Dose</label><span class="unitin"><input id="sumIns" class="dIns" type="number" inputmode="decimal" min="0.05" max="100" step="0.05" placeholder="Units"> u</span>
-            <button type="button" class="btn small quiet" id="sumUse" data-sum="use-dose" hidden></button></div>
+            <button type="button" class="btn small sumuse" id="sumUse" data-sum="use-dose" hidden></button></div>
           <div class="srow"><label for="sumMin">Given</label><span class="unitin"><input id="sumMin" class="dMin" type="number" inputmode="numeric" min="0" max="120" step="1"
             value="${preMin(null)}" placeholder="0" data-at="${S.sum.at}" data-auto="1"> min before the meal</span><span class="meta dMinNote">${minNote(preMin(null), S.sum.at)}</span></div>
           <div class="srow"><label for="sumAt">Meal eaten</label><button type="button" class="linkbtn" id="sumDayLink" data-sum="day" aria-label="Change the day the meal was eaten">${sumDayWord(S.sum.day)}</button>
@@ -963,11 +963,18 @@ document.addEventListener("click", e => {
   document.querySelectorAll(".tip[aria-expanded=true]").forEach(x => { if (x !== b) { x.setAttribute("aria-expanded", "false"); x.nextElementSibling.hidden = true; } });
   if (b) { const open = b.getAttribute("aria-expanded") !== "true"; b.setAttribute("aria-expanded", open); b.nextElementSibling.hidden = !open; }
 });
+function useLabel() {   // '✓ Filled in' while the box holds the worked-out amount
+  const use = $("#sumUse"), box = $("#sumIns"); if (!use?.dataset.u) return;
+  const filled = box.value !== "" && +box.value === +use.dataset.u;
+  use.disabled = filled; use.classList.toggle("done", filled);
+  use.innerHTML = filled ? `<span aria-hidden="true">✓</span> Filled in` : `<span aria-hidden="true">←</span> Fill in ${use.dataset.u} u`;
+  use.setAttribute("aria-label", filled ? `Filled in ${use.dataset.u} u` : `Fill in ${use.dataset.u} u, the amount worked out above, into the Dose box`);
+}
 function drawDose() {
   const s = S.sum, d = s.data, el = $("#sumCalc"); if (!el) return;
-  // 'Use 2.10 u': the worked-out dose goes in the insulin box only on a tap, never by itself (okf/rules/no-dosing.md)
+  // '← Fill in 2.10 u': the worked-out dose goes in the insulin box only on a tap, never by itself (okf/rules/no-dosing.md)
   const use = $("#sumUse"), dose = d?.ready && d.calc.dose > 0 ? u2(d.calc.dose) : null;
-  use.hidden = !dose; if (dose) { use.textContent = `Use ${dose} u`; use.dataset.u = dose; }
+  use.hidden = !dose; if (dose) { use.dataset.u = dose; useLabel(); }
   // the BG box is a row of the breakdown, just above insulin on board; the same box is moved into each redraw so typing isn't lost
   const box = $("#sumBg").parentElement, typing = document.activeElement === box.firstElementChild;
   // a typed BG this high is checked for a slip (488 for 188) before its correction is relied on; it never blocks
@@ -1049,6 +1056,7 @@ doseDlg.addEventListener("change", e => {   // date or time of the meal: heading
 doseDlg.addEventListener("input", () => setTimeout(sumLow));   // after the BG box and the Bolus / Basal switch have moved
 doseDlg.addEventListener("click", e => { if (e.target.closest("[data-dkind]")) setTimeout(sumLow); });
 doseDlg.addEventListener("input", e => {
+  if (e.target.id === "sumIns") return useLabel();
   if (e.target.id !== "sumBg" || !S.sum) return;
   S.sum.typed = true; S.sum.bg = e.target.value.trim();
   clearTimeout(doseTimer); doseTimer = setTimeout(loadDose, 400);
@@ -1060,7 +1068,10 @@ doseDlg.addEventListener("click", async e => {
   else if (t.dataset.sum === "settings") doseDlg.close();
   else if (t.dataset.sum === "day") sumDayLink(true);
   else if (t.dataset.sum === "details") { S.sum.details = !S.sum.details; drawDose(); }
-  else if (t.dataset.sum === "use-dose") { doseDlg.querySelector(".mdet .dIns").value = +t.dataset.u; doseDlg.querySelector(".mdet [data-dkind=bolus]").click(); }
+  else if (t.dataset.sum === "use-dose") {
+    const box = doseDlg.querySelector(".mdet .dIns"); box.value = +t.dataset.u; doseDlg.querySelector(".mdet [data-dkind=bolus]").click();
+    box.classList.remove("flash"); void box.offsetWidth; box.classList.add("flash"); useLabel();
+  }
   else if (t.dataset.sum === "save") {
     let extra;
     try {

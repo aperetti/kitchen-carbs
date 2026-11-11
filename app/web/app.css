@@ -727,6 +727,11 @@ p.moved { margin: 6px 0 0; }
 .srow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; }
 .srow > label, .spair > label { width: 5.6em; color: var(--vein); }
 #sumDayLink { min-height: 44px; font-size: 16px; }
+.btn.sumuse { min-height: 44px; border: 1.5px solid var(--accent); background: var(--surface); color: var(--accent); font-weight: 500; }
+.btn.sumuse:hover:not(:disabled) { background: var(--accent); color: var(--paper); }
+.btn.sumuse.done { border-color: var(--line); color: var(--vein); background: none; opacity: 1; }
+@keyframes fillflash { from { background: color-mix(in srgb, var(--accent) 22%, var(--paper)); border-color: var(--accent); } }
+.mdet .unitin input.flash { animation: fillflash 1.2s ease-out; }
 .spair { display: inline-flex; align-items: center; gap: 10px; }
 .spair + .spair > label { width: auto; margin-left: 6px; }
 .srow input[type="date"], .srow input[type="time"] { height: 44px; border: 1px solid var(--line); border-radius: 10px; background: var(--paper); padding: 0 10px; font-size: 16px; color: var(--ink); }
@@ -767,7 +772,7 @@ p.moved { margin: 6px 0 0; }
 .dosedlg .sumacts { position: sticky; bottom: -20px; z-index: 2; background: var(--surface); padding: 12px 0; border-top: 1px solid var(--line); }
 @media (max-width: 680px) { .dosedlg { width: 100vw; max-width: 100vw; } }
 @media (max-width: 420px) { .sumrows { gap: 8px 10px; font-size: 15px; } .sumdose .n { font-size: 48px; } .spair + .spair > label { width: 4.2em; margin-left: 0; }
-  .mdet.sumdet .dMinNote { flex-basis: 100%; min-height: 0; margin: -2px 0 0 calc(5.6 * 16px + 10px); } .mdet.sumdet .unitin input { width: 80px; } }
+  .mdet.sumdet .dMinNote { flex-basis: 100%; min-height: 0; margin: -2px 0 0 calc(5.6 * 16px + 10px); } .mdet.sumdet .unitin input { width: 80px; } .btn.sumuse { padding: 0 9px; } .sumdet .srow { column-gap: 8px; } }
 /* insulin settings form */
 .doseset { border: 0; padding: 0; margin: 0; display: grid; gap: 8px; }
 .doseset legend { font-weight: 500; margin-bottom: 6px; }

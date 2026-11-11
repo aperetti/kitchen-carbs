@@ -167,3 +167,4 @@
 - 2026-11-10 — The plate is shared by every signed-in device, kept on the server (domain/plate.md, architecture/shared-plate.md).
 - 2026-11-10 — After meals: Every day · Weekdays · Weekends & holidays, with US federal holidays and the family's own days off (features/meal-responses.md, domain/days-off.md).
 - 2026-11-10 — Meal summary: 'Given … min before the meal' and 'Meal eaten' with the day as a link that opens the date box (features/meal-dose-summary.md).
+- 2026-11-10 — Meal summary: 'Use 2.10 u' became '← Fill in 2.10 u', outlined, with '✓ Filled in' after a tap (features/meal-dose-summary.md, rules/no-dosing.md).

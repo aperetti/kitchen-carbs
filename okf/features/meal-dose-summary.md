@@ -19,7 +19,7 @@ Decided 29 Oct. 'Save to log' on the plate opens a modal before anything is save
   2. 'How it's worked out': one row each, label, sum and amount (+1.47 u): Carbs, Correction, Blood glucose (the box),
      Insulin on board (−0.35 u, or 'Unavailable' −0.00 u), a rule, then Total with the exact sum, the rounding step and
      the dose. 'Details ▾' opens the long reasons for the correction and insulin on board; closed to start with.
-  3. 'What was given' (optional): Bolus / Basal, Dose (with 'Use … u'), 'Given' with 'min before the meal' and the
+  3. 'What was given' (optional): Bolus / Basal, Dose (with '← Fill in … u'), 'Given' with 'min before the meal' and the
      clock time it was given, then 'Meal eaten' with the day as a link ('Today', 'Yesterday' or 'Mon, Nov 9') and the
      time box (decided 10 Nov: the date box took a row of its own; tapping the link opens the date box and its picker,
      and it goes back to a link once the day is picked). Then Save to log and Back to plate.
@@ -59,7 +59,11 @@ Decided 29 Oct. 'Save to log' on the plate opens a modal before anything is save
   insulin entry in the log with no carbs. The switch isn't saved; it resets each time the summary opens.
 - No BG: carbs only, and it says no correction was added. No settings: the summary shows the meal, says the ratios
   aren't set up, and links to Manage → Settings.
-- 'What was given (optional)', under the steps (decided 29 Oct): insulin given (empty, with a 'Use 2.10 u' button that copies the dose in on a tap, decided 8 Nov; never pre-filled),
+- 'What was given (optional)', under the steps (decided 29 Oct): insulin given (empty, with a button that copies the dose in on a tap, decided 8 Nov; never pre-filled. Given more affordance on
+  10 Nov after it confused a family member: '← Fill in 2.10 u', an outlined button in the accent colour, the arrow
+  pointing at the box; its spoken name says it copies the amount worked out above into the Dose box. Tapping it fills
+  the box, which flashes, and the button becomes '✓ Filled in' (greyed) while the box holds that amount; changing
+  the box or the dose brings it back),
   Bolus or Basal, how many minutes before the meal's time it was given (0 = at the meal time; starts at BG ÷ 10, 0
   under 80 mg/dL, 15 with no BG, see okf/domain/meal.md). How long the meal took to eat was asked here until 8 Nov;
   it was removed as not useful.
