@@ -2,6 +2,7 @@
 Each version is what went to the family's kitchen on that date (okf/architecture/releases.md).
 
 ## Unreleased
+- Meal summary: clearer labels at the bottom. "Given … min before the meal" for when the insulin went in, and "Meal eaten" for the meal's day and time. The day is now a short link (Today, Yesterday or the date); tap it to pick another day.
 
 ## v2026.11.10 · 10 Nov 2026
 - After meals: new Every day · Weekdays · Weekends & holidays buttons. US holidays count automatically, and school breaks or other days off can be added in Manage → Settings → Days off. Meals on a day off say why (Saturday, Thanksgiving, Winter break).

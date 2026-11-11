@@ -19,8 +19,10 @@ Decided 29 Oct. 'Save to log' on the plate opens a modal before anything is save
   2. 'How it's worked out': one row each, label, sum and amount (+1.47 u): Carbs, Correction, Blood glucose (the box),
      Insulin on board (−0.35 u, or 'Unavailable' −0.00 u), a rule, then Total with the exact sum, the rounding step and
      the dose. 'Details ▾' opens the long reasons for the correction and insulin on board; closed to start with.
-  3. 'What was given' (optional): Bolus / Basal, Dose (with 'Use … u'), Timing (minutes before, and the clock time),
-     Date and Time. Then Save to log and Back to plate.
+  3. 'What was given' (optional): Bolus / Basal, Dose (with 'Use … u'), 'Given' with 'min before the meal' and the
+     clock time it was given, then 'Meal eaten' with the day as a link ('Today', 'Yesterday' or 'Mon, Nov 9') and the
+     time box (decided 10 Nov: the date box took a row of its own; tapping the link opens the date box and its picker,
+     and it goes back to a link once the day is picked). Then Save to log and Back to plate.
   The parent's mock-up said 'Recommended dose' and 'Match recommended'; the app keeps 'Insulin for this meal' and 'Use
   … u', because it describes the sum and doesn't advise (okf/rules/no-dosing.md).
 - The meal: each food with its weight and carbs, the time, and the carb total.

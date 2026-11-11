@@ -166,3 +166,4 @@
 - 2026-11-09 — After meals: 'Insulin backed out' became a switch beside Rise · mg/dL, so it can also be drawn from the real meal-time reading (features/meal-responses.md).
 - 2026-11-10 — The plate is shared by every signed-in device, kept on the server (domain/plate.md, architecture/shared-plate.md).
 - 2026-11-10 — After meals: Every day · Weekdays · Weekends & holidays, with US federal holidays and the family's own days off (features/meal-responses.md, domain/days-off.md).
+- 2026-11-10 — Meal summary: 'Given … min before the meal' and 'Meal eaten' with the day as a link that opens the date box (features/meal-dose-summary.md).

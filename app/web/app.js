@@ -897,10 +897,11 @@ function openSummary() {
             `<button type="button" data-dkind="${k}" class="${n ? "" : "on"}" aria-pressed="${!n}">${cap(k)}</button>`).join("")}</div>
           <div class="srow"><label for="sumIns">Dose</label><span class="unitin"><input id="sumIns" class="dIns" type="number" inputmode="decimal" min="0.05" max="100" step="0.05" placeholder="Units"> u</span>
             <button type="button" class="btn small quiet" id="sumUse" data-sum="use-dose" hidden></button></div>
-          <div class="srow"><label for="sumMin">Timing</label><span class="unitin"><input id="sumMin" class="dMin" type="number" inputmode="numeric" min="0" max="120" step="1"
-            value="${preMin(null)}" placeholder="0" data-at="${S.sum.at}" data-auto="1"> min before</span><span class="meta dMinNote">${minNote(preMin(null), S.sum.at)}</span></div>
-          <div class="srow"><span class="spair"><label for="sumDay">Date</label><input type="date" id="sumDay" value="${S.sum.day}" max="${localDay()}" required></span>
-            <span class="spair"><label for="sumAt">Time</label><input type="time" id="sumAt" value="${S.sum.at}" required></span></div>
+          <div class="srow"><label for="sumMin">Given</label><span class="unitin"><input id="sumMin" class="dMin" type="number" inputmode="numeric" min="0" max="120" step="1"
+            value="${preMin(null)}" placeholder="0" data-at="${S.sum.at}" data-auto="1"> min before the meal</span><span class="meta dMinNote">${minNote(preMin(null), S.sum.at)}</span></div>
+          <div class="srow"><label for="sumAt">Meal eaten</label><button type="button" class="linkbtn" id="sumDayLink" data-sum="day" aria-label="Change the day the meal was eaten">${sumDayWord(S.sum.day)}</button>
+            <input type="date" id="sumDay" value="${S.sum.day}" max="${localDay()}" required hidden aria-label="Day the meal was eaten">
+            <input type="time" id="sumAt" value="${S.sum.at}" required></div>
         </div><p class="lowwarn" id="sumLow" role="alert" hidden></p></div>
       <div class="actions sumacts"><button class="btn primary" data-sum="save">Save to log</button><button class="btn quiet" data-sum="close">Back to plate</button></div>
     </div>`;
@@ -1028,12 +1029,21 @@ function corrNote(d) {
     ${on ? `<p class="sumlow" role="alert">A correction was given recently: ${esc(when)}. It may still be acting.
       Check against the pump and the care team's plan before adding another.</p>` : ""}`;
 }
+const sumDayWord = d => d === localDay() ? "Today" : d === shiftDay(localDay(), -1) ? "Yesterday" : dayLabel(d);
+/* the day is a link until tapped; then the date box, back to a link once a day is picked (okf/features/meal-dose-summary.md) */
+function sumDayLink(open) {
+  const a = $("#sumDayLink"), i = $("#sumDay"); if (!a) return;
+  a.hidden = open; i.hidden = !open;
+  if (open) { i.focus(); try { i.showPicker(); } catch { } } else a.textContent = sumDayWord(i.value || S.sum.day);
+}
+doseDlg.addEventListener("focusout", e => { if (e.target.id === "sumDay") setTimeout(() => sumDayLink(false), 150); });
 doseDlg.addEventListener("change", e => {   // date or time of the meal: heading, plate time and the dose follow
   if (e.target.dataset.sum === "correct" && S.sum) { S.sum.correct = e.target.checked; return loadDose(); }
   if (!["sumDay", "sumAt"].includes(e.target.id) || !S.sum) return;
   const day = $("#sumDay").value, at = $("#sumAt").value;
   if (!day || !at || day > localDay()) return;
   Object.assign(S.sum, { day, at }); S.plateTime = at; S.plateAuto = false; savePlate();
+  if (e.target.id === "sumDay") $("#sumDayLink").textContent = sumDayWord(day);
   $("#sumHead").textContent = sumHead(); loadDose();
 });
 doseDlg.addEventListener("input", () => setTimeout(sumLow));   // after the BG box and the Bolus / Basal switch have moved
@@ -1048,6 +1058,7 @@ doseDlg.addEventListener("click", async e => {
   const t = e.target.closest("[data-sum]"); if (!t) return;
   if (t.dataset.sum === "close") doseDlg.close();
   else if (t.dataset.sum === "settings") doseDlg.close();
+  else if (t.dataset.sum === "day") sumDayLink(true);
   else if (t.dataset.sum === "details") { S.sum.details = !S.sum.details; drawDose(); }
   else if (t.dataset.sum === "use-dose") { doseDlg.querySelector(".mdet .dIns").value = +t.dataset.u; doseDlg.querySelector(".mdet [data-dkind=bolus]").click(); }
   else if (t.dataset.sum === "save") {
