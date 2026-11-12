@@ -2,6 +2,8 @@
 Each version is what went to the family's kitchen on that date (okf/architecture/releases.md).
 
 ## Unreleased
+- Favorite plate photo: you can now give Gemini a direction ("apple slices in a blue bowl", "seen from above"). It's remembered for the next photo of that favorite and never changes the amounts.
+- Favorite details: the name box now sits above the Rename button, so it isn't cut off on a phone.
 
 ## v2026.11.10.2 · 10 Nov 2026
 - Meal summary: the "Use 2.05 u" button is now "← Fill in 2.05 u", outlined so it looks like a button, with the arrow pointing at the Dose box. Tapping it fills the box (which flashes) and the button turns into "✓ Filled in".

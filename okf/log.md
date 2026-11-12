@@ -168,3 +168,4 @@
 - 2026-11-10 — After meals: Every day · Weekdays · Weekends & holidays, with US federal holidays and the family's own days off (features/meal-responses.md, domain/days-off.md).
 - 2026-11-10 — Meal summary: 'Given … min before the meal' and 'Meal eaten' with the day as a link that opens the date box (features/meal-dose-summary.md).
 - 2026-11-10 — Meal summary: 'Use 2.10 u' became '← Fill in 2.10 u', outlined, with '✓ Filled in' after a tap (features/meal-dose-summary.md, rules/no-dosing.md).
+- 2026-11-12 — Favorite plate photo: an optional 'Direction for Gemini', kept with the favorite; the ⓘ's name box sits above 'Rename' (features/favorite-plates.md).

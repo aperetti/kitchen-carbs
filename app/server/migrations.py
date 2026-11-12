@@ -249,12 +249,18 @@ def m022_shared_plate(con):
       id INTEGER PRIMARY KEY CHECK (id = 1), items TEXT NOT NULL, plan TEXT, version INTEGER NOT NULL, updated_at TEXT NOT NULL)""")
 
 
+def m023_favorite_photo_note(con):
+    """The family's direction for a favorite's plate photo (okf/features/favorite-plates.md)."""
+    con.execute("ALTER TABLE favorites ADD COLUMN photo_note TEXT NOT NULL DEFAULT ''")
+
+
 MIGRATIONS = [m001_schema, m002_sessions, m003_cooked_state, m004_moved_from, m005_portion_labels, m006_fiber,
               m007_food_confirmations, m008_meal_details, m009_barcode,
               m010_entered_carbs, m011_edited_later,
               m012_soft_delete, m013_carbs_corrected, m014_favorite_photo,
               m015_push_subscriptions, m016_tidepool_sent, m017_nightscout_sent, m018_meal_rating, m019_meal_fiber,
-              m020_planned_meals, m021_ns_insulin, m022_shared_plate]
+              m020_planned_meals, m021_ns_insulin, m022_shared_plate,
+              m023_favorite_photo_note]
 LATEST = len(MIGRATIONS)
 
 

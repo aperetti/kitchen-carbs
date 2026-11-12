@@ -314,6 +314,10 @@ class FavoriteRename(BaseModel):
     name: str = Field(min_length=1, max_length=60)
 
 
+class FavPhotoIn(BaseModel):
+    note: str = Field("", max_length=300)
+
+
 class FavPhotoReview(BaseModel):
     action: Literal["accept", "discard", "remove"]
 
@@ -1185,7 +1189,7 @@ def favorite_out(c, fav):
                       "photo": row["photo_styled"] or row["photo_original"]})
     return {"id": fav["id"], "name": fav["name"], "sort": fav["sort"], "items": items,
             "total": core.whole_grams(exact_sum), "missing": sum(i["missing"] for i in items),
-            "photo": fav["photo"], "photo_candidate": fav["photo_candidate"]}
+            "photo": fav["photo"], "photo_candidate": fav["photo_candidate"], "photo_note": fav["photo_note"]}
 
 
 @app.get("/api/favorites")
@@ -1244,7 +1248,7 @@ def get_favorite(c, fid):
 
 
 @app.post("/api/favorites/{fid}/photo", dependencies=[Depends(parent)])
-def favorite_photo(fid: int, c=Depends(con)):
+def favorite_photo(fid: int, body: FavPhotoIn | None = None, c=Depends(con)):
     """Gemini combines the foods' photos into one plate photo, kept as a candidate until checked
     (okf/features/favorite-plates.md). The parent waits on the check screen, so this runs in the request."""
     fav = favorite_out(c, get_favorite(c, fid))
@@ -1252,8 +1256,11 @@ def favorite_photo(fid: int, c=Depends(con)):
               "grams": round(i["grams"] * i["qty"], 1), "photo": i["photo"]} for i in fav["items"] if not i["missing"]]
     if not foods:
         fail(400, "This favorite has no foods left to photograph.")
+    note = (body or FavPhotoIn()).note.strip()
+    with c:   # kept so the next photo starts from it
+        c.execute("UPDATE favorites SET photo_note = ? WHERE id = ?", (note, fid))
     style, _ = style_settings(c)
-    prompt, refs = photos.build_plate_prompt(style, foods)
+    prompt, refs = photos.build_plate_prompt(style, foods, note)
     try:
         path = photos.generate(refs, prompt, db.get_setting(c, "photo_quality") or "fast")
     except photos.PhotoError as e:

@@ -95,7 +95,7 @@ def build_prompt(style: str, bases: dict, container: str, estimate: dict | None 
 PLATE_PHOTOS = 10   # most food photos sent for one favorite's plate photo
 
 
-def build_plate_prompt(style: str, foods: list) -> tuple[str, list]:
+def build_plate_prompt(style: str, foods: list, note: str = "") -> tuple[str, list]:
     """One photo of a favorite's whole meal from its foods' photos (okf/features/favorite-plates.md).
 
     foods: {food, label, photo_grams, grams, photo}; photo_grams is the amount in its photo, grams the amount in the meal.
@@ -115,6 +115,9 @@ def build_plate_prompt(style: str, foods: list) -> tuple[str, list]:
             "Create one realistic photograph of a family meal served together, the dishes set close together.")
     extra = (" Also include, with no photo: " + "; ".join(amount(f) for f in named) + ", each in a plain dish that suits it.") if named else ""
     rule = " Do not add any other food, drink, garnish or cutlery. No text, labels or hands."
+    if note.strip():   # the family's direction; it never changes the amounts or adds food
+        rule += (f" Direction from the family for this photo: \"{note.strip()}\". Follow it unless it would change the amount "
+                 "of any food, add or leave out a food, or break the instructions above.")
     return task + extra + rule + f" Style: {style.strip() or DEFAULT_STYLE}", [f["photo"] for f in shown]
 
 

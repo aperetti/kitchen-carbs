@@ -530,6 +530,11 @@ def test_favorite_plate_photo(app, monkeypatch):
     assert sent["paths"] == [i["photo"] for i in fav["items"]]           # every food's photo, in order
     assert f"the meal has {toast['grams'] * 2:g} g" in sent["prompt"] and "the same amount" in sent["prompt"]
     assert out["photo_candidate"] and out["photo"] is None              # waits for the check
+    assert "Direction from the family" not in sent["prompt"] and out["photo_note"] == ""
+    out = client.post(f"/api/favorites/{fav['id']}/photo", json={"note": "  apple in a blue bowl "}).json()
+    assert 'Direction from the family for this photo: "apple in a blue bowl"' in sent["prompt"]
+    assert out["photo_note"] == "apple in a blue bowl"                  # kept for the next photo
+    assert client.post(f"/api/favorites/{fav['id']}/photo", json={"note": "x" * 301}).status_code == 422
     out = client.post(f"/api/favorites/{fav['id']}/photo/review", json={"action": "accept"}).json()
     assert out["photo"] == "candidate/" + "a" * 32 + ".jpg" and out["photo_candidate"] is None
     assert client.post(f"/api/favorites/{fav['id']}/photo/review", json={"action": "accept"}).status_code == 400

@@ -226,7 +226,7 @@ function renderFavorites() {
           <span>Carbs use today's food values; tune each item's grams on the plate.</span>
           ${f.photo ? `<span class="warn">Plate photo combined by Gemini from the food photos; the amounts may not match.</span>` : ""}
           ${usable ? `<button type="button" class="linkbtn" data-act="fav-photo">${f.photo_candidate ? "Check the new plate photo" : f.photo ? "New plate photo" : "Make a plate photo"}</button>` : ""}
-          <form class="cmtform" id="favRename"><input id="favName" maxlength="60" value="${esc(f.name)}" aria-label="Favorite name"><button class="btn small">Rename</button></form>
+          <form class="cmtform stack" id="favRename"><input id="favName" maxlength="60" value="${esc(f.name)}" aria-label="Favorite name"><button class="btn small">Rename</button></form>
           ${f.missing && !orphaned(f) ? `<span class="warn">Gone from the food list: ${esc(f.items.filter(i => i.missing).map(i => i.food_name).join(", "))}</span>
             <button type="button" class="linkbtn" data-act="fav-drop">${Date.now() - confirmDrop < 4000 ? "Tap again to remove them" : `Remove the missing item${f.missing > 1 ? "s" : ""}`}</button>` : ""}
           <button type="button" class="linkbtn" data-act="fav-unpin">${confirmUnpin && Date.now() - confirmUnpin < 4000 ? "Tap again to unpin" : "Unpin this favorite"}</button></div>` : ""}</div>
@@ -248,13 +248,19 @@ function useFavorite(f) {
 }
 /* A favorite's plate photo, combined by Gemini from its foods' photos and checked before use (okf/features/favorite-plates.md) */
 const favDlg = $("#favPhotoDialog");
-function openFavPhoto(id) { S.fp = { id, busy: false, started: 0, err: null, pinErr: null }; favDlg.showModal(); drawFavPhoto(); }
+function openFavPhoto(id) {
+  S.fp = { id, busy: false, started: 0, err: null, pinErr: null, note: S.favs.find(x => x.id === id)?.photo_note || "" };
+  favDlg.showModal(); drawFavPhoto();
+}
 function drawFavPhoto() {
   const s = S.fp, f = s && S.favs.find(x => x.id === s.id);
   if (!f) { if (favDlg.open) favDlg.close(); return; }
   const ok = f.items.filter(i => !i.missing), cand = f.photo_candidate, big = "(min-width: 760px) 720px, 100vw";
   const inputs = `<div class="fpin">${ok.map(i => `<figure>${i.photo ? `<img ${sized(i.photo, "160px")} alt="">` : `<span class="noimg">No photo</span>`}
       <figcaption>${esc(i.food_name)}<small>${fmtG(itemG(i))}${i.photo ? "" : " · described by name"}</small></figcaption></figure>`).join("")}</div>`;
+  const note = `<label class="field fpnote"><span>Direction for Gemini (optional)</span>
+      <textarea id="fpNote" maxlength="300" placeholder="For example: apple slices in a blue bowl, seen from above">${esc(s.note)}</textarea>
+      <small class="meta">Followed unless it would change the amounts or add a food.</small></label>`;
   let body;
   if (!pinStore.get()) body = `<form class="cmtform" id="fpPin"><input id="fpPinIn" type="password" inputmode="numeric" autocomplete="current-password" placeholder="Parent PIN" aria-label="Parent PIN"><button class="btn small">Unlock</button></form>
       ${s.pinErr ? `<p class="err">${esc(s.pinErr)}</p>` : `<p class="meta">Making a photo needs the parent PIN.</p>`}`;
@@ -262,10 +268,10 @@ function drawFavPhoto() {
       <span class="meta">Gemini is combining the photos · <span data-fpsince>0 s</span></span></div>`;
   else if (cand) body = `<figure class="fpres"><img ${sized(cand, big)} alt="New plate photo"></figure>
       <p class="meta">Check that every food is there, in its own dish, and that the amounts look right. It will be labelled as combined by Gemini; carbs never come from the photo.</p>
-      ${s.err ? `<p class="err">${esc(s.err)}</p>` : ""}
+      ${s.err ? `<p class="err">${esc(s.err)}</p>` : ""}${note}
       <div class="actions"><button class="btn primary" data-fp="accept">Use this photo</button><button class="btn" data-fp="make">Try again</button><button class="btn quiet" data-fp="discard">Discard</button></div>`;
   else body = `${f.photo ? `<figure class="fpres"><img ${sized(f.photo, big)} alt="Current plate photo"><figcaption>Current plate photo</figcaption></figure>` : ""}
-      ${s.err ? `<p class="err">${esc(s.err)}</p>` : ""}
+      ${s.err ? `<p class="err">${esc(s.err)}</p>` : ""}${note}
       <div class="actions"><button class="btn primary" data-fp="make">${f.photo ? "Make a new one" : "Make the photo"}</button>${f.photo ? `<button class="btn quiet" data-fp="remove">Remove plate photo</button>` : ""}</div>`;
   favDlg.innerHTML = `<div class="dlghead"><b>Plate photo · ${esc(f.name)}</b><button class="rm" data-fp="close" aria-label="Close">×</button></div>
     <div class="dlgbody"><p class="meta">Gemini puts ${ok.length > 1 ? `these ${ok.length} foods` : "this food"} together in one photo, each in its own dish, with the amounts in this favorite.</p>${inputs}${body}</div>`;
@@ -276,10 +282,11 @@ favDlg.addEventListener("click", async e => {
   const act = t.dataset.fp;
   if (act === "close") return favDlg.close();
   s.err = null;
+  const typed = favDlg.querySelector("#fpNote"); if (typed) s.note = typed.value;   // kept through redraws and Try again
   if (act === "make") {
     s.busy = true; s.started = Date.now(); drawFavPhoto();
     const tick = setInterval(() => { const el = favDlg.querySelector("[data-fpsince]"); if (el) el.textContent = `${Math.round((Date.now() - s.started) / 1000)} s`; }, 1000);
-    try { await api(`/api/favorites/${s.id}/photo`, { method: "POST", parent: true }); }
+    try { await api(`/api/favorites/${s.id}/photo`, { method: "POST", parent: true, body: { note: s.note.trim() } }); }
     catch (err) { if (err.status === 401) pinStore.set(""); s.err = err.message; }
     clearInterval(tick); s.busy = false;
   } else {

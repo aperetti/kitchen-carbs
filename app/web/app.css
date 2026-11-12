@@ -386,6 +386,8 @@ body.signed-out .tabs, body.signed-out .platebar { display: none !important; }
 .cinfo a { color: var(--accent); }
 .cinfo .cedit { display: inline-flex; align-items: center; min-height: 44px; justify-self: start; font-weight: 500; }   /* okf/features/view-food.md */
 .cinfo .cmtform input { height: 44px; }
+.cmtform.stack { flex-direction: column; align-items: stretch; } .cmtform.stack .btn { align-self: flex-start; }   /* name above Rename: fits a phone card */
+.cinfo .cmtform.stack { margin-right: -36px; }   /* below the ×, so it can use the full card width */
 .card.addable { cursor: pointer; }
 .card.addable:hover img { transform: scale(1.03); }
 .cimg img { transition: transform .25s ease; }
