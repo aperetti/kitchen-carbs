@@ -2,6 +2,7 @@
 Each version is what went to the family's kitchen on that date (okf/architecture/releases.md).
 
 ## Unreleased
+- Plan for later: one-tap buttons for the next breakfast, lunch and dinner (whichever come in the next 24 hours) fill in the name, day and time. Set your usual meal times in Manage → Settings → Meal times.
 - Favorite plate photo: you can now give Gemini a direction ("apple slices in a blue bowl", "seen from above"). It's remembered for the next photo of that favorite and never changes the amounts.
 - Favorite details: the name box now sits above the Rename button, so it isn't cut off on a phone.
 

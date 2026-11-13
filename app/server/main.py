@@ -749,7 +749,7 @@ def sign_out_others(request: Request, c=Depends(con)):
 def session(c=Depends(con)):
     return {"env": os.environ.get("KC_ENV", "prod"), "schema": migrations.version(c),
             "pin_set": bool(db.get_setting(c, "pin_hash")), "today": today(), "now": now().strftime("%H:%M"),
-            "glucose": has_glucose(c), "targets": targets(c)}
+            "glucose": has_glucose(c), "targets": targets(c), "meal_times": meal_times(c)}
 
 
 @app.post("/api/pin")
@@ -1435,7 +1435,28 @@ def get_settings(c=Depends(con)):
     return {"off_contact": off_contact(c), "off_contact_default": default_contact(c),
             "off_country": off_country(c), "countries": lookup.COUNTRIES,
             "fatsecret": "set up" if lookup.fatsecret_ready() else "not set up", "past_edits": past_edits(c),
-            "clock_12h": clock_12h(c), "days_off": days_off(c)}
+            "clock_12h": clock_12h(c), "days_off": days_off(c), "meal_times": meal_times(c)}
+
+
+MEAL_TIMES = {"breakfast": "07:30", "lunch": "12:00", "dinner": "18:00"}
+
+
+def meal_times(c) -> dict:
+    """The family's usual breakfast, lunch and dinner times, for planning the next meal (okf/features/plan-meal.md)."""
+    return {**MEAL_TIMES, **json.loads(db.get_setting(c, "meal_times") or "{}")}
+
+
+class MealTimesIn(BaseModel):
+    breakfast: str = Field(pattern=r"^([01]\d|2[0-3]):[0-5]\d$")
+    lunch: str = Field(pattern=r"^([01]\d|2[0-3]):[0-5]\d$")
+    dinner: str = Field(pattern=r"^([01]\d|2[0-3]):[0-5]\d$")
+
+
+@app.put("/api/settings/meal-times", dependencies=[Depends(parent)])
+def set_meal_times(body: MealTimesIn, c=Depends(con)):
+    with c:
+        db.set_setting(c, "meal_times", json.dumps(body.model_dump()))
+    return get_settings(c)
 
 
 class DayOff(BaseModel):

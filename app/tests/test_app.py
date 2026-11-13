@@ -1904,6 +1904,17 @@ def test_planned_meals(app):
     assert client.delete(f"/api/plans/{p['id']}").status_code == 404
 
 
+def test_meal_times(app):
+    """okf/features/plan-meal.md: the next-meal buttons' times, read by everyone, changed with the parent PIN."""
+    client, _ = app
+    assert client.get("/api/session").json()["meal_times"] == {"breakfast": "07:30", "lunch": "12:00", "dinner": "18:00"}
+    times = {"breakfast": "06:45", "lunch": "11:30", "dinner": "17:15"}
+    assert client.put("/api/settings/meal-times", json=times, headers={"X-Parent-Pin": "9999"}).status_code == 401
+    assert client.put("/api/settings/meal-times", json={**times, "lunch": "25:00"}).status_code == 422
+    assert client.put("/api/settings/meal-times", json=times).json()["meal_times"] == times
+    assert client.get("/api/session").json()["meal_times"] == times
+
+
 def test_planned_meal_goes_to_nightscout_as_a_note(app, monkeypatch):
     """okf/rules/nightscout-sends-what-was-logged.md: a note with no carbs field until it's eaten, then a Meal Bolus."""
     client, main = app

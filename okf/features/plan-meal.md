@@ -3,7 +3,7 @@ type: Feature
 title: "Plan a meal"
 description: "Build a plate now for a set date and time; it waits in the log as a planned meal, and at mealtime goes back on the plate to be checked, weighed and saved as usual."
 tags: [feature]
-timestamp: 2026-11-02
+timestamp: 2026-11-12
 status: draft
 links:
   uses: [domain/planned-meal.md, domain/plate.md, domain/meal.md]
@@ -14,6 +14,12 @@ links:
 Decided 2 Nov.
 - Plate → 'Plan for later' (beside Clear plate and Pin as favorite): a date (today by default, up to 60 days ahead),
   a time and a name, then 'Plan'. The plate is cleared and the plan shows in the log.
+- Next meals (decided 12 Nov): above the boxes, one button for each of the next breakfast, lunch and dinner in
+  the coming 24 hours, soonest first, e.g. 'Dinner · today 6:00 PM', 'Breakfast · tomorrow 7:30 AM', 'Lunch ·
+  tomorrow 12:00 PM'. Tapping one fills the name, date and time (the name only while it is still a meal name, so a
+  typed name stays) and marks it; 'Plan' then saves as before. A new plan starts on the soonest one. The times come
+  from Manage → Settings → Meal times (7:30, 12:00 and 18:00 to start), the same for every device; changing them
+  needs the parent PIN, reading them doesn't.
 - In the log: today's view starts with a 'Planned' list of every plan, overdue first, then by date and time, each
   with its day, name and carbs in a dashed outline. A future day's view (next day goes past today) lists that
   day's plans too (decided 8 Nov). They aren't in any day's total. Opening one shows its foods and carbs, a form to

@@ -423,13 +423,34 @@ const duePlans = () => {   // the empty plate starts mealtime: today's plans and
       <span class="meta">${p.day < localDay() ? "Overdue · " : ""}${esc(planWhen(p))} · ${p.carbs} g carbs</span></span>
     <button class="btn small" data-act="plan-use" data-pid="${p.id}">Put on the plate</button></div>`).join("")}</div>`;
 };
+const MEALS = [["breakfast", "Breakfast"], ["lunch", "Lunch"], ["dinner", "Dinner"]];
+function nextMeals() {   // the next breakfast, lunch and dinner within 24 hours, soonest first (okf/features/plan-meal.md)
+  const now = hhmm(), mt = S.session?.meal_times || { breakfast: "07:30", lunch: "12:00", dinner: "18:00" };
+  return MEALS.map(([k, name]) => ({ name, time: mt[k], day: mt[k] > now ? localDay() : shiftDay(localDay(), 1) }))
+    .sort((a, b) => (a.day + a.time).localeCompare(b.day + b.time));
+}
 function planForm() {
-  const p = S.plan, time = p?.time || S.plateTime || hhmm();
+  const p = S.plan, next = nextMeals(), v = p ? { name: p.name, day: p.day >= localDay() ? p.day : localDay(), time: p.time } : next[0];
   return `<form class="cmtform planform" id="planForm" hidden style="margin-top:8px">
-    <input id="planName" maxlength="60" required value="${esc(p?.name || suggestName(time))}" aria-label="Plan name">
-    <input type="date" id="planDay" required value="${p && p.day >= localDay() ? p.day : localDay()}" min="${localDay()}" max="${shiftDay(localDay(), PLAN_DAYS)}" aria-label="Date">
-    <input type="time" id="planTime" required value="${time}" aria-label="Time">
+    <div class="seg planquick" role="group" aria-label="Next meals">${next.map(m => { const on = m.day === v.day && m.time === v.time;
+      return `<button type="button" data-act="plan-quick" data-name="${m.name}" data-day="${m.day}" data-time="${m.time}" class="${on ? "on" : ""}" aria-pressed="${on}">
+        ${m.name}<small>${m.day === localDay() ? "today" : "tomorrow"} ${clk(m.time)}</small></button>`; }).join("")}</div>
+    <input id="planName" maxlength="60" required value="${esc(v.name)}" aria-label="Plan name">
+    <input type="date" id="planDay" required value="${v.day}" min="${localDay()}" max="${shiftDay(localDay(), PLAN_DAYS)}" aria-label="Date">
+    <input type="time" id="planTime" required value="${v.time}" aria-label="Time">
     <button class="btn small">${p ? "Update plan" : "Plan"}</button></form>`;
+}
+function planQuick(t) {   // fills the boxes; a typed name stays
+  const name = $("#planName");
+  if (!name.value.trim() || MEALS.some(([, n]) => n === name.value.trim())) name.value = t.dataset.name;
+  $("#planDay").value = t.dataset.day; $("#planTime").value = t.dataset.time;
+  markPlanQuick();
+}
+function markPlanQuick() {
+  for (const b of document.querySelectorAll("[data-act=plan-quick]")) {
+    const on = b.dataset.day === $("#planDay").value && b.dataset.time === $("#planTime").value;
+    b.classList.toggle("on", on); b.setAttribute("aria-pressed", on);
+  }
 }
 const planRow = x => x.entered != null ? { food_name: x.food_name, entered: x.entered }
   : { food_id: x.food_id, portion_id: x.portion_id, food_name: x.food_name, portion_label: x.portion_label, grams: x.grams, carbs_per_100g: x.carbs_per_100g,
@@ -796,6 +817,7 @@ $("#plateView").addEventListener("click", async e => {
   else if (t.dataset.act.startsWith("scale-") || t.dataset.act === "use-scale") scaleAction(t.dataset.act, t.closest("[data-key]"));
   else if (t.dataset.act === "pin") { $("#pinPlate").hidden = false; $("#pinName").select(); }
   else if (t.dataset.act === "plan-open") { $("#planForm").hidden = false; $("#planName").select(); }
+  else if (t.dataset.act === "plan-quick") planQuick(t);
   else if (t.dataset.act === "plan-use") usePlan(S.plans.find(p => p.id === +t.dataset.pid), t);
   else if (t.dataset.act === "hand-open") { t.hidden = true; $("#handForm").hidden = false; $("#hName").focus(); }
   else if (t.dataset.act === "hand-cancel") { renderPlate(); }
@@ -846,6 +868,7 @@ function setItemGrams(row, g, from) {   // live while dragging: only the numbers
   store.set("plate", S.plate); renderPlatebar();
 }
 $("#plateView").addEventListener("input", e => {
+  if (e.target.matches("#planDay, #planTime")) markPlanQuick();
   if (e.target.matches(".wNum")) setItemGrams(e.target.closest("[data-key]"), parseFloat(e.target.value), "num");   // typed: never snapped
   if (e.target.matches(".wRange")) {
     const row = e.target.closest("[data-key]"), g = snap(row, parseFloat(e.target.value));
@@ -3396,7 +3419,7 @@ function doseForm() {
 const setBar = `<div class="savebar" id="setSave" hidden role="region" aria-label="Unsaved changes">
     <span class="sbtext">Unsaved changes</span><p class="err" id="setErr" role="alert"></p>
     <div class="actions"><button type="button" class="btn primary" data-act="set-save">Save changes</button><button type="button" class="btn quiet" data-act="set-discard">Discard</button></div></div>`;
-const SET_FORMS = ["offContact", "tagsForm", "qualityForm", "styleForm", "accountsForm", "pinChange", "doseForm", "logSet", "daysOff", "nsForm", "tgForm", "nsSendForm", "tpForm"];   // page order
+const SET_FORMS = ["offContact", "tagsForm", "qualityForm", "styleForm", "accountsForm", "pinChange", "doseForm", "logSet", "mealTimes", "daysOff", "nsForm", "tgForm", "nsSendForm", "tpForm"];   // page order
 const setEls = f => [...f.querySelectorAll("input, select, textarea, [data-tpserver], [data-quality]")];
 const setVals = f => setEls(f).map(i => i.matches("[data-tpserver], [data-quality]") ? i.classList.contains("on") : i.type === "checkbox" ? i.checked : i.value);
 function setBase(...ids) {   // what's saved, read from the boxes just drawn
@@ -3460,6 +3483,11 @@ const SET_SAVE = {   // each throws with the reason it couldn't be saved; a retu
   logSet: async () => {   // okf/rules/same-day-edits.md, okf/features/review-log.md
     if ($("#pastEdits").checked !== S.settings.past_edits) S.settings = await api("/api/settings/past-edits", { method: "PUT", parent: true, body: { allowed: $("#pastEdits").checked } });
     if ($("#clock12").checked !== S.settings.clock_12h) { S.settings = await api("/api/settings/clock", { method: "PUT", parent: true, body: { h12: $("#clock12").checked } }); setClock(S.settings.clock_12h); }
+  },
+  mealTimes: async () => {   // okf/features/plan-meal.md
+    const body = Object.fromEntries(MEALS.map(([k]) => [k, $(`#mt-${k}`).value]));
+    if (MEALS.some(([k]) => !body[k])) throw new Error("Each meal needs a time.");
+    S.settings = await api("/api/settings/meal-times", { method: "PUT", parent: true, body }); S.session.meal_times = S.settings.meal_times;
   },
   daysOff: async () => {
     const days = daysOffCollect();
@@ -3548,6 +3576,9 @@ async function renderSettings() {
         Off: earlier days are read-only. Moving a meal or entry to another date and time works either way.</p>
       <label class="check"><input type="checkbox" id="clock12" ${st.clock_12h ? "checked" : ""}>Show times as 12-hour (6:30 PM)</label>
       <p class="meta">For everyone in the family, in the log and the PDF export. Off: 24-hour (18:30). The CSV export stays 24-hour.</p></form>` : ""}
+    ${st ? `<form class="form" id="mealTimes"><h2>Meal times</h2>
+      <p class="meta">For Plan for later on the plate: its buttons for the next breakfast, lunch and dinner use these times.</p>
+      <div class="fieldrow">${MEALS.map(([k, n]) => `<label class="field"><span>${n}</span><input type="time" id="mt-${k}" required value="${st.meal_times[k]}"></label>`).join("")}</div></form>` : ""}
     ${st ? `<div id="offBox">${daysOffForm()}</div>` : ""}
     <div id="nsBox"></div>
     <div id="tidepoolBox"></div>
@@ -3560,7 +3591,7 @@ async function renderSettings() {
         ChromeOS, Windows or a Mac.${window.isSecureContext ? "" : " It also needs the secure address (the https name, or localhost)."}</p>`}</section>
     </div>${setBar}</div></div>`;
   setNav();   // the order the family asked for (okf/design/components/settings-nav.md)
-  S.setBase = {}; setBase("offContact", "pinChange", "doseForm", "logSet", "daysOff");
+  S.setBase = {}; setBase("offContact", "pinChange", "doseForm", "logSet", "mealTimes", "daysOff");
   renderTags(); loadStyle();
   S.accounts = null; renderAccounts(); renderPush(); renderTidepool(); renderNightscout();
 }

@@ -876,6 +876,9 @@ p.moved { margin: 6px 0 0; }
 .planedit { display: flex; gap: 8px; align-items: center; }
 .planform input[type=date], .planform input[type=time], .planedit input { flex: 0 1 auto; height: 44px; border: 1px solid var(--line); border-radius: 10px; background: var(--paper); padding: 0 10px; font-size: 16px; color: var(--ink); }
 .planform #planName { flex: 1 1 180px; height: 44px; }
+.planquick { flex: 1 1 100%; width: auto; flex-wrap: nowrap; }   /* next breakfast, lunch and dinner (okf/features/plan-meal.md) */
+.planquick button { flex: 1 1 0; min-width: 0; flex-direction: column; gap: 2px; padding: 6px 8px; line-height: 1.15; }
+.planquick small { font-size: 13px; font-weight: 400; color: var(--vein); white-space: nowrap; }
 .planedit #peName { flex: 1 1 180px; }
 
 /* Phone log: the list alone; a meal, entry or plan is a card that slides in and follows a swipe back (okf/design/components/log-card.md) */
