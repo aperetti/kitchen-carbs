@@ -2,6 +2,7 @@
 Each version is what went to the family's kitchen on that date (okf/architecture/releases.md).
 
 ## Unreleased
+- Log → Add entry now starts with a menu: Correct BG, Basal, Carbs or Something else. Each one opens a short form with just what it needs; Basal and Correct BG set the insulin type for you. "Something else" is the full form as before.
 
 ## v2026.11.14 · 14 Nov 2026
 - Log → Add entry: a new "Correct BG" works out a correction from the BG (typed, or a CGM reading under 15 minutes old), your target and correction factor, minus insulin on board, with each step shown. "Fill in" puts it in Insulin given as rapid-acting; nothing is filled in until you tap. It only works for an entry at about now.

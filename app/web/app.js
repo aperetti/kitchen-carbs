@@ -1406,35 +1406,59 @@ function logRows(d) {
       <span class="c">${e.carbs != null ? whole(e.carbs) : ""}</span></button>`).join("");
 }
 
+/* Add entry: a menu of entry types, each opening a form with only what it needs (okf/features/manual-log.md) */
+const ENTRY_TYPES = [
+  ["corr", "Correct BG", "BG and rapid-acting insulin, with the correction worked out from your settings"],
+  ["basal", "Basal", "Long-acting insulin"],
+  ["carbs", "Carbs", "Carbs not from the food list, like juice for a low"],
+  ["other", "Something else", "Any mix of BG, carbs, insulin and a note"]];
 function renderEntryForm() {
-  $("#mealDetail").innerHTML = `${cardHead("Add entry")}<form class="form" id="entryForm">
-    <h2>Add entry${S.log.data.day === localDay() ? "" : ` to ${dayLabel(S.log.data.day)}`}</h2>
-    <p class="meta">Record what happened. Leave out anything you don't have.${S.log.data.day === localDay() ? "" : " It will be marked ✎ Modified."}</p>
+  const today = S.log.data.day === localDay(), et = S.log.etype, type = ENTRY_TYPES.find(x => x[0] === et);
+  const head = `<h2>${type ? type[1] : "Add entry"}${today ? "" : ` · ${dayLabel(S.log.data.day)}`}</h2>`;
+  S.log.kind = et === "corr" ? "rapid" : et === "basal" ? "long" : null; S.log.cgmNow = null; S.log.corr = et === "corr" ? { key: null } : null;
+  if (!type) {
+    $("#mealDetail").innerHTML = `${cardHead("Add entry")}<div class="form">${head}
+      <p class="meta">What would you like to record?${today ? "" : " It will be marked ✎ Modified."}</p>
+      <div class="etypes">${ENTRY_TYPES.map(([k, n, d]) => { const off = k === "corr" && !today;
+        return `<button type="button" class="etype" data-act="entry-type" data-et="${k}" ${off ? "disabled" : ""}><b>${n}</b><span>${off ? "Today only: it uses insulin on board from now" : d}</span></button>`; }).join("")}</div>
+      <div class="actions"><button type="button" class="btn quiet" data-act="entry-cancel">Cancel</button></div></div>`;
+    return;
+  }
+  const field = (id, label, attrs) => `<label class="field"><span>${label}</span><input id="${id}" type="number" ${attrs}></label>`;
+  const bg = field("enBg", "BG from the meter, mg/dL", `inputmode="numeric" min="20" max="600" step="1"${et === "corr" ? ` placeholder="Empty: the CGM reading"` : ""}`);
+  const carbs = field("enCarbs", "Carbs, g (not from the food list)", `inputmode="decimal" min="0" max="500" step="0.5"`);
+  const ins = label => field("enIns", label, `inputmode="decimal" min="0.05" max="100" step="0.05"`);
+  const body = {
+    corr: `${bg}<div class="encorr"><div id="enCorr"></div></div>${ins("Rapid-acting insulin given, units")}`,
+    basal: ins("Long-acting insulin given, units"),
+    carbs,
+    other: `<div class="fieldrow">${bg}${carbs}</div>
+      <div class="fieldrow">${ins("Insulin given, units")}
+        <fieldset class="field tagpick"><legend>Insulin type</legend><div class="seg neutral" role="radiogroup">
+          <button type="button" data-kind="rapid">Rapid-acting</button><button type="button" data-kind="long">Long-acting</button></div></fieldset></div>` }[et];
+  const note = { corr: "e.g. pump site change", basal: "e.g. evening Lantus", carbs: "e.g. juice for a low", other: "e.g. juice for a low, pump site change" }[et];
+  $("#mealDetail").innerHTML = `${cardHead(type[1])}<form class="form" id="entryForm">
+    <button type="button" class="linkbtn eback" data-act="entry-type" data-et="">‹ Entry types</button>${head}
+    ${today ? "" : `<p class="meta">It will be marked ✎ Modified.</p>`}
     <label class="timefield">Time <input type="time" id="enTime" value="${hhmm()}" required></label>
-    <div class="fieldrow">
-      <label class="field"><span>BG from the meter, mg/dL</span><input id="enBg" type="number" inputmode="numeric" min="20" max="600" step="1"></label>
-      <label class="field"><span>Carbs, g (not from the food list)</span><input id="enCarbs" type="number" inputmode="decimal" min="0" max="500" step="0.5"></label></div>
-    <div class="fieldrow">
-      <label class="field"><span>Insulin given, units</span><input id="enIns" type="number" inputmode="decimal" min="0.05" max="100" step="0.05"></label>
-      <fieldset class="field tagpick"><legend>Insulin type</legend><div class="seg neutral" role="radiogroup">
-        <button type="button" data-kind="rapid">Rapid-acting</button><button type="button" data-kind="long">Long-acting</button></div></fieldset></div>
+    ${body}
     <p class="lowwarn" id="enLow" role="alert" hidden></p>
-    <div class="encorr"><button type="button" class="linkbtn" data-act="corr-open" aria-expanded="false">Correct BG</button><div id="enCorr" hidden></div></div>
-    <label class="field"><span>Note</span><input id="enNote" maxlength="500" placeholder="e.g. juice for a low, pump site change"></label>
+    <label class="field"><span>Note</span><input id="enNote" maxlength="500" placeholder="${note}"></label>
     <p class="err" id="enErr"></p>
     <div class="actions"><button class="btn primary" id="enSave" disabled>Save</button><button type="button" class="btn quiet" data-act="entry-cancel">Cancel</button></div>
-    <p class="note">The app records what you enter. It works out a correction only when you tap Correct BG, and never checks insulin amounts.</p></form>`;
-  S.log.kind = null; S.log.cgmNow = null; S.log.corr = null; entryPreview();
+    <p class="note">${et === "corr" ? "The correction is worked out from your settings; nothing goes in the insulin box until you tap Fill in or type it." : "The app records what you enter. It doesn't calculate or check insulin amounts."}</p></form>`;
+  entryPreview(); if (S.log.corr) { drawCorr(); corrLoad(); }
   api("/api/nightscout").then(r => { S.log.cgmNow = r.latest; if ($("#enLow")) entryPreview(); }).catch(() => { });   // for the low BG warning
 }
 function entryPreview() {
-  const v = id => $(id).value.trim(), e = { bg: v("#enBg") ? +v("#enBg") : null, carbs: v("#enCarbs") ? +v("#enCarbs") : null,
+  if (!$("#entryForm")) return;
+  const v = id => $(id)?.value.trim() ?? "", e = { bg: v("#enBg") ? +v("#enBg") : null, carbs: v("#enCarbs") ? +v("#enCarbs") : null,
     insulin: v("#enIns") ? +v("#enIns") : null, insulin_kind: S.log.kind };
   const needKind = e.insulin != null && !e.insulin_kind;
-  const any = e.bg != null || e.carbs != null || e.insulin != null || v("#enNote");
+  const any = { corr: e.bg != null || e.insulin != null, basal: e.insulin != null, carbs: e.carbs != null }[S.log.etype] ?? (e.bg != null || e.carbs != null || e.insulin != null || v("#enNote"));
   $("#enSave").disabled = !any || needKind;
   // The button repeats exactly what will be saved, so a typo like 25 for 2.5 is visible before saving.
-  $("#enSave").textContent = !any ? "Save" : needKind ? "Choose the insulin type" : `Save: ${entrySummary(e)}`;
+  $("#enSave").textContent = !any ? ({ corr: "Add the BG or insulin", basal: "Type the units given", carbs: "Type the carbs" }[S.log.etype] || "Save") : needKind ? "Choose the insulin type" : `Save: ${entrySummary(e)}`;
   document.querySelectorAll("#entryForm [data-kind]").forEach(b => b.classList.toggle("on", b.dataset.kind === S.log.kind));
   // no BG typed: the newest CGM reading counts if it's under 15 minutes old and the entry is for about now
   const c = S.log.cgmNow, age = c ? Math.max(0, Math.round((Date.now() - c.date_ms) / 60000)) : null, toMin = t => +t.slice(0, 2) * 60 + +t.slice(3, 5);
@@ -1448,7 +1472,7 @@ let corrTimer = null;
 const entryNow = () => { const t = $("#enTime")?.value || "", toMin = x => +x.slice(0, 2) * 60 + +x.slice(3, 5);
   return S.log.data.day === localDay() && /^\d\d:\d\d/.test(t) && Math.abs(toMin(t) - toMin(hhmm())) <= 15; };
 async function corrLoad() {
-  const c = S.log.corr; if (!c) return;
+  const c = S.log.corr; if (!c || !$("#enBg")) return;   // the form may have closed while it waited
   const bg = $("#enBg").value.trim(), at = $("#enTime").value;
   const key = `${bg}|${at}|${entryNow()}`; if (key === c.key && (c.data || c.err)) return drawCorr();
   c.key = key;
@@ -1459,8 +1483,6 @@ async function corrLoad() {
 }
 function drawCorr() {
   const c = S.log.corr, el = $("#enCorr"); if (!el) return;
-  el.hidden = !c; document.querySelector("[data-act=corr-open]")?.setAttribute("aria-expanded", !!c);
-  document.querySelector("[data-act=corr-open]").textContent = c ? "Hide the correction" : "Correct BG";
   if (!c) { el.innerHTML = ""; return; }
   const d = c.data, msg = t => { el.innerHTML = `<p class="meta">${t}</p>`; };
   if (!entryNow()) return msg("Correct BG works one out only for an entry at about now, because insulin on board is from now. Set the time to now to use it.");
@@ -1497,7 +1519,7 @@ function corrFill() {   // '✓ Filled in' while Insulin given holds the worked-
   const b = document.querySelector("[data-act=corr-fill]"); if (!b) return;
   const box = $("#enIns"), filled = box.value !== "" && +box.value === +b.dataset.u && S.log.kind === "rapid";
   b.disabled = filled; b.classList.toggle("done", filled);
-  b.innerHTML = filled ? `<span aria-hidden="true">✓</span> Filled in` : `<span aria-hidden="true">↑</span> Fill in ${b.dataset.u} u`;
+  b.innerHTML = filled ? `<span aria-hidden="true">✓</span> Filled in` : `<span aria-hidden="true">↓</span> Fill in ${b.dataset.u} u`;
   b.setAttribute("aria-label", filled ? `Filled in ${b.dataset.u} u` : `Fill in ${b.dataset.u} u, the correction worked out here, into Insulin given as rapid-acting`);
 }
 let confirmEntry = 0;
@@ -1921,9 +1943,9 @@ $("#v-log").addEventListener("click", async e => {
   }
   if (t.dataset.day) { const day = t.dataset.day === "today" ? localDay() : shiftDay(d.day, +t.dataset.day); S.log.sel = null; loadLog(day); }
   else if (t.dataset.period) { S.log.period = t.dataset.period === "day" ? "day" : +t.dataset.period; if (S.log.period !== "day") await loadPeriod(); renderLog(); }
-  else if (t.dataset.act === "add-entry") { S.log.adding = true; S.log.selEntry = null; renderLog(); $("#mealDetail").scrollTop = 0; openCard(); }
-  else if (t.dataset.act === "corr-open") { S.log.corr = S.log.corr ? null : { key: null }; drawCorr(); if (S.log.corr) corrLoad(); }
-  else if (t.dataset.act === "corr-fill") { $("#enIns").value = t.dataset.u; S.log.kind = "rapid"; entryPreview(); flash($("#enIns"), "flash"); }
+  else if (t.dataset.act === "add-entry") { S.log.adding = true; S.log.etype = null; S.log.selEntry = null; renderLog(); $("#mealDetail").scrollTop = 0; openCard(); }
+  else if (t.dataset.act === "entry-type") { S.log.etype = t.dataset.et || null; renderEntryForm(); $("#mealDetail").scrollTop = 0; (S.log.etype ? $("#entryForm input:not([type=time])") : $(".etype"))?.focus({ preventScroll: true }); }
+  else if (t.dataset.act === "corr-fill") { $("#enIns").value = t.dataset.u; entryPreview(); flash($("#enIns"), "flash"); $("#enIns").scrollIntoView({ block: "center", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" }); }
   else if (t.dataset.act === "entry-cancel") { if (S.log.card) return cardBack(); S.log.adding = false; renderLog(); }
   else if (t.dataset.act === "card-back") cardBack();
   else if (t.dataset.kind) { S.log.kind = S.log.kind === t.dataset.kind ? null : t.dataset.kind; entryPreview(); }
@@ -1981,7 +2003,7 @@ $("#v-log").addEventListener("submit", async e => {
   }
   if (e.target.id === "entryForm") {
     e.preventDefault();
-    const v = id => $(id).value.trim();
+    const v = id => $(id)?.value.trim() ?? "";   // each entry type has only some of the boxes
     const body = { client_id: uid(), day: S.log.data.day, time: v("#enTime"), note: v("#enNote"),
       bg: v("#enBg") ? +v("#enBg") : null, carbs: v("#enCarbs") ? +v("#enCarbs") : null,
       insulin: v("#enIns") ? +v("#enIns") : null, insulin_kind: v("#enIns") ? S.log.kind : null };
