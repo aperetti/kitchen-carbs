@@ -1419,11 +1419,12 @@ function renderEntryForm() {
       <fieldset class="field tagpick"><legend>Insulin type</legend><div class="seg neutral" role="radiogroup">
         <button type="button" data-kind="rapid">Rapid-acting</button><button type="button" data-kind="long">Long-acting</button></div></fieldset></div>
     <p class="lowwarn" id="enLow" role="alert" hidden></p>
+    <div class="encorr"><button type="button" class="linkbtn" data-act="corr-open" aria-expanded="false">Correct BG</button><div id="enCorr" hidden></div></div>
     <label class="field"><span>Note</span><input id="enNote" maxlength="500" placeholder="e.g. juice for a low, pump site change"></label>
     <p class="err" id="enErr"></p>
     <div class="actions"><button class="btn primary" id="enSave" disabled>Save</button><button type="button" class="btn quiet" data-act="entry-cancel">Cancel</button></div>
-    <p class="note">The app records what you enter. It doesn't calculate or check insulin amounts.</p></form>`;
-  S.log.kind = null; S.log.cgmNow = null; entryPreview();
+    <p class="note">The app records what you enter. It works out a correction only when you tap Correct BG, and never checks insulin amounts.</p></form>`;
+  S.log.kind = null; S.log.cgmNow = null; S.log.corr = null; entryPreview();
   api("/api/nightscout").then(r => { S.log.cgmNow = r.latest; if ($("#enLow")) entryPreview(); }).catch(() => { });   // for the low BG warning
 }
 function entryPreview() {
@@ -1440,6 +1441,64 @@ function entryPreview() {
   const now = S.log.data.day === localDay() && /^\d\d:\d\d/.test(v("#enTime")) && Math.abs(toMin(v("#enTime")) - toMin(hhmm())) <= 15;
   const cgm = e.bg == null && c && age <= 15 && now ? { sgv: c.sgv, age_min: age } : null;
   lowBolus($("#enLow"), e.bg ?? cgm?.sgv, cgm, e.insulin != null && S.log.kind !== "long");
+  if (S.log.corr) { corrFill(); clearTimeout(corrTimer); corrTimer = setTimeout(corrLoad, 400); }
+}
+/* Correct BG: a correction only, from the parent's settings, filled in only on a tap (okf/features/manual-log.md, okf/rules/no-dosing.md) */
+let corrTimer = null;
+const entryNow = () => { const t = $("#enTime")?.value || "", toMin = x => +x.slice(0, 2) * 60 + +x.slice(3, 5);
+  return S.log.data.day === localDay() && /^\d\d:\d\d/.test(t) && Math.abs(toMin(t) - toMin(hhmm())) <= 15; };
+async function corrLoad() {
+  const c = S.log.corr; if (!c) return;
+  const bg = $("#enBg").value.trim(), at = $("#enTime").value;
+  const key = `${bg}|${at}|${entryNow()}`; if (key === c.key && (c.data || c.err)) return drawCorr();
+  c.key = key;
+  if (!entryNow()) { c.data = c.err = null; return drawCorr(); }
+  try { c.data = await api(`/api/dose?carbs=0&at=${at}${bg ? `&bg=${encodeURIComponent(bg)}` : ""}`); c.err = null; }
+  catch (err) { c.data = null; c.err = err.status === 422 ? "BG must be between 20 and 600 mg/dL." : err.message || "Couldn't reach the server."; }
+  if (S.log.corr === c && c.key === key) drawCorr();
+}
+function drawCorr() {
+  const c = S.log.corr, el = $("#enCorr"); if (!el) return;
+  el.hidden = !c; document.querySelector("[data-act=corr-open]")?.setAttribute("aria-expanded", !!c);
+  document.querySelector("[data-act=corr-open]").textContent = c ? "Hide the correction" : "Correct BG";
+  if (!c) { el.innerHTML = ""; return; }
+  const d = c.data, msg = t => { el.innerHTML = `<p class="meta">${t}</p>`; };
+  if (!entryNow()) return msg("Correct BG works one out only for an entry at about now, because insulin on board is from now. Set the time to now to use it.");
+  if (c.err) return msg(esc(c.err));
+  if (!d) return msg("Working it out…");
+  if (!d.ready) return msg(`Insulin settings aren't set up, so no correction is worked out. <a href="#manage/settings">Add the correction factor and target in Manage → Settings</a>.`);
+  const k = d.calc, i = d.iob, row = (l, f, a = "") => `<div class="bdrow"><span class="bdl">${l}</span><span class="bdf">${f}</span><span class="bda">${a}</span></div>`;
+  if (k.bg == null) return msg(d.cgm && !d.cgm_fresh ? "No CGM reading in the last 15 minutes. Type the meter reading in BG to work out a correction."
+    : d.nightscout ? "No BG yet. Type the meter reading in BG to work out a correction." : "Nightscout isn't connected. Type the meter reading in BG to work out a correction.");
+  const from = d.bg_source === "cgm" ? `CGM, ${agoMin(d.cgm.age_min)}` : "meter";
+  const bgRow = row("Blood glucose", `${k.bg} mg/dL (${from})`);
+  if (k.correction_u <= 0) { el.innerHTML = `<div class="sumrows">${bgRow}</div>
+      <p class="meta">BG is at or under the target of ${k.target} mg/dL, so there's no correction to add.</p>
+      ${k.bg < LOW_BG ? `<p class="sumlow" role="alert">BG is low: ${k.bg} mg/dL. Treat the low first and follow the care team's plan.</p>` : ""}`; return corrFill(); }
+  const iobF = !d.nightscout ? "Nightscout isn't connected" : !i ? `Unavailable${d.ns_error ? " (Nightscout unreachable)" : ""}` : !d.iob_fresh ? `${u2(i.units)} u, ${i.age_min} min old, too old`
+    : `${u2(i.units)} u, ${esc(i.source)}, ${agoMin(i.age_min)}`;
+  const r = d.recent_correction;
+  const recent = r ? `<p class="sumlow" role="alert">A correction was given recently: ${esc(fmtU(r.units))} at ${clk(new Date(r.ms).toTimeString().slice(0, 5))}, ${hm(r.age_min)} ago,
+      ${r.source === "log" ? "in the log" : "from Nightscout"}. It may still be acting. Check against the pump and the care team's plan before adding another.</p>` : "";
+  const high = d.bg_source === "typed" && k.bg >= HIGH_BG_CHECK
+    ? `<p class="sumlow" role="alert">High BG check: ${k.bg} mg/dL was typed in. Make sure it's the right number before using the correction.</p>` : "";
+  const noIob = !(i && d.iob_fresh) ? `<p class="sumwarn" role="alert"><span aria-hidden="true">⚠</span> No insulin on board taken off.</p>` : "";
+  el.innerHTML = `<div class="sumrows">${bgRow}
+      ${row("Correction", `(${k.bg} − ${k.target}) ÷ ${k.isf}`, `+${u2(k.correction_u)} u`)}
+      ${row("Insulin on board", iobF, `−${u2(k.iob_off)} u`)}
+      <div class="bdsep"></div>
+      ${row("Total", `${(+k.total_exact).toFixed(3).replace(/0$/, "")} u, rounded down to ${k.round_to ?? 0.05}`, `<b>${u2(k.dose)} u</b>`)}</div>
+    ${noIob}${high}${recent}
+    <div class="corruse">${k.dose > 0 ? `<button type="button" class="btn small sumuse" data-act="corr-fill" data-u="${u2(k.dose)}"></button>` : ""}
+      <span class="meta">Worked out from your settings${d.updated ? ` (changed ${dayLabel(d.updated)})` : ""}. Check it against the pump before giving.</span></div>`;
+  corrFill();
+}
+function corrFill() {   // '✓ Filled in' while Insulin given holds the worked-out amount as rapid-acting
+  const b = document.querySelector("[data-act=corr-fill]"); if (!b) return;
+  const box = $("#enIns"), filled = box.value !== "" && +box.value === +b.dataset.u && S.log.kind === "rapid";
+  b.disabled = filled; b.classList.toggle("done", filled);
+  b.innerHTML = filled ? `<span aria-hidden="true">✓</span> Filled in` : `<span aria-hidden="true">↑</span> Fill in ${b.dataset.u} u`;
+  b.setAttribute("aria-label", filled ? `Filled in ${b.dataset.u} u` : `Fill in ${b.dataset.u} u, the correction worked out here, into Insulin given as rapid-acting`);
 }
 let confirmEntry = 0;
 function renderEntry(e) {
@@ -1863,6 +1922,8 @@ $("#v-log").addEventListener("click", async e => {
   if (t.dataset.day) { const day = t.dataset.day === "today" ? localDay() : shiftDay(d.day, +t.dataset.day); S.log.sel = null; loadLog(day); }
   else if (t.dataset.period) { S.log.period = t.dataset.period === "day" ? "day" : +t.dataset.period; if (S.log.period !== "day") await loadPeriod(); renderLog(); }
   else if (t.dataset.act === "add-entry") { S.log.adding = true; S.log.selEntry = null; renderLog(); $("#mealDetail").scrollTop = 0; openCard(); }
+  else if (t.dataset.act === "corr-open") { S.log.corr = S.log.corr ? null : { key: null }; drawCorr(); if (S.log.corr) corrLoad(); }
+  else if (t.dataset.act === "corr-fill") { $("#enIns").value = t.dataset.u; S.log.kind = "rapid"; entryPreview(); flash($("#enIns"), "flash"); }
   else if (t.dataset.act === "entry-cancel") { if (S.log.card) return cardBack(); S.log.adding = false; renderLog(); }
   else if (t.dataset.act === "card-back") cardBack();
   else if (t.dataset.kind) { S.log.kind = S.log.kind === t.dataset.kind ? null : t.dataset.kind; entryPreview(); }

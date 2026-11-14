@@ -170,3 +170,4 @@
 - 2026-11-10 — Meal summary: 'Use 2.10 u' became '← Fill in 2.10 u', outlined, with '✓ Filled in' after a tap (features/meal-dose-summary.md, rules/no-dosing.md).
 - 2026-11-12 — Favorite plate photo: an optional 'Direction for Gemini', kept with the favorite; the ⓘ's name box sits above 'Rename' (features/favorite-plates.md).
 - 2026-11-12 — Plan for later: buttons for the next breakfast, lunch and dinner in 24 hours, with their times set in Manage → Settings → Meal times (features/plan-meal.md).
+- 2026-11-13 — Add entry: 'Correct BG' works out a correction only from the BG, target, correction factor and insulin on board, with '← Fill in … u'; the no-dosing rule now names it (features/manual-log.md, rules/no-dosing.md).

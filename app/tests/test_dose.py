@@ -38,6 +38,15 @@ def test_iob_only_comes_off_the_correction():
     assert dose.calc(5, 40, None, s, "12:00")["dose"] == 0           # never below zero
 
 
+def test_correct_bg_is_the_correction_only():
+    """okf/features/manual-log.md: Add entry's Correct BG asks with no carbs, so only BG, target, factor and IOB count."""
+    s = dose.check_settings(SETTINGS)
+    r = dose.calc(0, 210, 0.6, s, "18:30")                           # (210 − 120) ÷ 50 = 1.8, less 0.6 on board
+    assert r["carb_u"] == 0 and r["correction_u"] == 1.8 and r["iob_off"] == 0.6 and r["dose"] == 1.2
+    assert dose.calc(0, 100, None, s, "18:30")["dose"] == 0           # under target: nothing to add, never below zero
+    assert dose.calc(0, 150, 2, s, "18:30")["dose"] == 0              # IOB covers it
+
+
 def test_settings_are_checked():
     for bad, msg in (({**SETTINGS, "carb_ratio": [{"start": "06:00", "value": 12}]}, "00:00"),
                      ({**SETTINGS, "isf": [{"start": "00:00", "value": 2}]}, "between 5 and 500"),

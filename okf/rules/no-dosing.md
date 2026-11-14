@@ -1,17 +1,18 @@
 ---
 type: Rule
-title: "Dosing only in the meal summary"
-description: "One place calculates insulin: the summary shown when a meal is saved, from the parent's own ratios, with every step shown. Nothing else in the app suggests, checks or fills in a dose."
+title: "Dosing only in the meal summary and Correct BG"
+description: "Two places calculate insulin, both from the parent's own settings with every step shown: the summary shown when a meal is saved, and Add entry's Correct BG. Nothing else in the app suggests, checks or fills in a dose."
 tags: [safety]
-timestamp: 2026-10-29
+timestamp: 2026-11-13
 status: draft
 links:
-  applies_to: [features/meal-dose-summary.md, domain/insulin-settings.md]
+  applies_to: [features/meal-dose-summary.md, features/manual-log.md, domain/insulin-settings.md]
 ---
 # Dosing only in the meal summary
 Until 29 Oct the app never calculated insulin. On 29 Oct the parent decided the meal summary should show a calculated dose
-(okf/features/meal-dose-summary.md). Everywhere else the old rule stands.
-- Only the meal summary calculates. The log, stats, food cards and manual entries never suggest, check or pre-fill a dose;
+(okf/features/meal-dose-summary.md). On 13 Nov the parent added a correction-only version to Log → Add entry, 'Correct BG'
+(okf/features/manual-log.md), with the same rules below. Everywhere else the old rule stands.
+- Only the meal summary and Add entry's Correct BG calculate. The log, stats, food cards and entries never suggest, check or pre-fill a dose;
   insulin in the log is still only what a parent typed (okf/domain/manual-entry.md, okf/domain/meal.md). The insulin box
   in the meal summary starts empty. Beside it, '← Fill in 2.10 u' copies the calculated dose in with one tap (decided 8 Nov,
   instead of pre-filling: nothing is logged as given unless someone taps it or types it; called 'Use 2.10 u' until

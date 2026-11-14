@@ -733,7 +733,7 @@ p.moved { margin: 6px 0 0; }
 .btn.sumuse:hover:not(:disabled) { background: var(--accent); color: var(--paper); }
 .btn.sumuse.done { border-color: var(--line); color: var(--vein); background: none; opacity: 1; }
 @keyframes fillflash { from { background: color-mix(in srgb, var(--accent) 22%, var(--paper)); border-color: var(--accent); } }
-.mdet .unitin input.flash { animation: fillflash 1.2s ease-out; }
+.mdet .unitin input.flash, #enIns.flash { animation: fillflash 1.2s ease-out; }
 .spair { display: inline-flex; align-items: center; gap: 10px; }
 .spair + .spair > label { width: auto; margin-left: 6px; }
 .srow input[type="date"], .srow input[type="time"] { height: 44px; border: 1px solid var(--line); border-radius: 10px; background: var(--paper); padding: 0 10px; font-size: 16px; color: var(--ink); }
@@ -742,6 +742,8 @@ p.moved { margin: 6px 0 0; }
 .sumdose .n { font-size: 56px; font-weight: 500; line-height: 1; color: var(--accent); font-variant-numeric: tabular-nums; }
 .sumdose .u { font-size: 22px; color: var(--accent); }
 .sumlow { color: var(--warn); font-weight: 500; }
+.encorr { display: grid; gap: 10px; justify-items: start; } .encorr #enCorr { display: grid; gap: 8px; width: 100%; padding: 12px 14px; border-radius: var(--r); background: var(--sunk); }   /* Correct BG (okf/features/manual-log.md) */
+.encorr #enCorr[hidden] { display: none; } .encorr p { margin: 0; } .corruse { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
 /* ⓘ with a tap-to-open popover */
 .tipwrap { display: inline-block; vertical-align: middle; }
 .label:has(.tip), .bdl:has(.tip), .aftitle:has(.tip) { position: relative; }   /* the popover starts under the label, not the ⓘ, so it stays on screen */

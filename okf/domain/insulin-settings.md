@@ -6,7 +6,7 @@ tags: [domain, safety]
 timestamp: 2026-11-05
 status: draft
 links:
-  used_by: [features/meal-dose-summary.md, domain/insulin-effect.md]
+  used_by: [features/meal-dose-summary.md, features/manual-log.md, domain/insulin-effect.md]
   governed_by: [rules/no-dosing.md, rules/glucose-units.md]
 ---
 # Insulin settings
