@@ -933,6 +933,7 @@ function openSummary() {
             <input type="date" id="sumDay" value="${S.sum.day}" max="${localDay()}" required hidden aria-label="Day the meal was eaten">
             <input type="time" id="sumAt" value="${S.sum.at}" required></div>
         </div><p class="lowwarn" id="sumLow" role="alert" hidden></p></div>
+      <div class="sumask" id="sumNoIns" role="alert" hidden></div>
       <div class="actions sumacts"><button class="btn primary" data-sum="save">Save to log</button><button class="btn quiet" data-sum="close">Back to plate</button></div>
     </div>`;
   doseDlg.showModal(); loadDose();
@@ -1086,7 +1087,7 @@ doseDlg.addEventListener("change", e => {   // date or time of the meal: heading
 doseDlg.addEventListener("input", () => setTimeout(sumLow));   // after the BG box and the Bolus / Basal switch have moved
 doseDlg.addEventListener("click", e => { if (e.target.closest("[data-dkind]")) setTimeout(sumLow); });
 doseDlg.addEventListener("input", e => {
-  if (e.target.id === "sumIns") return useLabel();
+  if (e.target.id === "sumIns") { $("#sumNoIns").hidden = true; return useLabel(); }
   if (e.target.id !== "sumBg" || !S.sum) return;
   S.sum.typed = true; S.sum.bg = e.target.value.trim();
   clearTimeout(doseTimer); doseTimer = setTimeout(loadDose, 400);
@@ -1102,7 +1103,21 @@ doseDlg.addEventListener("click", async e => {
     const box = doseDlg.querySelector(".mdet .dIns"); box.value = +t.dataset.u; doseDlg.querySelector(".mdet [data-dkind=bolus]").click();
     box.classList.remove("flash"); void box.offsetWidth; box.classList.add("flash"); useLabel();
   }
+  else if (t.dataset.sum === "noins-add") {   // to the Dose box, nothing filled in (okf/features/meal-dose-summary.md)
+    $("#sumNoIns").hidden = true; const box = $("#sumIns");
+    box.scrollIntoView({ block: "center", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+    box.focus({ preventScroll: true }); flash(box, "flash");
+  }
+  else if (t.dataset.sum === "noins-save") { $("#sumNoIns").hidden = true; S.sum.noInsOk = true; doseDlg.querySelector("[data-sum=save]").click(); }
   else if (t.dataset.sum === "save") {
+    // no insulin typed while a dose is worked out: ask once before saving; a reminder, never a check of an amount
+    const dose = S.sum.data?.ready ? S.sum.data.calc.dose : 0, ask = $("#sumNoIns");
+    if (dose > 0 && !$("#sumIns").value.trim() && !S.sum.noInsOk) {
+      ask.innerHTML = `<p>No insulin is entered, but ${u2(dose)} u is worked out for this meal. If it was given or logged somewhere else, you can save without it.</p>
+        <div class="actions"><button type="button" class="btn primary" data-sum="noins-add">Add the insulin</button><button type="button" class="btn" data-sum="noins-save">Save without insulin</button></div>`;
+      ask.hidden = false; ask.scrollIntoView({ block: "nearest" }); ask.querySelector("button").focus({ preventScroll: true }); return;
+    }
+    S.sum.noInsOk = false;
     let extra;
     try {
       const day = $("#sumDay").value, time = $("#sumAt").value;

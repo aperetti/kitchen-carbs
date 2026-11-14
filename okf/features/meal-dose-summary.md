@@ -3,7 +3,7 @@ type: Feature
 title: "Meal summary and dose"
 description: "Tapping 'Save to log' opens a summary of the plate with the insulin worked out from the parent's ratios, the BG and insulin on board, step by step."
 tags: [feature, safety]
-timestamp: 2026-11-05
+timestamp: 2026-11-14
 status: draft
 links:
   uses: [domain/plate.md, domain/insulin-settings.md, domain/glucose-reading.md]
@@ -80,6 +80,12 @@ Decided 29 Oct. 'Save to log' on the plate opens a modal before anything is save
   heading. When the meal is set more than 15 minutes before now (or more than 120 after), the BG box isn't filled in from the CGM (that reading
   is from now, not the meal) and a line says so: type the meter reading from then. Insulin on board is still now's.
   A meal saved to an earlier day is marked ✎ like an entry added to an earlier day (okf/rules/same-day-edits.md).
+- No insulin typed (decided 14 Nov): when 'Save to log' is tapped with the Dose box empty and a dose above 0 u worked
+  out, it asks first, above the buttons: 'No insulin is entered, but 2.05 u is worked out for this meal. If it was given
+  or logged somewhere else, you can save without it.' with 'Add the insulin' and 'Save without insulin'. 'Add the
+  insulin' closes the question and brings the Dose box into view with the cursor in it (flashed, nothing filled in);
+  'Save without insulin' saves as is. Typing in the box also closes it. Any amount typed, of either kind, saves
+  without asking; it never checks the amount.
 - Buttons: 'Save to log' saves the meal with these details; 'Back to plate' closes the modal. The dose isn't saved or sent anywhere.
 - 'Worked out from your settings (changed …). Check it against the pump before giving.': behind an ⓘ beside
   'Insulin for this meal', in the same tap-to-open popover (decided 8 Nov; it was a footnote).

@@ -3,7 +3,7 @@ type: Rule
 title: "Dosing only in the meal summary and Correct BG"
 description: "Two places calculate insulin, both from the parent's own settings with every step shown: the summary shown when a meal is saved, and Add entry's Correct BG. Nothing else in the app suggests, checks or fills in a dose."
 tags: [safety]
-timestamp: 2026-11-13
+timestamp: 2026-11-14
 status: draft
 links:
   applies_to: [features/meal-dose-summary.md, features/manual-log.md, domain/insulin-settings.md]
@@ -18,6 +18,8 @@ Until 29 Oct the app never calculated insulin. On 29 Oct the parent decided the 
   instead of pre-filling: nothing is logged as given unless someone taps it or types it; called 'Use 2.10 u' until
   10 Nov, when it confused a family member). Once in the box it is an
   ordinary typed amount: it doesn't follow later changes to the dose, and can be changed or cleared before saving.
+- Asking before a meal is saved with no insulin while a dose was worked out (decided 14 Nov,
+  okf/features/meal-dose-summary.md) is a reminder, not a check: it fills nothing in and never looks at a typed amount.
 - A warning when a bolus is typed with a BG under 70 mg/dL (okf/rules/low-bg-bolus-warning.md, decided 3 Nov) is not a
   dose check: it says nothing about the amount and never blocks saving.
 - Inputs are the parent's own settings, set behind the parent PIN (okf/domain/insulin-settings.md). No settings, no number.

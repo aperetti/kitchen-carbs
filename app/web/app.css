@@ -742,6 +742,8 @@ p.moved { margin: 6px 0 0; }
 .sumdose .n { font-size: 56px; font-weight: 500; line-height: 1; color: var(--accent); font-variant-numeric: tabular-nums; }
 .sumdose .u { font-size: 22px; color: var(--accent); }
 .sumlow { color: var(--warn); font-weight: 500; }
+.sumask { border: 1.5px solid var(--warn); border-radius: var(--r); padding: 12px 14px; display: grid; gap: 10px; scroll-margin-bottom: 110px; }   /* clear of the sticky Save bar */
+ .sumask[hidden] { display: none; } .sumask p { margin: 0; font-weight: 500; } .sumask .actions { margin: 0; }   /* no insulin typed (okf/features/meal-dose-summary.md) */
 .etypes { display: grid; gap: 10px; }   /* Add entry's menu of entry types (okf/features/manual-log.md) */
 .etype { display: grid; gap: 2px; text-align: left; min-height: 64px; padding: 12px 16px; border: 1px solid var(--line); border-radius: var(--r); background: var(--paper); color: var(--ink); cursor: pointer; }
 .etype b { font-weight: 500; font-size: 17px; } .etype span { font-size: 15px; color: var(--vein); }

@@ -2,6 +2,7 @@
 Each version is what went to the family's kitchen on that date (okf/architecture/releases.md).
 
 ## Unreleased
+- Meal summary: if you tap Save to log without entering insulin while a dose is worked out, it asks first. "Add the insulin" takes you to the Dose box; "Save without insulin" saves as is (for when it was given or logged somewhere else).
 - Correct BG now starts with the latest CGM reading in the BG box when it's under 15 minutes old, with where it came from shown underneath. Type over it to use a meter reading instead. A BG saved from the CGM is marked "(CGM)" in the log and exports, and isn't sent to Nightscout or Tidepool as a fingerstick.
 
 ## v2026.11.14.2 · 14 Nov 2026
