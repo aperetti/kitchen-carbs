@@ -2,6 +2,8 @@
 Each version is what went to the family's kitchen on that date (okf/architecture/releases.md).
 
 ## Unreleased
+
+## v2026.11.14.2 · 14 Nov 2026
 - Log → Add entry now starts with a menu: Correct BG, Basal, Carbs or Something else. Each one opens a short form with just what it needs; Basal and Correct BG set the insulin type for you. "Something else" is the full form as before.
 
 ## v2026.11.14 · 14 Nov 2026
