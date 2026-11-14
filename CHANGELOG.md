@@ -2,6 +2,7 @@
 Each version is what went to the family's kitchen on that date (okf/architecture/releases.md).
 
 ## Unreleased
+- Correct BG now starts with the latest CGM reading in the BG box when it's under 15 minutes old, with where it came from shown underneath. Type over it to use a meter reading instead. A BG saved from the CGM is marked "(CGM)" in the log and exports, and isn't sent to Nightscout or Tidepool as a fingerstick.
 
 ## v2026.11.14.2 · 14 Nov 2026
 - Log → Add entry now starts with a menu: Correct BG, Basal, Carbs or Something else. Each one opens a short form with just what it needs; Basal and Correct BG set the insulin type for you. "Something else" is the full form as before.

@@ -23,7 +23,7 @@ links:
   settings, the same way as the meal summary's (okf/features/meal-dose-summary.md, okf/rules/no-dosing.md): BG − target
   ÷ correction factor at the entry's time, insulin on board from Nightscout taken off (if fresh; otherwise it says none
   was), rounded down to the dose step and never below zero, each step on its own line. The form has no carbs box, and no
-  carbs are counted. The BG box starts with the latest CGM reading when it is under 15 minutes old and the entry is for about now
+  carbs are counted. The BG box ('BG, mg/dL') starts with the latest CGM reading when it is under 15 minutes old and the entry is for about now
   (decided 14 Nov), with a line under it: 'From the CGM: 169 ↗, 3 min ago. Type over it to use a meter reading.' An
   older reading is named with its age ('Latest CGM: 182, 40 min ago, too old to use') and the box left empty. Typed
   over, it is a meter reading; cleared, there is no BG and no correction. Saved as typed or as the CGM's, with its
