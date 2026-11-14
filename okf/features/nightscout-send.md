@@ -3,7 +3,7 @@ type: Feature
 title: "Send to Nightscout"
 description: "A parent turns on sending the log's carbs, rapid-acting insulin and meter BG to Nightscout as treatments, so OpenAPS (or another app reading Nightscout) can forecast with them. Kept in step as meals and entries are added, changed or deleted."
 tags: [feature, nightscout]
-timestamp: 2026-11-01
+timestamp: 2026-11-14
 status: draft
 links:
   uses: [domain/meal.md, domain/manual-entry.md, domain/meal-log.md]
@@ -22,7 +22,7 @@ Nightscout for forecasting with OpenAPS, not a closed loop. Last 30 days include
     'Long-acting insulin 12 u', never as insulin (okf/rules/nightscout-sends-what-was-logged.md).
   - **Planned meals** (with Carbs): a 'Note' at the planned time with the foods and carbs in its text only, never in
     the carbs field; replaced by the Meal Bolus when it's saved to the log (okf/features/plan-meal.md).
-  - **Meter BG**: a typed meter reading as a 'BG Check' (finger, mg/dL). A meal's BG from the CGM is never sent.
+  - **Meter BG**: a typed meter reading as a 'BG Check' (finger, mg/dL). A meal's or entry's BG from the CGM is never sent.
 - The token must allow `api:treatments:*` (create, update and delete) as well as reading. Saving checks the token's
   permissions with Nightscout first, and says how to add the role if it can't send: Admin tools → Roles → Add new
   role 'kitchencarbs' with permission `api:treatments:*`; give that role and 'readable' to the token's subject.

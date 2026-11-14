@@ -172,3 +172,4 @@
 - 2026-11-12 — Plan for later: buttons for the next breakfast, lunch and dinner in 24 hours, with their times set in Manage → Settings → Meal times (features/plan-meal.md).
 - 2026-11-13 — Add entry: 'Correct BG' works out a correction only from the BG, target, correction factor and insulin on board, with '← Fill in … u'; the no-dosing rule now names it (features/manual-log.md, rules/no-dosing.md).
 - 2026-11-14 — Add entry starts with a menu of entry types (Correct BG, Basal, Carbs, Something else), each opening a form with only what it needs (features/manual-log.md).
+- 2026-11-14 — Correct BG starts with the latest CGM reading (under 15 min old) in the BG box; entries keep their BG's source (meter | cgm) like meals, and a CGM BG is never sent as a meter reading (features/manual-log.md, domain/manual-entry.md).

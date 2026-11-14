@@ -1364,7 +1364,7 @@ function statLine(d) {
 }
 const KIND = { rapid: "rapid-acting", long: "long-acting", bolus: "bolus", basal: "basal" };
 const fmtU = u => `${(+u).toFixed(2).replace(/0$/, "")} u`;           // 2.5 -> "2.50" -> "2.5 u"; 0.05 stays
-const entrySummary = e => [e.bg != null && `BG ${e.bg}`, e.insulin != null && `${fmtU(e.insulin)} ${KIND[e.insulin_kind]}`,
+const entrySummary = e => [e.bg != null && `BG ${e.bg}${e.bg_source === "cgm" ? " (CGM)" : ""}`, e.insulin != null && `${fmtU(e.insulin)} ${KIND[e.insulin_kind]}`,
   e.carbs != null && `${+e.carbs} g carbs`].filter(Boolean).join(" · ") || "Note";
 
 /* Date and time can change on any day; the log only marks that it changed, the export keeps when (okf/rules/same-day-edits.md) */
@@ -1415,7 +1415,7 @@ const ENTRY_TYPES = [
 function renderEntryForm() {
   const today = S.log.data.day === localDay(), et = S.log.etype, type = ENTRY_TYPES.find(x => x[0] === et);
   const head = `<h2>${type ? type[1] : "Add entry"}${today ? "" : ` · ${dayLabel(S.log.data.day)}`}</h2>`;
-  S.log.kind = et === "corr" ? "rapid" : et === "basal" ? "long" : null; S.log.cgmNow = null; S.log.corr = et === "corr" ? { key: null } : null;
+  S.log.kind = et === "corr" ? "rapid" : et === "basal" ? "long" : null; S.log.cgmNow = null; S.log.cgmFill = null; S.log.bgTouched = false; S.log.corr = et === "corr" ? { key: null } : null;
   if (!type) {
     $("#mealDetail").innerHTML = `${cardHead("Add entry")}<div class="form">${head}
       <p class="meta">What would you like to record?${today ? "" : " It will be marked ✎ Modified."}</p>
@@ -1425,11 +1425,11 @@ function renderEntryForm() {
     return;
   }
   const field = (id, label, attrs) => `<label class="field"><span>${label}</span><input id="${id}" type="number" ${attrs}></label>`;
-  const bg = field("enBg", "BG from the meter, mg/dL", `inputmode="numeric" min="20" max="600" step="1"${et === "corr" ? ` placeholder="Empty: the CGM reading"` : ""}`);
+  const bg = field("enBg", et === "corr" ? "BG, mg/dL" : "BG from the meter, mg/dL", `inputmode="numeric" min="20" max="600" step="1"${et === "corr" ? ` placeholder="Empty: the CGM reading"` : ""}`);
   const carbs = field("enCarbs", "Carbs, g (not from the food list)", `inputmode="decimal" min="0" max="500" step="0.5"`);
   const ins = label => field("enIns", label, `inputmode="decimal" min="0.05" max="100" step="0.05"`);
   const body = {
-    corr: `${bg}<div class="encorr"><div id="enCorr"></div></div>${ins("Rapid-acting insulin given, units")}`,
+    corr: `${bg}<p class="meta" id="enBgNote" hidden></p><div class="encorr"><div id="enCorr"></div></div>${ins("Rapid-acting insulin given, units")}`,
     basal: ins("Long-acting insulin given, units"),
     carbs,
     other: `<div class="fieldrow">${bg}${carbs}</div>
@@ -1452,8 +1452,9 @@ function renderEntryForm() {
 }
 function entryPreview() {
   if (!$("#entryForm")) return;
+  cgmPrefill();
   const v = id => $(id)?.value.trim() ?? "", e = { bg: v("#enBg") ? +v("#enBg") : null, carbs: v("#enCarbs") ? +v("#enCarbs") : null,
-    insulin: v("#enIns") ? +v("#enIns") : null, insulin_kind: S.log.kind };
+    insulin: v("#enIns") ? +v("#enIns") : null, insulin_kind: S.log.kind, bg_source: bgFromCgm() ? "cgm" : "meter" };
   const needKind = e.insulin != null && !e.insulin_kind;
   const any = { corr: e.bg != null || e.insulin != null, basal: e.insulin != null, carbs: e.carbs != null }[S.log.etype] ?? (e.bg != null || e.carbs != null || e.insulin != null || v("#enNote"));
   $("#enSave").disabled = !any || needKind;
@@ -1463,12 +1464,29 @@ function entryPreview() {
   // no BG typed: the newest CGM reading counts if it's under 15 minutes old and the entry is for about now
   const c = S.log.cgmNow, age = c ? Math.max(0, Math.round((Date.now() - c.date_ms) / 60000)) : null, toMin = t => +t.slice(0, 2) * 60 + +t.slice(3, 5);
   const now = S.log.data.day === localDay() && /^\d\d:\d\d/.test(v("#enTime")) && Math.abs(toMin(v("#enTime")) - toMin(hhmm())) <= 15;
-  const cgm = e.bg == null && c && age <= 15 && now ? { sgv: c.sgv, age_min: age } : null;
+  const cgm = bgFromCgm() ? { sgv: e.bg, age_min: age } : e.bg == null && c && age <= 15 && now ? { sgv: c.sgv, age_min: age } : null;
   lowBolus($("#enLow"), e.bg ?? cgm?.sgv, cgm, e.insulin != null && S.log.kind !== "long");
   if (S.log.corr) { corrFill(); clearTimeout(corrTimer); corrTimer = setTimeout(corrLoad, 400); }
 }
 /* Correct BG: a correction only, from the parent's settings, filled in only on a tap (okf/features/manual-log.md, okf/rules/no-dosing.md) */
 let corrTimer = null;
+/* Correct BG's BG box starts with the latest CGM reading when it's under 15 minutes old (okf/features/manual-log.md);
+   it is saved as the CGM's unless typed over */
+const cgmAge = () => { const c = S.log.cgmNow; return c ? Math.max(0, Math.round((Date.now() - c.date_ms) / 60000)) : null; };
+const bgFromCgm = () => !!S.log.cgmFill && $("#enBg")?.value.trim() === String(S.log.cgmFill.sgv);
+function cgmPrefill() {
+  const box = $("#enBg"), note = $("#enBgNote"), c = S.log.cgmNow; if (S.log.etype !== "corr" || !box || !note) return;
+  const fresh = c && cgmAge() <= 15 && entryNow();
+  if (!S.log.bgTouched) {
+    if (fresh && !box.value) { box.value = c.sgv; S.log.cgmFill = { sgv: c.sgv }; }
+    else if (!fresh && bgFromCgm()) { box.value = ""; S.log.cgmFill = null; }   // the time moved away from now
+  }
+  note.hidden = !c && !bgFromCgm();
+  note.textContent = bgFromCgm() ? `From the CGM: ${c.sgv}${ARROWS[c.direction] ? ` ${ARROWS[c.direction]}` : ""}, ${agoMin(cgmAge())}. Type over it to use a meter reading.`
+    : !c ? "" : box.value.trim() ? `Meter reading. The latest CGM is ${c.sgv}, ${agoMin(cgmAge())}.`
+    : cgmAge() > 15 ? `Latest CGM: ${c.sgv}, ${agoMin(cgmAge())}, too old to use. Type a meter reading.`
+    : entryNow() ? `No BG. The latest CGM is ${c.sgv}, ${agoMin(cgmAge())}.` : `The latest CGM reading is from now, not the entry's time. Type the meter reading from then.`;
+}
 const entryNow = () => { const t = $("#enTime")?.value || "", toMin = x => +x.slice(0, 2) * 60 + +x.slice(3, 5);
   return S.log.data.day === localDay() && /^\d\d:\d\d/.test(t) && Math.abs(toMin(t) - toMin(hhmm())) <= 15; };
 async function corrLoad() {
@@ -1477,7 +1495,7 @@ async function corrLoad() {
   const key = `${bg}|${at}|${entryNow()}`; if (key === c.key && (c.data || c.err)) return drawCorr();
   c.key = key;
   if (!entryNow()) { c.data = c.err = null; return drawCorr(); }
-  try { c.data = await api(`/api/dose?carbs=0&at=${at}${bg ? `&bg=${encodeURIComponent(bg)}` : ""}`); c.err = null; }
+  try { c.data = await api(`/api/dose?carbs=0&at=${at}${bg ? `&bg=${encodeURIComponent(bg)}` : "&use_cgm=false"}`); c.err = null; }
   catch (err) { c.data = null; c.err = err.status === 422 ? "BG must be between 20 and 600 mg/dL." : err.message || "Couldn't reach the server."; }
   if (S.log.corr === c && c.key === key) drawCorr();
 }
@@ -1490,9 +1508,8 @@ function drawCorr() {
   if (!d) return msg("Working it out…");
   if (!d.ready) return msg(`Insulin settings aren't set up, so no correction is worked out. <a href="#manage/settings">Add the correction factor and target in Manage → Settings</a>.`);
   const k = d.calc, i = d.iob, row = (l, f, a = "") => `<div class="bdrow"><span class="bdl">${l}</span><span class="bdf">${f}</span><span class="bda">${a}</span></div>`;
-  if (k.bg == null) return msg(d.cgm && !d.cgm_fresh ? "No CGM reading in the last 15 minutes. Type the meter reading in BG to work out a correction."
-    : d.nightscout ? "No BG yet. Type the meter reading in BG to work out a correction." : "Nightscout isn't connected. Type the meter reading in BG to work out a correction.");
-  const from = d.bg_source === "cgm" ? `CGM, ${agoMin(d.cgm.age_min)}` : "meter";
+  if (k.bg == null) return msg("Type the meter reading in BG to work out a correction.");
+  const from = bgFromCgm() ? `CGM, ${agoMin(cgmAge())}` : "meter";
   const bgRow = row("Blood glucose", `${k.bg} mg/dL (${from})`);
   if (k.correction_u <= 0) { el.innerHTML = `<div class="sumrows">${bgRow}</div>
       <p class="meta">BG is at or under the target of ${k.target} mg/dL, so there's no correction to add.</p>
@@ -1529,7 +1546,7 @@ function renderEntry(e) {
   $("#mealDetail").innerHTML = `${cardHead(`Entry at ${clk(e.time)}`)}<div class="mdh"><b>${clk(e.time)}</b>${e.carbs != null ? `<span class="c">${+e.carbs} <small>g carbs</small></span>` : ""}${detailTools(ed ? [`<button type="button" data-act="del-entry">Delete entry</button>`] : [])}</div>
     ${ed && edit ? `<form class="form entval" id="entValForm">
       <div class="fieldrow">
-        <label class="field"><span>BG from the meter, mg/dL</span><input id="evBg" type="number" inputmode="numeric" min="20" max="600" step="1" value="${val(e.bg)}"></label>
+        <label class="field"><span>${e.bg_source === "cgm" ? "BG from the CGM, mg/dL (a new number makes it a meter reading)" : "BG from the meter, mg/dL"}</span><input id="evBg" type="number" inputmode="numeric" min="20" max="600" step="1" value="${val(e.bg)}"></label>
         <label class="field"><span>Carbs, g (not from the food list)</span><input id="evCarbs" type="number" inputmode="decimal" min="0" max="500" step="0.5" value="${e.carbs != null ? +e.carbs : ""}"></label></div>
       <div class="fieldrow">
         <label class="field"><span>Insulin given, units</span><input id="evIns" type="number" inputmode="decimal" min="0.05" max="100" step="0.05" value="${val(e.insulin)}"></label>
@@ -1537,7 +1554,7 @@ function renderEntry(e) {
           ${["rapid", "long"].map(k => `<button type="button" data-ekind="${k}" class="${e.insulin_kind === k ? "on" : ""}" aria-pressed="${e.insulin_kind === k}">${k === "rapid" ? "Rapid-acting" : "Long-acting"}</button>`).join("")}</div></fieldset></div>
       <label class="field"><span>Note</span><input id="evNote" maxlength="500" value="${esc(e.note || "")}"></label>
       <p class="note">The app records what you enter. It doesn't calculate or check insulin amounts.</p></form>`
-    : `<div class="entryfacts">${e.bg != null ? `<div><span class="label">BG (meter)</span><b>${e.bg}</b> mg/dL</div>` : ""}
+    : `<div class="entryfacts">${e.bg != null ? `<div><span class="label">BG (${e.bg_source === "cgm" ? "CGM" : "meter"})</span><b>${e.bg}</b> mg/dL</div>` : ""}
       ${e.insulin != null ? `<div><span class="label">Insulin given</span><b>${fmtU(e.insulin)}</b> ${KIND[e.insulin_kind]}</div>` : ""}</div>
     ${e.note ? `<p class="notes">${esc(e.note)}</p>` : ""}`}
     ${edit ? whenBox(e, "entries") + (ed ? "" : `<p class="meta">Read-only, except the date and time</p>`) : modNote(e)}
@@ -1990,6 +2007,7 @@ $("#v-log").addEventListener("input", e => {
     row.querySelector(".fec").textContent = `${whole(feCarbs(r))} g`; return feSync();
   }
   if (e.target.id === "cfTotal") $("#cfWhy").hidden = e.target.value.trim() === "" || +e.target.value === +e.target.dataset.was;   // the reason only once it differs
+  if (e.target.id === "enBg") S.log.bgTouched = true;
   if (e.target.closest("#entryForm")) entryPreview(); if (e.target.closest("#mealDetail")) logDirty(); });
 $("#v-log").addEventListener("change", e => {
   if (e.target.classList.contains("feport")) {   // an added food's portion sets its weight
@@ -2007,6 +2025,7 @@ $("#v-log").addEventListener("submit", async e => {
     const body = { client_id: uid(), day: S.log.data.day, time: v("#enTime"), note: v("#enNote"),
       bg: v("#enBg") ? +v("#enBg") : null, carbs: v("#enCarbs") ? +v("#enCarbs") : null,
       insulin: v("#enIns") ? +v("#enIns") : null, insulin_kind: v("#enIns") ? S.log.kind : null };
+    body.bg_source = body.bg == null ? null : bgFromCgm() ? "cgm" : "meter";
     try { const r = await api("/api/entries", { method: "POST", body }); S.log.selEntry = r.id; toast("Entry saved"); }
     catch (err) {
       if (err.status) { $("#enErr").textContent = err.message; return; }

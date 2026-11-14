@@ -183,7 +183,7 @@ def wanted(c, cfg) -> dict:
         if k["carbs"] and e["carbs"] is not None:
             oid = f"kc-entry-{e['id']}-carbs"
             out[oid] = _food(oid, when, device, e["note"] or "Carbs entered by hand", e["carbs"])
-        if k["bg"] and e["bg"] is not None:
+        if k["bg"] and e["bg"] is not None and e["bg_source"] != "cgm":
             oid = f"kc-entry-{e['id']}-bg"
             out[oid] = _smbg(oid, when, device, e["bg"])
         if k["insulin"] and e["insulin"] is not None:

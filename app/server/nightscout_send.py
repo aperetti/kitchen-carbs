@@ -164,7 +164,7 @@ def wanted(c, cfg) -> dict:
         if k["insulin"] and e["insulin"] is not None:
             oid = f"kc-entry-{e['id']}-insulin"
             out[oid] = _insulin(oid, e["day"], e["time"], e["insulin"], e["insulin_kind"], "Correction Bolus", note=e["note"][:500])
-        if k["bg"] and e["bg"] is not None:
+        if k["bg"] and e["bg"] is not None and e["bg_source"] != "cgm":
             out[f"kc-entry-{e['id']}-bg"] = _bg(f"kc-entry-{e['id']}-bg", e["day"], e["time"], e["bg"])
     if k["carbs"]:   # a planned meal: a note only, never in the carbs field, so no forecast counts it (okf/features/plan-meal.md)
         for p in c.execute("SELECT * FROM planned_meals WHERE day >= ?", (cfg["from"],)).fetchall():

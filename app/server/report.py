@@ -283,6 +283,6 @@ def rows(pdf: Report, d: dict):
             else:
                 r.cell("Entry", style=FontFace(color=VEIN))
                 r.cell("" if x["carbs"] is None else f"{x['carbs']:g} g", style=FontFace(emphasis="B", color=ACCENT))
-                r.cell("" if x["bg"] is None else f"{x['bg']} meter", style=FontFace(color=WARN if x["bg"] is not None and x["bg"] < 70 else INK))
+                r.cell("" if x["bg"] is None else f"{x['bg']} " + ("CGM" if x["bg_source"] == "cgm" else "meter"), style=FontFace(color=WARN if x["bg"] is not None and x["bg"] < 70 else INK))
                 r.cell("" if x["insulin"] is None else f"{units(x['insulin'])} u {KIND.get(x['insulin_kind'], '')}")
                 r.cell(safe(x["note"] or ""), style=FontFace(size_pt=8, color=VEIN))

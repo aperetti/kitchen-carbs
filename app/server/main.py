@@ -241,7 +241,8 @@ class MealPatch(BaseModel):
 class EntryValues(BaseModel):
     """okf/domain/manual-entry.md: a record of what happened. Nothing here is calculated (okf/rules/no-dosing.md)."""
     carbs: float | None = Field(default=None, ge=0, le=500)
-    bg: int | None = Field(default=None, ge=20, le=600)          # mg/dL, meter
+    bg: int | None = Field(default=None, ge=20, le=600)          # mg/dL
+    bg_source: Literal["cgm", "meter"] | None = None            # None: a meter, or unchanged when editing
     insulin: float | None = Field(default=None, gt=0, le=100)    # units given
     insulin_kind: Literal["rapid", "long"] | None = None
     note: str = Field(default="", max_length=500)
@@ -491,7 +492,7 @@ def meals_for_days(c, first: str, last: str):
 
 
 def entries_for_days(c, first: str, last: str):
-    return [dict(e) for e in c.execute("SELECT id, client_id, day, time, carbs, bg, insulin, insulin_kind, note, moved_from, edited_at "
+    return [dict(e) for e in c.execute("SELECT id, client_id, day, time, carbs, bg, bg_source, insulin, insulin_kind, note, moved_from, edited_at "
                                        "FROM log_entries WHERE day BETWEEN ? AND ? AND deleted_at IS NULL ORDER BY day, time, id", (first, last))]
 
 
@@ -2024,7 +2025,7 @@ def _when(day: str, hhmm: str) -> str:
 
 def _facts(r, carbs=False) -> list[str]:
     """What was typed, in the log's order. Insulin is only ever what was given, never the summary's dose (okf/rules/no-dosing.md)."""
-    out = [f"BG {r['bg']} mg/dL"] if r["bg"] is not None else []
+    out = [f"BG {r['bg']} mg/dL" + (" (CGM)" if r["bg_source"] == "cgm" else "")] if r["bg"] is not None else []
     if r["insulin"] is not None:
         out.append(f"{r['insulin']:g} u {INSULIN_KIND.get(r['insulin_kind'], r['insulin_kind'] or '')}".strip())
     if carbs and r["carbs"] is not None:
@@ -2144,9 +2145,9 @@ def create_entry(body: EntryIn, c=Depends(con), x_kc_push: str = Header(default=
     if existing:
         return {"id": existing["id"], "duplicate": True}
     with c:
-        eid = c.execute("INSERT INTO log_entries(client_id, day, time, carbs, bg, insulin, insulin_kind, note, edited_at) "
-                        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                        (body.client_id, body.day, body.time, body.carbs, body.bg, body.insulin,
+        eid = c.execute("INSERT INTO log_entries(client_id, day, time, carbs, bg, bg_source, insulin, insulin_kind, note, edited_at) "
+                        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                        (body.client_id, body.day, body.time, body.carbs, body.bg, body.bg is not None and (body.bg_source or "meter") or None, body.insulin,
                          body.insulin_kind if body.insulin is not None else None, body.note.strip(),
                          now().strftime("%Y-%m-%d %H:%M") if body.day < today() else None)).lastrowid
     notify(lambda: entry_notice(get_entry(c, eid)), x_kc_push)
@@ -2158,9 +2159,11 @@ def edit_entry(eid: int, body: EntryValues, c=Depends(con)):
     """Fix a value or add insulin or carbs later (okf/features/manual-log.md); marked when after its day."""
     e = get_entry(c, eid)
     require_editable(c, e)
+    # an unchanged BG keeps its source; a changed one was typed from a meter (okf/domain/manual-entry.md)
+    src = None if body.bg is None else body.bg_source or (e["bg_source"] if body.bg == e["bg"] and e["bg_source"] else "meter")
     with c:
-        c.execute("UPDATE log_entries SET carbs = ?, bg = ?, insulin = ?, insulin_kind = ?, note = ? WHERE id = ?",
-                  (body.carbs, body.bg, body.insulin, body.insulin_kind if body.insulin is not None else None,
+        c.execute("UPDATE log_entries SET carbs = ?, bg = ?, bg_source = ?, insulin = ?, insulin_kind = ?, note = ? WHERE id = ?",
+                  (body.carbs, body.bg, src, body.insulin, body.insulin_kind if body.insulin is not None else None,
                    body.note.strip(), eid))
         mark_later(c, "log_entries", e)
     return dict(get_entry(c, eid))
@@ -2236,9 +2239,10 @@ def meal_glucose(mid: int, c=Depends(con)):
     low, high = targets(c)
     w = core.meal_window(rs, ms, int(now().timestamp() * 1000), others)
     near = entries_for_days(c, (date.fromisoformat(m["day"]) - timedelta(days=1)).isoformat(), m["day"])
-    marks = [{"ms": t, "bg": e["bg"], "insulin": e["insulin"], "insulin_kind": e["insulin_kind"]}
+    meter = lambda e: e["bg"] if e["bg_source"] != "cgm" else None   # a CGM BG is already on the curve
+    marks = [{"ms": t, "bg": meter(e), "insulin": e["insulin"], "insulin_kind": e["insulin_kind"]}
              for e in near if (t := meal_ms(e["day"], e["time"])) and w["start_ms"] <= t <= w["end_ms"]
-             and (e["bg"] is not None or e["insulin"] is not None)]
+             and (meter(e) is not None or e["insulin"] is not None)]
     if m["insulin"] is not None:   # the meal's own insulin at the time it was given, and a meter BG
         marks.append({"ms": ms - (m["insulin_offset_min"] or 0) * 60000, "bg": None, "insulin": m["insulin"], "insulin_kind": m["insulin_kind"]})
     if m["bg"] is not None and m["bg_source"] == "meter":
@@ -2384,7 +2388,7 @@ def export_csv(start: str, end: str, c=Depends(con)):
     for e in entries_for_days(c, first.isoformat(), last.isoformat()):
         rows.append([e["day"], e["time"], "entry", "", "", "", "", "" if e["carbs"] is None else f"{e['carbs']:g}", "", "",
                      e["bg"] if e["bg"] is not None else "", "" if e["insulin"] is None else f"{e['insulin']:g}",
-                     e["insulin_kind"] or "", e["note"], e["moved_from"] or "", "meter" if e["bg"] is not None else "", "", "", e["edited_at"] or "", "", ""])
+                     e["insulin_kind"] or "", e["note"], e["moved_from"] or "", (e["bg_source"] or "meter") if e["bg"] is not None else "", "", "", e["edited_at"] or "", "", ""])
     for r in sorted(rows, key=lambda r: (r[0], r[1])):   # stable: meal items keep their order
         w.writerow([cell_text(x) for x in r])
     days = (last - first).days + 1

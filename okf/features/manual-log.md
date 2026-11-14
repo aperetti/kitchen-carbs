@@ -23,14 +23,18 @@ links:
   settings, the same way as the meal summary's (okf/features/meal-dose-summary.md, okf/rules/no-dosing.md): BG − target
   ÷ correction factor at the entry's time, insulin on board from Nightscout taken off (if fresh; otherwise it says none
   was), rounded down to the dose step and never below zero, each step on its own line. The form has no carbs box, and no
-  carbs are counted. The BG is the one typed in the entry, else a CGM reading under 15 minutes old. It is
+  carbs are counted. The BG box starts with the latest CGM reading when it is under 15 minutes old and the entry is for about now
+  (decided 14 Nov), with a line under it: 'From the CGM: 169 ↗, 3 min ago. Type over it to use a meter reading.' An
+  older reading is named with its age ('Latest CGM: 182, 40 min ago, too old to use') and the box left empty. Typed
+  over, it is a meter reading; cleared, there is no BG and no correction. Saved as typed or as the CGM's, with its
+  source (okf/domain/manual-entry.md). It is
   offered only for an entry at about now (within 15 minutes, today), since insulin on board is now's; for another
   time it says so and works nothing out. A correction in the last few hours (the recent-correction window) is named
   with a warning, as in the summary. BG at or under target: nothing to add, and it says so. No settings: it points to
   Manage → Settings. Under the total, '↓ Fill in 1.20 u' (scrolling the box into view) copies it into 'Rapid-acting insulin given' on a
   tap; until then the box stays as it was, and once filled it is an ordinary typed amount. The worked-out amount is
   never stored or sent. The note under the form says the app records what is entered and only
-  works out a correction when asked. The CGM reading used is shown, not saved as a meter BG.
+  works out a correction when asked.
 - Tapping 'Add entry' brings the new entry's form into view (decided 31 Oct: on a phone it opened below the day's
   list, out of sight), scrolling smoothly unless the device asks for reduced motion.
 - Editing an entry (decided 31 Oct): its BG, carbs, insulin (amount and rapid or long-acting) and note are editable

@@ -3,7 +3,7 @@ type: Feature
 title: "Send to Tidepool"
 description: "A parent turns on sending the log to the family's Tidepool account in Manage → Settings, choosing which kinds of data go: carbs, meter BG and insulin. It keeps Tidepool in step as meals and entries are added, changed or deleted."
 tags: [feature, tidepool]
-timestamp: 2026-10-31
+timestamp: 2026-11-14
 status: draft
 links:
   uses: [domain/meal.md, domain/manual-entry.md, domain/meal-log.md]
@@ -18,7 +18,7 @@ available and each one switchable.
   30 days ago by default), and a switch for each kind of data:
   - **Carbs** (on by default): each meal as a food record with its foods and total carbs (a corrected total wins),
     and each entry's typed carbs.
-  - **Meter BG** (off by default): BG typed from a meter, on a meal or an entry. A meal's BG taken from the CGM is
+  - **Meter BG** (off by default): BG typed from a meter, on a meal or an entry. A meal's or entry's BG taken from the CGM is
     never sent; Tidepool gets CGM from the CGM itself.
   - **Insulin** (off by default): insulin typed on a meal or an entry, at the time it was given: bolus or
     rapid-acting as a Tidepool bolus, basal or long-acting as a basal spread evenly over the hours set beside the

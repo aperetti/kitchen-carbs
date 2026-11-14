@@ -1488,6 +1488,24 @@ def test_meal_saved_to_an_earlier_day_is_marked(app):
     assert client.post("/api/meals", json=meal(day="2026-10-28", cid="future-1")).status_code == 400
 
 
+def test_entry_bg_source(app):
+    """okf/domain/manual-entry.md: an entry's BG is a meter reading unless Correct BG filled it from the CGM."""
+    client, _ = app
+    cgm = client.post("/api/entries", json=entry(bg=169, bg_source="cgm", insulin=0.6, insulin_kind="rapid")).json()["id"]
+    typed = client.post("/api/entries", json=entry(bg=150, cid="entry-0002", time="19:00")).json()["id"]
+    src = lambda: {e["id"]: e["bg_source"] for e in client.get("/api/log?day=2026-10-27").json()["entries"]}
+    assert src() == {cgm: "cgm", typed: "meter"}
+    client.put(f"/api/entries/{cgm}", json={"bg": 169, "insulin": 0.6, "insulin_kind": "rapid", "note": "site change"})
+    assert src()[cgm] == "cgm"                                                     # unchanged BG keeps its source
+    client.put(f"/api/entries/{cgm}", json={"bg": 172, "insulin": 0.6, "insulin_kind": "rapid"})
+    assert src()[cgm] == "meter"                                                   # a new number was typed from a meter
+    client.put(f"/api/entries/{typed}", json={"carbs": 10})
+    assert src()[typed] is None                                                    # no BG, no source
+    import csv as csvmod, io as iomod
+    rows = list(csvmod.DictReader(iomod.StringIO(client.get("/api/export.csv?start=2026-10-27&end=2026-10-27").text)))
+    assert [r["bg_source"] for r in rows if r["type"] == "entry"] == ["meter", ""]
+
+
 def test_edit_entry_values(app, monkeypatch):
     """okf/features/manual-log.md: values fixed or added later, same checks as adding, marked after its day."""
     client, main = app
@@ -1769,6 +1787,7 @@ def test_nightscout_send(app, monkeypatch):
     e1 = client.post("/api/entries", json=entry(bg=65, carbs=15, note="juice")).json()["id"]
     e2 = client.post("/api/entries", json=entry(insulin=12, insulin_kind="long", cid="entry-0002", time="21:00")).json()["id"]
     old = client.post("/api/entries", json={**entry(carbs=20, cid="entry-0003"), "day": "2026-10-19"}).json()["id"]
+    client.post("/api/entries", json=entry(bg=170, bg_source="cgm", cid="entry-0004", time="20:00"))   # a CGM BG is never sent
     s = client.put("/api/nightscout/send", json=send).json()
     assert s["on"] and s["kinds"] == {"carbs": True, "insulin": True, "bg": True}
     r = client.post("/api/nightscout/send/sync").json()

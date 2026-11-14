@@ -254,13 +254,19 @@ def m023_favorite_photo_note(con):
     con.execute("ALTER TABLE favorites ADD COLUMN photo_note TEXT NOT NULL DEFAULT ''")
 
 
+def m024_entry_bg_source(con):
+    """Where an entry's BG came from, meter or CGM, like a meal's (okf/domain/manual-entry.md). Earlier ones were typed."""
+    con.execute("ALTER TABLE log_entries ADD COLUMN bg_source TEXT")
+    con.execute("UPDATE log_entries SET bg_source = 'meter' WHERE bg IS NOT NULL")
+
+
 MIGRATIONS = [m001_schema, m002_sessions, m003_cooked_state, m004_moved_from, m005_portion_labels, m006_fiber,
               m007_food_confirmations, m008_meal_details, m009_barcode,
               m010_entered_carbs, m011_edited_later,
               m012_soft_delete, m013_carbs_corrected, m014_favorite_photo,
               m015_push_subscriptions, m016_tidepool_sent, m017_nightscout_sent, m018_meal_rating, m019_meal_fiber,
               m020_planned_meals, m021_ns_insulin, m022_shared_plate,
-              m023_favorite_photo_note]
+              m023_favorite_photo_note, m024_entry_bg_source]
 LATEST = len(MIGRATIONS)
 
 
