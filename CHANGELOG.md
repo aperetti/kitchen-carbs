@@ -2,6 +2,8 @@
 Each version is what went to the family's kitchen on that date (okf/architecture/releases.md).
 
 ## Unreleased
+
+## v2026.11.19 · 19 Nov 2026
 - Planned meals: "Put on the plate" is now Submit. It opens the meal summary straight away, with the meal's day and time set to the plan's own (you can still change them there). If the plan's time has passed, the Blood glucose box shows the CGM reading from then. Plans for a later day can't be submitted until that day. If a food in the plan is no longer in the food list, it stops at the plate so you can check it.
 - Meal summary: if you set the meal to an earlier time, the Blood glucose box now fills in with the CGM reading from that time (from up to 15 minutes before it) and works the dose out from it. The ⓘ shows which reading it was. Type over it to use a meter reading.
 
