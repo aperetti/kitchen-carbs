@@ -35,5 +35,5 @@ Decided 2 Nov: every meal opened with about ten sections, all of them forms, whi
   - ⋯ holds what is rarely needed: Pin as favorite, Delete meal (tapped twice). Change total carbs left it on 3 Nov,
     as Edit now shows the carbs. An entry's menu has Delete entry; a plan's has Delete plan.
 - An entry reads as its BG, carbs, insulin and note, with Edit for its form. A plan reads as its foods and when,
-  'Put on the plate' first, and Edit for its name, date and time.
+  'Submit' first, and Edit for its name, date and time.
 - Opening another meal, entry or plan, or another day, leaves Edit.

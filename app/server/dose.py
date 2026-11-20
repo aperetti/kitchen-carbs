@@ -7,6 +7,7 @@ import math
 import re
 
 FRESH_MIN = 15          # a CGM reading or IOB older than this is not used
+AHEAD_MIN = 120         # a meal set further ahead than this takes no CGM reading as its BG
 STEP_U = 0.05           # pump precision; always rounded down
 STEPS = (0.05, 0.1, 0.5, 1.0)   # the parent picks one to match the pump or pen
 GAP_H = 3               # a correction within this many hours counts as recent, unless the parent sets 1-6

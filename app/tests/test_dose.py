@@ -81,6 +81,34 @@ def test_summary_endpoint(app):
     assert client.get("/api/dose?carbs=45&at=18:30&bg=10").status_code == 422
 
 
+def test_summary_takes_the_reading_from_an_earlier_meal_time(app):
+    """okf/features/meal-dose-summary.md: a meal set > 15 min before now uses the CGM reading at or up to 15 min before
+    its own time, never now's; > 120 min ahead uses none."""
+    client, main = app
+    client.put("/api/dose-settings", json=SETTINGS)
+    at = lambda h, m: int(datetime(2026, 10, 27, h, m).timestamp() * 1000)
+    with main.db.connect() as c:
+        c.executemany("INSERT INTO glucose(date_ms, sgv, direction) VALUES (?, ?, 'Flat')",
+                      [(at(12, 5), 170), (at(12, 15), 190), (at(18, 27), 250)])
+    r = client.get("/api/dose?carbs=45&at=12:10&day=2026-10-27").json()            # lunch, logged at 6:30 PM
+    assert r["away"] == "past" and r["bg_source"] == "cgm" and r["calc"]["bg"] == 170   # 12:05, not 12:15 or now's 250
+    assert r["cgm_then"] == {"sgv": 170, "direction": "Flat", "date_ms": at(12, 5), "min_before": 5}
+    assert client.get("/api/dose?carbs=45&at=12:10&day=2026-10-27&bg=120").json()["calc"]["bg"] == 120   # typed wins
+    assert client.get("/api/dose?carbs=45&at=12:10&day=2026-10-27&use_cgm=false").json()["calc"]["correction_u"] is None
+    r = client.get("/api/dose?carbs=45&at=12:30&day=2026-10-27").json()            # 12:15 is 15 min before: still used
+    assert r["calc"]["bg"] == 190
+    r = client.get("/api/dose?carbs=45&at=12:40&day=2026-10-27").json()            # nothing within 15 min before
+    assert r["cgm_then"] is None and r["bg_source"] is None and r["calc"]["correction_u"] is None
+    r = client.get("/api/dose?carbs=45&at=12:05&day=2026-10-26").json()            # another day: nothing synced then
+    assert r["cgm_then"] is None and r["bg_source"] is None
+    r = client.get("/api/dose?carbs=45&at=18:25&day=2026-10-27").json()            # 5 min ago: about now, the live reading
+    assert r["away"] is None and r["calc"]["bg"] == 250
+    r = client.get("/api/dose?carbs=45&at=20:30&day=2026-10-27").json()            # 2 h ahead: still the BG at the bolus
+    assert r["away"] is None and r["calc"]["bg"] == 250
+    r = client.get("/api/dose?carbs=45&at=21:00&day=2026-10-27").json()            # further ahead: none
+    assert r["away"] == "ahead" and r["bg_source"] is None
+
+
 def test_summary_uses_fresh_iob_only(app, monkeypatch):
     client, main = app
     client.put("/api/dose-settings", json=SETTINGS)

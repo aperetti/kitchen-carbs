@@ -174,3 +174,5 @@
 - 2026-11-14 — Add entry starts with a menu of entry types (Correct BG, Basal, Carbs, Something else), each opening a form with only what it needs (features/manual-log.md).
 - 2026-11-14 — Correct BG starts with the latest CGM reading (under 15 min old) in the BG box; entries keep their BG's source (meter | cgm) like meals, and a CGM BG is never sent as a meter reading (features/manual-log.md, domain/manual-entry.md).
 - 2026-11-14 — Meal summary: Save to log with no insulin typed while a dose is worked out asks first, 'Add the insulin' (to the Dose box) or 'Save without insulin' (features/meal-dose-summary.md).
+- 2026-11-17 — Planned meals: 'Put on the plate' is now 'Submit', which opens the meal summary straight away at the plan's own day and time (features/plan-meal.md).
+- 2026-11-17 — Meal summary: a meal set more than 15 min before now fills the BG box with the CGM reading from the meal's time (at or up to 15 min before it), saved as the CGM's (features/meal-dose-summary.md).

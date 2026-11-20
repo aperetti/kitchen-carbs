@@ -2564,9 +2564,12 @@ def clear_dose_settings(c=Depends(con)):
 
 @app.get("/api/dose")
 def meal_dose(carbs: float = Query(ge=0, le=1000), at: str = Query(pattern=r"^([01]\d|2[0-3]):[0-5]\d$"),
-              bg: float | None = Query(default=None, ge=20, le=600), use_cgm: bool = True, correct: bool = True, c=Depends(con)):
+              bg: float | None = Query(default=None, ge=20, le=600), use_cgm: bool = True, correct: bool = True,
+              day: str | None = Query(default=None, pattern=r"^\d{4}-\d{2}-\d{2}$"), c=Depends(con)):
     """Worked out for the summary only; never stored. bg is a typed meter reading; without it the CGM is used if fresh,
-    unless use_cgm is false (the parent cleared the box)."""
+    unless use_cgm is false (the parent cleared the box). With the meal's day, a meal set more than 15 minutes before
+    now takes the CGM reading from its own time instead (cgm_then), and one over 120 minutes ahead takes none
+    (okf/features/meal-dose-summary.md)."""
     ds = dose_settings(c)
     now_ms = int(now().timestamp() * 1000)
     url, token = db.get_setting(c, "ns_url"), db.get_setting(c, "ns_token")
@@ -2580,10 +2583,21 @@ def meal_dose(carbs: float = Query(ge=0, le=1000), at: str = Query(pattern=r"^([
     i = live["iob"]
     iob = i and {"units": round(i["units"], 2), "age_min": age(i["mills"]), "source": i["source"]}
     iob_ok = bool(iob) and iob["age_min"] <= dose.FRESH_MIN
-    from_cgm = bg is None and use_cgm and cgm_ok
-    used_bg = bg if bg is not None else (cgm["sgv"] if from_cgm else None)
+    meal = meal_ms(day, at) if day else None
+    past = meal is not None and meal < now_ms - dose.FRESH_MIN * 60000
+    ahead = meal is not None and meal > now_ms + dose.AHEAD_MIN * 60000
+    then = None
+    if past:   # the newest synced reading at or up to 15 minutes before the meal's time
+        row = c.execute("SELECT date_ms, sgv, direction FROM glucose WHERE date_ms BETWEEN ? AND ? ORDER BY date_ms DESC LIMIT 1",
+                        (meal - dose.FRESH_MIN * 60000, meal)).fetchone()
+        then = row and {"sgv": row["sgv"], "direction": row["direction"], "date_ms": row["date_ms"],
+                        "min_before": round((meal - row["date_ms"]) / 60000)}
+    reading = then if past else None if ahead else (cgm if cgm_ok else None)
+    from_cgm = bg is None and use_cgm and reading is not None
+    used_bg = bg if bg is not None else (reading["sgv"] if from_cgm else None)
     out = {"ready": bool(ds["settings"]), "updated": ds["updated"], "nightscout": bool(url and token),
-           "cgm": cgm, "cgm_fresh": cgm_ok, "bg_source": "typed" if bg is not None else ("cgm" if from_cgm else None),
+           "cgm": cgm, "cgm_fresh": cgm_ok, "cgm_then": then, "away": "past" if past else "ahead" if ahead else None,
+           "bg_source": "typed" if bg is not None else ("cgm" if from_cgm else None),
            "iob": iob, "iob_fresh": iob_ok, "ns_error": live["error"]}
     if ds["settings"]:
         out["calc"] = dose.calc(carbs, used_bg, iob["units"] if iob_ok else None, ds["settings"], at, correct)

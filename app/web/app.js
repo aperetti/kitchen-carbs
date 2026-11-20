@@ -421,7 +421,7 @@ const duePlans = () => {   // the empty plate starts mealtime: today's plans and
   const due = S.plans.filter(p => p.day <= localDay()); if (!due.length) return "";
   return `<div class="planned"><span class="label">Planned</span>${due.map(p => `<div class="prow"><span><b>${esc(p.name)}</b>
       <span class="meta">${p.day < localDay() ? "Overdue · " : ""}${esc(planWhen(p))} · ${p.carbs} g carbs</span></span>
-    <button class="btn small" data-act="plan-use" data-pid="${p.id}">Put on the plate</button></div>`).join("")}</div>`;
+    <button class="btn small" data-act="plan-use" data-pid="${p.id}">Submit</button></div>`).join("")}</div>`;
 };
 const MEALS = [["breakfast", "Breakfast"], ["lunch", "Lunch"], ["dinner", "Dinner"]];
 function nextMeals() {   // the next breakfast, lunch and dinner within 24 hours, soonest first (okf/features/plan-meal.md)
@@ -470,10 +470,12 @@ async function savePlan(btn) {
   await loadPlans(); renderPlate();
   toast(`Planned ${p.name} for ${planWhen(p)}`);
 }
-/* The plan back on the plate, each food with its current values (okf/rules/favorites-use-current-values.md) */
+/* Submit: the plan on the plate, each food with its current values (okf/rules/favorites-use-current-values.md), and the
+   meal summary opened at once at the plan's own day and time (okf/features/plan-meal.md) */
 let confirmReplace = 0;
 function usePlan(p, btn) {
   if (!p) { toast("That plan is no longer there."); loadPlans().then(() => route()); return; }
+  if (p.day > localDay()) return toast(`${p.name} is planned for ${planWhen(p)}. It can be submitted from that day.`);
   if (S.plate.length && S.plan?.id !== p.id && Date.now() - confirmReplace > 4000) {
     confirmReplace = Date.now(); btn.textContent = "Tap again to replace the plate"; return;
   }
@@ -486,10 +488,11 @@ function usePlan(p, btn) {
     rows.push({ ...i, key: uid(), food_name: f.name, portion_label: pt.label, base: pt.grams, photo: shownPhoto(pt) });
   }
   if (!rows.length) { toast(`None of ${p.name}'s foods are in the food list any more.`); return; }
-  S.plate = rows; S.plateTime = null; startPlateTime(); S.plan = { id: p.id, name: p.name, day: p.day, time: p.time };
+  S.plate = rows; S.plateTime = p.time; S.plateAuto = false; S.plan = { id: p.id, name: p.name, day: p.day, time: p.time };   // the plan's own time
   syncPlate(); savePlate();
-  toast(gone.length ? `${p.name} is on the plate. Left out: ${gone.join(", ")} (no longer in the food list).` : `${p.name} is on the plate. Check each weight before saving.`);
   if (location.hash.slice(1).split("/")[0] === (splitMode() ? "foods" : "plate")) renderPlate(); else location.hash = splitMode() ? "foods" : "plate";
+  if (gone.length) return toast(`${p.name} is on the plate. Left out: ${gone.join(", ")} (no longer in the food list). Check it, then Save to log.`);
+  openSummary();
 }
 // the log's 'Planned' list: today lists every plan as an overview; a future day lists only its own
 function planList(d) {
@@ -510,13 +513,14 @@ const modNote = x => x.moved_from || x.edited_at ? `<p class="meta moved"><span 
 let confirmPlanDel = 0;
 function renderPlan(p) {
   $("#mealDetail").innerHTML = `${cardHead(p.name)}<div class="mdh"><b>${esc(p.name)}</b><span class="c planc">${p.carbs} <small>g carbs</small></span>${detailTools([`<button type="button" data-act="plan-del">Delete plan</button>`])}</div>
-    <p class="meta">Planned for ${esc(planWhen(p))}${p.day < localDay() ? `, <span class="warn">overdue</span>` : ""}. Not in the log or Nightscout's carbs until it's put on the plate and saved.</p>
+    <p class="meta">Planned for ${esc(planWhen(p))}${p.day < localDay() ? `, <span class="warn">overdue</span>` : ""}. Not in the log or Nightscout's carbs until it's submitted and saved.</p>
     <span class="meta">${p.items.map(i => `${esc(i.food_name)}, ${whole(planItemCarbs(i))} g carbs (${i.entered != null ? "entered by hand" : fmtG(i.grams)})`).join(" · ")}</span>
     ${editing() ? `<div class="glab"><span class="label">Name and when</span></div>
     <form class="planedit" id="planEdit"><input id="peName" maxlength="60" required value="${esc(p.name)}" aria-label="Plan name">
       <input type="date" id="peDay" required value="${p.day}" min="${p.day < localDay() ? p.day : localDay()}" max="${shiftDay(localDay(), PLAN_DAYS)}" aria-label="Date">
       <input type="time" id="peTime" required value="${p.time}" aria-label="Time"><button class="btn small">Save</button></form>`
-    : `<div class="actions" style="padding-top:12px"><button class="btn primary" data-act="plan-use" data-pid="${p.id}">Put on the plate</button></div>`}`;
+    : p.day > localDay() ? `<p class="meta" style="padding-top:12px">Submit shows here from ${esc(dayLabel(p.day))}.</p>`   // never on a future day
+    : `<div class="actions" style="padding-top:12px"><button class="btn primary" data-act="plan-use" data-pid="${p.id}">Submit</button></div>`}`;
 }
 
 /* ---------- plate (okf/features/build-plate.md) ---------- */
@@ -912,7 +916,9 @@ const u2 = x => (+x).toFixed(2);
 const agoMin = m => m < 1 ? "just now" : m < 120 ? `${m} min ago` : m < 2880 ? `${Math.round(m / 60)} hours ago` : `${Math.round(m / 1440)} days ago`;
 function openSummary() {
   if (S.plateAuto) S.plateTime = eatAt(null);   // worked out again from now; loadDose moves it to the BG
-  S.sum = { carbs: whole(plateExact()), day: localDay(), at: S.plateTime || hhmm(), bg: "", typed: false, data: null, err: null, correct: null };   // correct: the BG correction switch, null until first set
+  // a submitted plan starts at its own day (never a future one: Submit isn't offered before the plan's day)
+  const day = S.plan && !S.plateAuto && S.plan.day < localDay() ? S.plan.day : localDay();
+  S.sum = { carbs: whole(plateExact()), day, at: S.plateTime || hhmm(), bg: "", typed: false, data: null, err: null, correct: null };   // correct: the BG correction switch, null until first set
   doseDlg.innerHTML = `<div class="dlghead"><b id="sumHead">${sumHead()}</b><button class="rm" data-sum="close" aria-label="Back to plate">×</button></div>
     <div class="dlgbody">
       <ul class="summeal">${S.plate.map(x => `<li><span class="t">${esc(x.food_name)}<small>${x.entered != null ? "Entered by hand" : fmtG(x.grams) + stateLabel(x)}</small></span>
@@ -940,20 +946,22 @@ function openSummary() {
 }
 let doseTimer = null;
 const sumHead = () => `Meal summary · ${S.sum.day === localDay() ? "" : dayLabel(S.sum.day) + ", "}${S.sum.at}`;
-/* A meal set away from now can't take the CGM's current reading as its BG (okf/features/meal-dose-summary.md).
-   Up to 120 min ahead it can: that is the BG at the bolus, before eating. */
-const sumAway = () => { const d = new Date(`${S.sum.day}T${S.sum.at}`).getTime() - Date.now(); return d < -15 * 60e3 || d > 120 * 60e3; };
+/* The BG is the CGM's from the meal's own time (okf/features/meal-dose-summary.md): now's for a meal at about now or up
+   to 120 min ahead (the BG at the bolus), the reading from then for one set more than 15 min before now, none further ahead.
+   The server picks it from the meal's day and time. */
+const cgmUsed = d => d?.bg_source !== "cgm" ? null : d.cgm_then || d.cgm;
+const thenAt = r => clk(new Date(r.date_ms).toTimeString().slice(0, 5));
 async function loadDose() {
   const s = S.sum; if (!s) return;
-  const bg = s.typed && s.bg !== "" ? `&bg=${encodeURIComponent(s.bg)}` : s.typed || sumAway() ? "&use_cgm=false" : "";
-  try { s.data = await api(`/api/dose?carbs=${s.carbs}&at=${s.at}${bg}${s.correct === false ? "&correct=false" : ""}`); s.err = null; }
+  const bg = s.typed && s.bg !== "" ? `&bg=${encodeURIComponent(s.bg)}` : s.typed ? "&use_cgm=false" : "";
+  try { s.data = await api(`/api/dose?carbs=${s.carbs}&at=${s.at}&day=${s.day}${bg}${s.correct === false ? "&correct=false" : ""}`); s.err = null; }
   catch (err) { s.data = null; s.err = err.status === 422 ? "Blood glucose must be between 20 and 600 mg/dL." : err.message || "Couldn't reach the server."; }
   if (S.sum !== s) return;
   if (s.correct == null && s.data?.ready) {   // a correction given recently starts it off (okf/features/meal-dose-summary.md)
     s.correct = !s.data.recent_correction;
     if (!s.correct) return loadDose();
   }
-  if (!s.typed) $("#sumBg").value = s.data?.bg_source === "cgm" ? s.data.cgm.sgv : "";   // filled in only from a fresh reading
+  if (!s.typed) $("#sumBg").value = cgmUsed(s.data)?.sgv ?? "";   // filled in only from a reading at the meal's time
   if (S.plateAuto && s.day === localDay()) {   // the eat time follows the BG until it's changed by hand
     const at = eatAt($("#sumBg").value.trim());
     if (at !== s.at) { s.at = S.plateTime = $("#sumAt").value = at; $("#sumHead").textContent = sumHead(); return loadDose(); }
@@ -968,18 +976,22 @@ function lowBolus(el, bg, cgm, bolus) {   // cgm: the reading used when no BG wa
   if (!el) return;
   const on = bolus && bg != null && bg !== "" && +bg >= 20 && +bg < LOW_BG;
   el.hidden = !on;
-  if (on) el.textContent = `${cgm ? `The CGM shows ${cgm.sgv} mg/dL, ${agoMin(cgm.age_min)}` : `BG is ${+bg} mg/dL (meter)`}, under ${LOW_BG}. `
+  if (on) el.textContent = `${cgm ? cgm.date_ms && cgm.min_before != null ? `The CGM showed ${cgm.sgv} mg/dL at ${thenAt(cgm)}` : `The CGM shows ${cgm.sgv} mg/dL, ${agoMin(cgm.age_min)}`
+    : `BG is ${+bg} mg/dL (meter)`}, under ${LOW_BG}. `
     + "Treat the low first and follow the care team's plan before giving a bolus.";
 }
 function sumLow() {
   const s = S.sum; if (!s) return;
   const ins = doseDlg.querySelector(".mdet .dIns")?.value.trim(), kind = doseDlg.querySelector(".mdet [data-dkind].on")?.dataset.dkind;
-  lowBolus($("#sumLow"), $("#sumBg").value.trim(), !s.typed && s.data?.bg_source === "cgm" ? s.data.cgm : null, !!ins && kind !== "basal");
+  lowBolus($("#sumLow"), $("#sumBg").value.trim(), !s.typed ? cgmUsed(s.data) : null, !!ins && kind !== "basal");
 }
 function bgNote(d) {
-  const c = d.cgm, cgm = c ? `${c.sgv} mg/dL ${ARROWS[c.direction] || ""}` : "";
+  const c = d.cgm, cgm = c ? `${c.sgv} mg/dL ${ARROWS[c.direction] || ""}` : "", th = d.cgm_then, set = `${S.sum.day === localDay() ? "" : dayLabel(S.sum.day) + ", "}${clk(S.sum.at)}`;
+  if (d.bg_source === "cgm" && th) return `From the CGM at ${thenAt(th)}: ${th.sgv} mg/dL ${ARROWS[th.direction] || ""}, the reading at the meal's time. Type over it to use a meter reading. Insulin on board is from now.`;
   if (d.bg_source === "cgm") return `From the CGM: ${cgm}, ${agoMin(c.age_min)}. Type over it to use a meter reading.`;
-  if (!S.sum.typed && sumAway()) return `The meal is set for ${S.sum.day === localDay() ? "" : dayLabel(S.sum.day) + ", "}${S.sum.at}, so the CGM reading from now isn't used. Type the meter reading from then. Insulin on board is from now.`;
+  if (d.away === "past" && d.bg_source === "typed") return th ? `Typed in. The CGM showed ${th.sgv} mg/dL at ${thenAt(th)}.` : "Typed in.";
+  if (d.away === "past" && !S.sum.typed) return `The meal is set for ${set}, and there's no CGM reading from the 15 minutes before then. Type the meter reading from then. Insulin on board is from now.`;
+  if (d.away === "ahead" && !S.sum.typed) return `The meal is set for ${set}, so the CGM reading from now isn't used. Type the meter reading from then. Insulin on board is from now.`;
   // an old reading is left out: next to a typed BG it's only clutter (okf/features/meal-dose-summary.md)
   if (d.bg_source === "typed") return c && d.cgm_fresh ? `Typed in. The CGM shows ${cgm}, ${agoMin(c.age_min)}.` : "Typed in.";
   if (c && !d.cgm_fresh) return "No CGM reading in the last 15 minutes. Type a meter reading.";

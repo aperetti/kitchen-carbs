@@ -3,7 +3,7 @@ type: Feature
 title: "Meal summary and dose"
 description: "Tapping 'Save to log' opens a summary of the plate with the insulin worked out from the parent's ratios, the BG and insulin on board, step by step."
 tags: [feature, safety]
-timestamp: 2026-11-14
+timestamp: 2026-11-17
 status: draft
 links:
   uses: [domain/plate.md, domain/insulin-settings.md, domain/glucose-reading.md]
@@ -77,8 +77,12 @@ Decided 29 Oct. 'Save to log' on the plate opens a modal before anything is save
 - When (decided 31 Oct; moved 8 Nov to last, just above 'Save to log'): a date and a time, starting at today and the plate's time, so a meal
   saved late (after the bolus, or the next morning) goes in at the right moment. The date can't be in the future.
   Changing the time works the dose out again with that time's ratios, keeps the plate's time in step, and shows in the
-  heading. When the meal is set more than 15 minutes before now (or more than 120 after), the BG box isn't filled in from the CGM (that reading
-  is from now, not the meal) and a line says so: type the meter reading from then. Insulin on board is still now's.
+  heading. When the meal is set more than 15 minutes before now, the BG box is filled in with the CGM reading from the
+  meal's time instead (decided 17 Nov): the newest reading at or before that time and no more than 15 minutes before it,
+  from the readings already synced from Nightscout. It goes into the dose like a fresh reading, is saved as the CGM's,
+  and says where it came from behind the ⓘ ('From the CGM at 12:05 PM: 182 mg/dL →, the reading at the meal's time.
+  Type over it to use a meter reading.'). With no reading in those 15 minutes the box stays empty and a line says to
+  type the meter reading from then. More than 120 minutes ahead it isn't filled in either. Insulin on board is still now's.
   A meal saved to an earlier day is marked ✎ like an entry added to an earlier day (okf/rules/same-day-edits.md).
 - No insulin typed (decided 14 Nov): when 'Save to log' is tapped with the Dose box empty and a dose above 0 u worked
   out, it asks first, above the buttons: 'No insulin is entered, but 2.05 u is worked out for this meal. If it was given
