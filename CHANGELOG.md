@@ -2,6 +2,8 @@
 Each version is what went to the family's kitchen on that date (okf/architecture/releases.md).
 
 ## Unreleased
+
+## v2026.11.21 · 21 Nov 2026
 - New: Suggest a meal, on the empty plate. It builds breakfast, lunch or dinner from what you've logged for that meal, sized to the carbs on the slider (it starts at your usual amount). Switch the slider to Bolus to size it by units instead: it shows the sum (units × your carb ratio = carbs) and fills in no insulin. Foods you nearly always have together come together, like nuggets with ketchup or carrots with Italian dressing. More carbs adds another food rather than just bigger portions. Tap a food to swap it for another you often have (its ketchup or dressing goes with it). Lock a food to keep it and its serving, or use − and + to set the serving yourself; the rest of the meal fits around it. "Put on the plate" adds them to check or weigh and save as usual.
 
 ## v2026.11.19 · 19 Nov 2026
