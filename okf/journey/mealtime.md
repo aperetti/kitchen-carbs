@@ -6,7 +6,7 @@ tags: [journey]
 timestamp: 2026-10-27
 status: draft
 links:
-  involves: [features/sign-in.md, features/install-app.md, features/food-lookup.md, features/manual-log.md, features/photo-style-setup.md, features/scan-label.md, features/favorite-plates.md, features/connect-nightscout.md, features/meal-glucose-view.md, features/glucose-stats-view.md, features/photo-pipeline.md, features/manage-foods.md, features/browse-foods.md, features/view-food.md, features/build-plate.md, features/kitchen-scale.md, features/log-meal.md, features/annotate-meal.md, features/review-log.md, features/export-log.md, features/fill-in-fiber.md, features/meal-dose-summary.md, features/confirm-food.md, features/notify-family.md, features/tidepool-sync.md, features/nightscout-send.md, features/rate-meal.md, features/plan-meal.md, features/meal-responses.md]
+  involves: [features/sign-in.md, features/install-app.md, features/food-lookup.md, features/manual-log.md, features/photo-style-setup.md, features/scan-label.md, features/favorite-plates.md, features/connect-nightscout.md, features/meal-glucose-view.md, features/glucose-stats-view.md, features/photo-pipeline.md, features/manage-foods.md, features/browse-foods.md, features/view-food.md, features/build-plate.md, features/kitchen-scale.md, features/log-meal.md, features/annotate-meal.md, features/review-log.md, features/export-log.md, features/fill-in-fiber.md, features/meal-dose-summary.md, features/confirm-food.md, features/notify-family.md, features/tidepool-sync.md, features/nightscout-send.md, features/rate-meal.md, features/plan-meal.md, features/meal-responses.md, features/suggest-meal.md]
 steps:
   - id: sign-in
     phase: Set up (once)
@@ -89,6 +89,15 @@ steps:
     risk: "A plan counted as eaten, in the day's total or in the forecast, when the meal changed or was skipped."
     helps: "A plan is never in totals, stats, exports or Tidepool; Nightscout gets only a note with no carbs field; it becomes a meal only when saved to the log, which replaces the plan."
     features: [features/plan-meal.md]
+  - id: suggest
+    phase: Mealtime
+    name: Get a meal idea
+    doing: "Taps 'Suggest a meal' on the empty plate, sets the carbs (or the bolus already planned) on the slider, taps away what he won't eat today, and puts the rest on the plate."
+    screen: "Plate (empty) → Suggest a meal"
+    thinking: "What can he have for about 45 g that he actually likes?"
+    risk: "A suggestion taken as the carbs eaten, or the bolus slider read as a dose to give."
+    helps: "It only fills the plate: amounts are checked or weighed and saved through the summary as usual. The bolus slider shows its sum (units × carb ratio) and fills in no insulin."
+    features: [features/suggest-meal.md]
   - id: find
     phase: Mealtime
     name: Find the food

@@ -176,3 +176,6 @@
 - 2026-11-14 — Meal summary: Save to log with no insulin typed while a dose is worked out asks first, 'Add the insulin' (to the Dose box) or 'Save without insulin' (features/meal-dose-summary.md).
 - 2026-11-17 — Planned meals: 'Put on the plate' is now 'Submit', which opens the meal summary straight away at the plan's own day and time (features/plan-meal.md).
 - 2026-11-17 — Meal summary: a meal set more than 15 min before now fills the BG box with the CGM reading from the meal's time (at or up to 15 min before it), saved as the CGM's (features/meal-dose-summary.md).
+- 2026-11-20 — Suggest a meal: from the empty plate, a meal built from the family's logged meals for breakfast, lunch or dinner, sized by a carbs or bolus slider, with tap-to-swap foods (features/suggest-meal.md, rules/no-dosing.md).
+- 2026-11-20 — Suggest a meal: foods nearly always had together come as a group (ketchup with nuggets, dressing with carrots) and leave together on a swap; more carbs adds a food once the shown ones are a quarter over their usual amounts, rather than stretching portions (features/suggest-meal.md).
+- 2026-11-20 — Suggest a meal: a lock and a − / + serving stepper on each food; locked foods keep their serving, aren't swapped or dropped, and the rest is sized around them (features/suggest-meal.md).

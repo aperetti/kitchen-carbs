@@ -20,7 +20,7 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 
 from concurrent.futures import ThreadPoolExecutor
 
-from . import auth, core, db, dose, labels, lookup, migrations, nightscout, nightscout_send, photos, push, report, tidepool
+from . import auth, core, db, dose, labels, lookup, migrations, nightscout, nightscout_send, photos, push, report, suggest, tidepool
 
 WEB_DIR = os.path.join(os.path.dirname(__file__), "..", "web")
 SEED_DIR = os.path.join(os.path.dirname(__file__), "..", "seed")
@@ -1090,6 +1090,47 @@ def get_plan(c, pid):
     if not p:
         fail(404, "That plan is no longer there. It may have been eaten or deleted on another device.")
     return p
+
+
+@app.get("/api/suggest")
+def suggest_meal(meal: Literal["breakfast", "lunch", "dinner"] | None = None,
+                 carbs: float | None = Query(default=None, ge=suggest.CARBS_MIN, le=suggest.CARBS_MAX),
+                 keep: str = "", swap: str = "", exclude: str = "", lock: str = "", c=Depends(con)):
+    """A meal built from the family's logged meals (okf/features/suggest-meal.md). keep: the foods shown, in order;
+    swap: the one tapped away, to be replaced; exclude: foods tapped away before; lock: food:servings,… kept as set.
+    Nothing is stored."""
+    locked = {}
+    for x in filter(None, lock.split(",")):
+        f, _, q = x.rpartition(":")
+        try:
+            q = float(q)
+        except ValueError:
+            raise HTTPException(422, f"lock: '{x}' isn't food:servings")
+        if f and 0.5 <= q <= 20 and q * 2 == int(q * 2):
+            locked[f] = q
+        else:
+            raise HTTPException(422, f"lock: '{x}' isn't food:servings in halves")
+    mt = meal_times(c)
+    slot = meal or suggest.slot_of(now().strftime("%H:%M"), mt)
+    since = (now() - timedelta(days=suggest.DAYS)).date().isoformat()
+    meals = {}
+    for r in c.execute("SELECT m.id, m.day, m.time, i.food_id, i.portion_id, i.carbs_exact FROM meals m JOIN meal_items i ON i.meal_id = m.id "
+                       "WHERE m.day >= ? AND m.day <= ? AND COALESCE(m.eaten, '') != 'none'", (since, today())):
+        m = meals.setdefault(r["id"], {"day": r["day"], "time": r["time"], "items": []})
+        m["items"].append({"food_id": r["food_id"], "portion_id": r["portion_id"], "carbs": r["carbs_exact"]})
+    foods = {f["id"]: {"name": f["name"], "carbs_per_100g": f["carbs_per_100g"], "portions": [], "tags": set()}
+             for f in c.execute("SELECT id, name, carbs_per_100g FROM foods")}
+    for p in c.execute("SELECT id, food_id, label, grams FROM portions WHERE grams > 0 ORDER BY sort, grams"):
+        foods[p["food_id"]]["portions"].append({"id": p["id"], "label": p["label"], "grams": p["grams"]})
+    for t in c.execute("SELECT ft.food_id, t.name FROM food_tags ft JOIN tags t ON t.id = ft.tag_id"):
+        foods[t["food_id"]]["tags"].add(t["name"].lower())
+    ids = lambda s: [x for x in s.split(",") if x]
+    out = suggest.suggest(list(meals.values()), foods, mt, slot, today(), carbs, ids(keep), swap or None, set(ids(exclude)), locked)
+    ds = dose_settings(c)["settings"]   # for the Bolus slider: units × this ratio = carbs (okf/rules/no-dosing.md)
+    out["carb_ratio"] = dose.block_at(ds["carb_ratio"], mt[slot]) if ds else None
+    out["round_to"] = ds.get("round_to", dose.STEP_U) if ds else None
+    out["meal_time"] = mt[slot]
+    return out
 
 
 @app.get("/api/plans")

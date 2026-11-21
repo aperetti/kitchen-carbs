@@ -494,6 +494,117 @@ function usePlan(p, btn) {
   if (gone.length) return toast(`${p.name} is on the plate. Left out: ${gone.join(", ")} (no longer in the food list). Check it, then Save to log.`);
   openSummary();
 }
+/* ---------- Suggest a meal (okf/features/suggest-meal.md) ----------
+   The server picks the foods and amounts from the logged meals; this shows them, the slider and the swaps.
+   The Bolus slider only turns units into carbs with the carb ratio (okf/rules/no-dosing.md): it fills in no insulin. */
+const sgDlg = $("#suggestDialog");
+const qtyText = q => Number.isInteger(q) ? String(q) : `${Math.floor(q) || ""}½`;
+const SG_MEALS = { breakfast: "breakfast", lunch: "lunch", dinner: "dinner" };
+async function openSuggest() {
+  S.sg = { meal: null, mode: store.get("sgMode", "carbs"), carbs: null, items: [], exclude: [], locked: {}, data: null, busy: true, err: null };
+  sgDlg.showModal(); drawSuggest(); await loadSuggest();
+}
+async function loadSuggest(opts = {}) {   // opts: { fresh } for a new meal, { swap, at } for a tapped food
+  const s = S.sg; if (!s) return;
+  const q = new URLSearchParams();
+  if (s.meal) q.set("meal", s.meal);
+  if (s.carbs != null && !opts.fresh) q.set("carbs", s.carbs);
+  if (!opts.fresh && s.items.length) q.set("keep", s.items.map(i => i.food_id).join(","));
+  if (opts.swap) q.set("swap", opts.swap);
+  if (s.exclude.length) q.set("exclude", s.exclude.join(","));
+  const lock = Object.entries(s.locked).map(([f, n]) => `${f}:${n}`).join(",");
+  if (lock) q.set("lock", lock);
+  s.busy = true; drawSuggestBusy();
+  let d;
+  try { d = await api(`/api/suggest?${q}`); s.err = null; }
+  catch (err) { s.busy = false; s.err = err.message || "Couldn't reach the server."; if (S.sg === s) drawSuggest(); return; }
+  if (S.sg !== s) return;
+  s.busy = false; s.data = d; s.meal = d.meal;
+  if (s.carbs == null || opts.fresh) s.carbs = d.target ?? d.default_carbs;
+  if (!d.carb_ratio && s.mode === "bolus") s.mode = "carbs";
+  s.items = d.items; drawSuggest();   // in order: a swapped-in food sits where the tapped one was
+}
+const sgBolus = s => roundDown(s.carbs / s.data.carb_ratio, s.data.round_to || 0.05);
+const roundDown = (u, step) => Math.round(Math.floor(u / step + 1e-9) * step * 100) / 100;
+function drawSuggestBusy() { const l = $("#sgList"); if (l) l.classList.add("busy"); }
+function drawSuggest() {
+  const s = S.sg, d = s.data; if (!s) return;
+  const head = `<div class="dlghead"><b>Suggest a meal</b><button class="rm" data-sg="close" aria-label="Close">×</button></div>`;
+  const meals = `<div class="seg" role="group" aria-label="Meal">${MEALS.map(([k, n]) =>
+    `<button type="button" data-sgmeal="${k}" class="${s.meal === k ? "on" : ""}" aria-pressed="${s.meal === k}">${n}</button>`).join("")}</div>`;
+  if (!d) { sgDlg.innerHTML = `${head}<div class="dlgbody">${meals}<p class="meta">${s.err ? `<span class="err">${esc(s.err)}</span>` : "Looking through the log…"}</p></div>`; return; }
+  const name = SG_MEALS[d.meal];
+  const basis = !d.based_on ? "" : d.all_meals ? `${d.own ? `Only ${d.own} ${d.own === 1 ? d.meal : MEALS_PLURAL[d.meal]}` : `No ${MEALS_PLURAL[d.meal]}`} logged in the last 90 days, so foods from other meals fill in.`
+    : `From ${d.based_on} ${MEALS_PLURAL[d.meal]} logged in the last 90 days.`;
+  if (!d.items.length && !s.items.length) {
+    sgDlg.innerHTML = `${head}<div class="dlgbody">${meals}<p class="meta">${d.based_on ? "Nothing left to suggest." : "Suggestions start once meals are saved to the log."}</p>
+      <div class="actions"><button class="btn" data-sg="close">Close</button></div></div>`; return;
+  }
+  const ratio = d.carb_ratio, bolus = s.mode === "bolus" && ratio;
+  const u = bolus ? sgBolus(s) : 0, step = d.round_to || 0.05, uMax = Math.floor(150 / ratio / step) * step;
+  const slider = bolus
+    ? `<input type="range" id="sgRange" class="wRange" min="${step}" max="${uMax.toFixed(2)}" step="${step}" value="${Math.max(step, u)}" style="--fill:${fillPct(u, step, uMax)}" aria-label="Bolus in units">`
+    : `<input type="range" id="sgRange" class="wRange" min="5" max="150" step="1" value="${s.carbs}" style="--fill:${fillPct(s.carbs, 5, 150)}" aria-label="Carbs in grams">`;
+  sgDlg.innerHTML = `${head}<div class="dlgbody">
+    ${meals}${basis ? `<p class="meta">${esc(basis)}</p>` : ""}
+    <div class="sgamount">
+      <div class="seg neutral" role="group" aria-label="Size it by">
+        <button type="button" data-sgmode="carbs" class="${!bolus ? "on" : ""}" aria-pressed="${!bolus}">Carbs</button>
+        <button type="button" data-sgmode="bolus" class="${bolus ? "on" : ""}" aria-pressed="${!!bolus}" ${ratio ? "" : `disabled title="Add a carb ratio in Manage → Settings to size it by bolus"`}>Bolus</button></div>
+      <span class="sgnum" id="sgNum">${bolus ? `${u2(u)} <small>u</small>` : `${s.carbs} <small>g carbs</small>`}</span></div>
+    ${slider}
+    <p class="meta" id="sgSum">${bolus ? `${u2(u)} u × ${ratio} g/u (the ${name} carb ratio) = ${s.carbs} g carbs. Carbs only: BG, correction and insulin on board aren't counted, and no insulin is filled in.`
+      : ""}</p>
+    <ul class="sglist${s.busy ? " busy" : ""}" id="sgList">${s.items.map(i => { const f = esc(i.food_id), n = esc(i.food_name), on = !!s.locked[i.food_id]; return `<li class="sgitem${on ? " locked" : ""}">
+        <button type="button" class="lock" data-sglock="${f}" aria-pressed="${on}" aria-label="${on ? `Unlock ${n}` : `Lock ${n} and its serving`}" title="${on ? "Locked: kept with this serving. Tap to unlock" : "Lock: keep it with this serving"}">${lockIcon(on)}</button>
+        <span class="t"><b>${n}</b><span class="sgqty"><span class="stepper" role="group" aria-label="Servings of ${n}"><button type="button" data-sgstep="${f}" data-by="-0.5" aria-label="Half a serving less" ${i.qty <= 0.5 ? "disabled" : ""}>−</button><button type="button" data-sgstep="${f}" data-by="0.5" aria-label="Half a serving more" ${i.qty >= 20 ? "disabled" : ""}>+</button></span>
+          <small>${qtyText(i.qty)} × ${esc(i.portion_label)}</small></span></span>
+        <span class="c">${whole(i.carbs)} g</span>
+        <button type="button" class="x" data-sgswap="${f}" aria-label="Swap out ${n}" ${on ? `disabled title="Unlock it to swap it"` : ""}>×</button></li>`; }).join("")}
+      <li class="sgtotal"><span class="t">Total</span><span class="c">${d.total} g</span><span class="meta">target ${d.target} g</span></li></ul>
+    <p class="meta">Tap × to swap a food for another you often have. Lock a food to keep it and its serving; − and + change the serving and lock it. The other foods are sized around the locked ones.${s.exclude.length ? ` Taken out: ${esc(s.exclude.map(f => foodById(f)?.name || f).join(", "))}.` : ""}</p>
+    ${s.err ? `<p class="err">${esc(s.err)}</p>` : ""}
+    <div class="actions sgacts"><button class="btn primary" data-sg="use" ${s.items.length ? "" : "disabled"}>Put on the plate</button><button class="btn quiet" data-sg="close">Close</button></div>
+  </div>`;
+}
+let sgTimer = 0;
+sgDlg.addEventListener("input", e => {
+  const s = S.sg; if (!s || e.target.id !== "sgRange") return;
+  const v = +e.target.value, bolus = s.mode === "bolus";
+  s.carbs = bolus ? Math.min(150, Math.max(5, Math.round(v * s.data.carb_ratio))) : v;
+  e.target.style.setProperty("--fill", fillPct(v, +e.target.min, +e.target.max));
+  $("#sgNum").innerHTML = bolus ? `${u2(v)} <small>u</small>` : `${v} <small>g carbs</small>`;
+  if (bolus) $("#sgSum").textContent = `${u2(v)} u × ${s.data.carb_ratio} g/u (the ${SG_MEALS[s.meal]} carb ratio) = ${s.carbs} g carbs. Carbs only: BG, correction and insulin on board aren't counted, and no insulin is filled in.`;
+  clearTimeout(sgTimer); sgTimer = setTimeout(() => loadSuggest(), 250);
+});
+sgDlg.addEventListener("click", e => {
+  const s = S.sg; if (!s) return;
+  if (e.target === sgDlg) return sgDlg.close();
+  const t = e.target.closest("[data-sg],[data-sgmeal],[data-sgmode],[data-sgswap],[data-sglock],[data-sgstep]"); if (!t || t.disabled) return;
+  if (t.dataset.sg === "close") sgDlg.close();
+  else if (t.dataset.sgmeal && t.dataset.sgmeal !== s.meal) { s.meal = t.dataset.sgmeal; s.exclude = []; s.locked = {}; s.items = []; loadSuggest({ fresh: true }); }
+  else if (t.dataset.sglock) {   // lock it at its serving now, or let it go back to being sized
+    const f = t.dataset.sglock, i = s.items.find(x => x.food_id === f); if (!i) return;
+    if (s.locked[f]) delete s.locked[f]; else s.locked[f] = i.qty;
+    drawSuggest(); clearTimeout(sgTimer); sgTimer = setTimeout(() => loadSuggest(), 150);
+  }
+  else if (t.dataset.sgstep) {   // a serving set by hand is locked; shown at once, the rest refit after a pause
+    const f = t.dataset.sgstep, i = s.items.find(x => x.food_id === f); if (!i) return;
+    const q = Math.min(20, Math.max(0.5, i.qty + +t.dataset.by));
+    i.carbs = i.carbs / i.qty * q; i.qty = q; s.locked[f] = q;
+    drawSuggest(); clearTimeout(sgTimer); sgTimer = setTimeout(() => loadSuggest(), 400);
+  }
+  else if (t.dataset.sgmode) { s.mode = t.dataset.sgmode; store.set("sgMode", s.mode); drawSuggest(); }
+  else if (t.dataset.sgswap && !s.busy) { s.exclude.push(t.dataset.sgswap); loadSuggest({ swap: t.dataset.sgswap }); }
+  else if (t.dataset.sg === "use") {
+    let gone = [];
+    for (const i of s.items) if (!addToPlate(i.food_id, i.portion_id, i.qty, true)) gone.push(i.food_name);
+    sgDlg.close(); renderPlate();
+    toast(gone.length ? `Put on the plate. Left out: ${gone.join(", ")} (no longer in the food list).` : "Put on the plate. Check or weigh each food before saving.");
+  }
+});
+sgDlg.addEventListener("close", () => { S.sg = null; clearTimeout(sgTimer); sgDlg.innerHTML = ""; });
+
 // the log's 'Planned' list: today lists every plan as an overview; a future day lists only its own
 function planList(d) {
   const today = localDay(), plans = d.day === today ? S.plans : d.day > today ? S.plans.filter(p => p.day === d.day) : [];
@@ -572,18 +683,19 @@ SPLIT_MQ.addEventListener("change", () => {   // rotating a tablet: only Foods a
   });
   bar.addEventListener("dblclick", () => store.set("split", setSplit(.5)));
 })();
-function addToPlate(foodId, portionId) {
-  const f = foodById(foodId), p = f?.portions.find(x => x.id === portionId); if (!p) return;
+function addToPlate(foodId, portionId, qty = 1, quiet = false) {   // qty: portions, for Suggest a meal
+  const f = foodById(foodId), p = f?.portions.find(x => x.id === portionId); if (!p) return false;
   const same = S.plate.find(x => x.portion_id === p.id);
-  if (same) same.grams = Math.min(2000, r1(same.grams + p.grams * stateFactor(same)));
+  if (same) same.grams = Math.min(2000, r1(same.grams + p.grams * qty * stateFactor(same)));
   else {   // weighed as served: cooked when the food has a measured ratio (okf/domain/plate.md)
     const x = { key: uid(), food_id: f.id, food_name: f.name, portion_id: p.id, portion_label: p.label, base: p.grams, qty: 1, photo: shownPhoto(p),
                 basis: f.basis || "as-sold", state: startState(f.basis, f.cook_ratio), cp_basis: f.carbs_per_100g, ratio: f.cook_ratio, ratio_day: f.cook_measured_at };
-    x.grams = r1(p.grams * stateFactor(x)); x.carbs_per_100g = cpFor(x);
+    x.grams = r1(p.grams * qty * stateFactor(x)); x.carbs_per_100g = cpFor(x);
     S.plate.push(x);
   }
   S.justAdded = (same || S.plate[S.plate.length - 1]).key;
-  savePlate(); toast(`Added ${f.name}, ${p.label}`);
+  savePlate(); if (!quiet) toast(`Added ${f.name}, ${p.label}`);
+  return true;
 }
 /* One plate for the family: sent to the server a moment after each change, read every few seconds
    (okf/architecture/shared-plate.md) */
@@ -718,7 +830,8 @@ function unconfirmedHTML(x) {
 }
 function renderPlate() {
   const el = $("#plateView");
-  if (!S.plate.length) { el.innerHTML = scaleBar() + `<div class="empty"><h2>The plate is empty</h2><p>Tap a food to add it, then set its weight here.</p>${splitMode() ? "" : `<p><a class="btn" href="#foods">Go to foods</a></p>`}${handAdd()}</div>${duePlans()}`; paintScale(); setTimeout(tryScale); return; }
+  if (!S.plate.length) { el.innerHTML = scaleBar() + `<div class="empty"><h2>The plate is empty</h2><p>Tap a food to add it, then set its weight here.</p>${splitMode() ? "" : `<p><a class="btn" href="#foods">Go to foods</a></p>`}${handAdd()}</div>${duePlans()}
+    <div class="suggestrow"><button class="btn" data-act="suggest">Suggest a meal</button><span class="meta">From the meals you've logged, sized to the carbs you choose.</span></div>`; paintScale(); setTimeout(tryScale); return; }
   startPlateTime();
   syncPlate();
   el.innerHTML = scaleBar() + (S.plan ? `<p class="planfrom">From the plan <b>${esc(S.plan.name)}</b>, ${esc(planWhen(S.plan))}. Saving it to the log replaces the plan.</p>` : "") + S.plate.map(x => {
@@ -823,6 +936,7 @@ $("#plateView").addEventListener("click", async e => {
   else if (t.dataset.act === "plan-open") { $("#planForm").hidden = false; $("#planName").select(); }
   else if (t.dataset.act === "plan-quick") planQuick(t);
   else if (t.dataset.act === "plan-use") usePlan(S.plans.find(p => p.id === +t.dataset.pid), t);
+  else if (t.dataset.act === "suggest") openSuggest();
   else if (t.dataset.act === "hand-open") { t.hidden = true; $("#handForm").hidden = false; $("#hName").focus(); }
   else if (t.dataset.act === "hand-cancel") { renderPlate(); }
 });
