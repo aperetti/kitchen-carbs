@@ -2,6 +2,8 @@
 Each version is what went to the family's kitchen on that date (okf/architecture/releases.md).
 
 ## Unreleased
+
+## v2026.11.22 · 22 Nov 2026
 - Search now finds your favorite plates too: ones whose name matches show first, marked ★ Favorite. Tap one to put the whole plate on.
 
 ## v2026.11.21 · 21 Nov 2026
