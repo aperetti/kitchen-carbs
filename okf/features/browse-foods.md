@@ -3,10 +3,10 @@ type: Feature
 title: "Browse foods"
 description: "Find foods in a grid of cards with photos, portions and carbs; search and filter by tag or Favorites."
 tags: [feature]
-timestamp: 2026-11-03
+timestamp: 2026-11-22
 status: draft
 links:
-  uses: [domain/food.md, domain/portion.md, domain/photo.md, domain/tag.md, domain/nutrition-source.md]
+  uses: [domain/food.md, domain/portion.md, domain/photo.md, domain/tag.md, domain/nutrition-source.md, domain/favorite-plate.md]
   constrained_by: [rules/provenance-required.md, rules/no-dosing.md, rules/label-reading-needs-check.md]
 ---
 # Browse foods
@@ -28,7 +28,12 @@ links:
   matching food as with All, whatever tag or Favorites was chosen, and the All button is lit. Clearing the search goes
   back to the chosen filter. Tapping a filter while a search is typed clears the search and shows that filter.
   'Look up “…” and add it' appears when no food matches.
-- Searching for several foods in a row (decided 29 Oct): tapping a card while a search is typed adds it, then clears the
+- Search includes favorites (asked for 22 Nov: 'when searching include favorites'): favorite plates whose name matches
+  come first, tagged '★ Favorite', as in Favorites (okf/features/favorite-plates.md): tapping one puts the plate on, and its i
+  shows its details. Favorites with no foods left stay in Favorites only. Matching is by the favorite's name, not the
+  foods in it, so a food's name doesn't fill the grid with every plate that has it. With favorites but no foods
+  matching, 'No foods match, only the favorites above' and the look-up button still show.
+- Searching for several foods in a row (decided 29 Oct): tapping a card (a food or a favorite) while a search is typed adds it, then clears the
   search and puts the cursor back in the search box, so the next name can be typed straight away.
 - Added-to-plate feedback (decided 29 Oct): the tapped card's photo flies to the plate count ('Plate (3)' on a phone,
   the plate total beside the grid on a tablet), which then gives a small bump. With reduced motion set on the device,

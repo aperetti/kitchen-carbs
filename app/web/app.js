@@ -162,10 +162,12 @@ function renderFoods() {
   $("#cats").innerHTML = filters.map(([k, l]) => `<button data-filter="${k}" class="${k === shown ? "on" : ""}">${esc(l)}</button>`).join("");
   if (shown === "fav") return renderFavorites();
   const list = S.foods.filter(f => (shown === "all" || f.tags.includes(shown)) && (!q || f.name.toLowerCase().includes(q)));
-  $("#foodList").innerHTML = list.length ? list.map(foodCard).join("")
+  // a search also finds favorite plates by name, first (okf/features/browse-foods.md); ones with no foods left stay in Favorites
+  const favs = q ? S.favs.filter(f => !orphaned(f) && f.name.toLowerCase().includes(q)) : [];
+  $("#foodList").innerHTML = favs.map(f => favCard(f, true)).join("") + (list.length ? list.map(foodCard).join("")
     : `<div class="empty">${!S.foods.length ? "No foods yet. A parent can add them in Manage."
-        : `<p>No foods match.</p>${S.q.trim().length >= 2 && S.session ? `<p><button class="btn" data-act="add-search">Look up “${esc(S.q.trim())}” and add it</button></p>
-           <p class="meta">A parent checks the numbers first.</p>` : ""}`}</div>`;
+        : `<p>No foods match${favs.length ? `, only the favorite${favs.length > 1 ? "s" : ""} above` : ""}.</p>${S.q.trim().length >= 2 && S.session ? `<p><button class="btn" data-act="add-search">Look up “${esc(S.q.trim())}” and add it</button></p>
+           <p class="meta">A parent checks the numbers first.</p>` : ""}`}</div>`);
 }
 /* Fiber, for reference only: never taken off the carbs (okf/domain/food.md) */
 const fiberIn = (f, g) => Math.round(g * f.fiber_per_100g / 10) / 10;
@@ -214,12 +216,15 @@ function renderFavorites() {
   const list = S.favs, n = S.favs.filter(orphaned).length;
   $("#foodList").innerHTML = (n ? `<p class="orphanbar">${n} favorite${n > 1 ? "s have" : " has"} no foods left.
       <button class="linkbtn" data-act="fav-orphans">${Date.now() - confirmOrphans < 4000 ? `Tap again to remove ${n > 1 ? "them" : "it"}` : `Remove ${n > 1 ? "them" : "it"}`}</button></p>` : "")
-    + (list.length ? list.map(f => {
+    + (list.length ? list.map(f => favCard(f)).join("") : `<div class="empty">No favorite plates yet. Build a plate, then tap Pin as favorite. You can also pin a meal from the log.</div>`);
+}
+function favCard(f, searched = false) {   // searched: among the foods, so it says it's a favorite
     const img = f.photo || f.items.find(i => i.photo)?.photo, open = S.favSel === f.id;
     const usable = !f.items.every(i => i.missing);
-    return `<article class="card ${open ? "open" : ""} ${usable ? "addable" : ""}" ${usable ? `data-favuse="${f.id}" tabindex="0" role="button" aria-label="Put ${esc(f.name)}, ${f.total} grams of carbs, on the plate"` : ""}>
+    const tags = [searched && "★ Favorite", f.missing && (orphaned(f) ? "No foods left" : `${f.missing} item${f.missing > 1 ? "s" : ""} missing`)].filter(Boolean);
+    return `<article class="card ${open ? "open" : ""} ${usable ? "addable" : ""}" ${usable ? `data-favuse="${f.id}" tabindex="0" role="button" aria-label="Put the favorite ${esc(f.name)}, ${f.total} grams of carbs, on the plate"` : ""}>
       <div class="cimg">${img ? `<img ${sized(img, "(min-width: 1100px) 300px, 50vw")} alt="" loading="lazy">` : `<span class="noimg"></span>`}
-        ${f.missing ? `<div class="ctags"><span>${orphaned(f) ? "No foods left" : `${f.missing} item${f.missing > 1 ? "s" : ""} missing`}</span></div>` : ""}
+        ${tags.length ? `<div class="ctags">${tags.map(t => `<span>${t}</span>`).join("")}</div>` : ""}
         <b class="cname" title="${esc(f.name)}"><span>${esc(f.name)}</span></b>
         <button class="info" data-favinfo="${f.id}" aria-expanded="${open}" aria-label="More for ${esc(f.name)}">${open ? "×" : "i"}</button>
         ${open ? `<div class="cinfo" data-stay><b>${esc(f.name)}</b><span>${esc(favSummary(f))} · ${f.total} g carbs</span>
@@ -231,7 +236,6 @@ function renderFavorites() {
             <button type="button" class="linkbtn" data-act="fav-drop">${Date.now() - confirmDrop < 4000 ? "Tap again to remove them" : `Remove the missing item${f.missing > 1 ? "s" : ""}`}</button>` : ""}
           <button type="button" class="linkbtn" data-act="fav-unpin">${confirmUnpin && Date.now() - confirmUnpin < 4000 ? "Tap again to unpin" : "Unpin this favorite"}</button></div>` : ""}</div>
     </article>`;
-  }).join("") : `<div class="empty">No favorite plates yet. Build a plate, then tap Pin as favorite. You can also pin a meal from the log.</div>`);
 }
 let confirmUnpin = 0;
 function useFavorite(f) {
@@ -326,8 +330,11 @@ $("#v-foods").addEventListener("click", async e => {
     else addFromCard(t, f, f.portions[0].id);
   }
   else if (t.dataset.info) { S.openCard = S.openCard === t.dataset.info ? null : t.dataset.info; renderFoods(); }
-  else if (t.dataset.favuse) { useFavorite(S.favs.find(x => x.id === +t.dataset.favuse)); flash(t); }
-  else if (t.dataset.favinfo) { S.favSel = S.favSel === +t.dataset.favinfo ? null : +t.dataset.favinfo; confirmUnpin = 0; renderFavorites(); }
+  else if (t.dataset.favuse) {
+    useFavorite(S.favs.find(x => x.id === +t.dataset.favuse)); flash(t);
+    if (S.q) { S.q = ""; $("#q").value = ""; renderFoods(); $("#q").focus(); }   // as with a food: clear it and keep typing
+  }
+  else if (t.dataset.favinfo) { S.favSel = S.favSel === +t.dataset.favinfo ? null : +t.dataset.favinfo; confirmUnpin = 0; renderFoods(); }
   else if (t.dataset.act === "fav-orphans") {   // a second tap within 4 s confirms
     if (Date.now() - confirmOrphans > 4000) { confirmOrphans = Date.now(); renderFoods(); return; }
     confirmOrphans = 0;
