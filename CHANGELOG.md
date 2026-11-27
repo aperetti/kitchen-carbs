@@ -2,6 +2,7 @@
 Each version is what went to the family's kitchen on that date (okf/architecture/releases.md).
 
 ## Unreleased
+- Meal summary: a Now button next to when the insulin was given sets it to right now. If the meal time has already passed, the meal moves to now too.
 
 ## v2026.11.27 · 27 Nov 2026
 - Notifications now go to every phone that has them on, including the one that logged it. Basal, carbs and a BG on its own typed on your phone now notify it too.

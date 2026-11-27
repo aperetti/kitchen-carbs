@@ -784,7 +784,7 @@ p.moved { margin: 6px 0 0; }
 .dosedlg .sumacts { position: sticky; bottom: -20px; z-index: 2; background: var(--surface); padding: 12px 0; border-top: 1px solid var(--line); }
 @media (max-width: 680px) { .dosedlg { width: 100vw; max-width: 100vw; } }
 @media (max-width: 420px) { .sumrows { gap: 8px 10px; font-size: 15px; } .sumdose .n { font-size: 48px; } .spair + .spair > label { width: 4.2em; margin-left: 0; }
-  .mdet.sumdet .dMinNote { flex-basis: 100%; min-height: 0; margin: -2px 0 0 calc(5.6 * 16px + 10px); } .mdet.sumdet .unitin input { width: 80px; } .btn.sumuse { padding: 0 9px; } .sumdet .srow { column-gap: 8px; } }
+  .mdet.sumdet .sumgivenat { flex-basis: 100%; margin: -2px 0 0 calc(5.6 * 16px + 10px); } .mdet.sumdet .dMinNote { min-height: 0; } .mdet.sumdet .unitin input { width: 80px; } .btn.sumuse { padding: 0 9px; } .sumdet .srow { column-gap: 8px; } }
 /* insulin settings form */
 .doseset { border: 0; padding: 0; margin: 0; display: grid; gap: 8px; }
 .doseset legend { font-weight: 500; margin-bottom: 6px; }
@@ -801,7 +801,8 @@ p.moved { margin: 6px 0 0; }
 .mdet { display: grid; gap: 12px; margin-top: 8px; }
 .mdet .mrow { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px 12px; }
 .mdet .field { margin: 0; }
-.mdet .dMinNote { min-height: 44px; display: flex; align-items: center; }   /* level with the minutes box; wraps tightly */
+.mdet .dMinNote { min-height: 44px; display: flex; align-items: center; }
+.sumgivenat { display: flex; align-items: center; gap: 10px; }   /* the clock time it was given, then Now */   /* level with the minutes box; wraps tightly */
 .mdet .unitin, .tphours .unitin { display: inline-flex; align-items: center; gap: 6px; color: var(--vein); }
 .mdet .unitin input, .tphours .unitin input { width: 96px; height: 44px; border: 1px solid var(--line); border-radius: 10px; background: var(--paper); padding: 0 10px; font-size: 18px; color: var(--ink); }
 .mdet .unitin[hidden] { display: none; }

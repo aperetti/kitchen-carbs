@@ -182,3 +182,4 @@
 - 2026-11-22 — Browse foods: a search also lists favorite plates whose name matches, first, tagged '★ Favorite'; tapping one puts it on the plate and clears the search (features/browse-foods.md).
 - 2026-11-22 — Notifications go to the device that logged it too, so entries (basal, carbs, a BG alone) typed on the only signed-up phone notify it (features/notify-family.md).
 - 2026-11-26 — Meal summary: a Now button beside 'Meal eaten' sets the day and time to now (features/meal-dose-summary.md).
+- 2026-11-27 — Meal summary: a Now button beside 'Given' sets the insulin to the current minute, moving a passed meal time to now (features/meal-dose-summary.md).

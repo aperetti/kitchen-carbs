@@ -1055,7 +1055,8 @@ function openSummary() {
           <div class="srow"><label for="sumIns">Dose</label><span class="unitin"><input id="sumIns" class="dIns" type="number" inputmode="decimal" min="0.05" max="100" step="0.05" placeholder="Units"> u</span>
             <button type="button" class="btn small sumuse" id="sumUse" data-sum="use-dose" hidden></button></div>
           <div class="srow"><label for="sumMin">Given</label><span class="unitin"><input id="sumMin" class="dMin" type="number" inputmode="numeric" min="0" max="120" step="1"
-            value="${preMin(null)}" placeholder="0" data-at="${S.sum.at}" data-auto="1"> min before the meal</span><span class="meta dMinNote">${minNote(preMin(null), S.sum.at)}</span></div>
+            value="${preMin(null)}" placeholder="0" data-at="${S.sum.at}" data-auto="1"> min before the meal</span><span class="sumgivenat"><span class="meta dMinNote">${minNote(preMin(null), S.sum.at)}</span>
+            <button type="button" class="btn small sumnow" data-sum="given-now" aria-label="Insulin given now">Now</button></span></div>
           <div class="srow sumwhen"><label for="sumAt">Meal eaten</label><button type="button" class="linkbtn" id="sumDayLink" data-sum="day" aria-label="Change the day the meal was eaten">${sumDayWord(S.sum.day)}</button>
             <input type="date" id="sumDay" value="${S.sum.day}" max="${localDay()}" required hidden aria-label="Day the meal was eaten">
             <input type="time" id="sumAt" value="${S.sum.at}" required><button type="button" class="btn small sumnow" data-sum="now" aria-label="Set the meal time to now">Now</button></div>
@@ -1231,6 +1232,15 @@ doseDlg.addEventListener("click", async e => {
   if (t.dataset.sum === "close") doseDlg.close();
   else if (t.dataset.sum === "settings") doseDlg.close();
   else if (t.dataset.sum === "day") sumDayLink(true);
+  else if (t.dataset.sum === "given-now") {   // the insulin at the current minute: the minutes before a meal still ahead,
+    const now = hhmm(), i = $("#sumMin");   // or 0 with the meal moved to now if its time has passed (okf/features/meal-dose-summary.md)
+    const ahead = $("#sumDay").value === localDay() && $("#sumAt").value >= now;
+    if (!ahead) { $("#sumDay").value = localDay(); $("#sumAt").value = now; }
+    const at = $("#sumAt").value, n = (+at.slice(0, 2) * 60 + +at.slice(3, 5)) - (+now.slice(0, 2) * 60 + +now.slice(3, 5));
+    i.value = Math.min(120, n); delete i.dataset.auto;
+    $("#sumAt").dispatchEvent(new Event("change", { bubbles: true })); $("#sumDayLink").textContent = sumDayWord($("#sumDay").value);
+    minFollow(doseDlg.querySelector(".mdet"), undefined, at);
+  }
   else if (t.dataset.sum === "now") {   // today at the current minute, as if typed in the boxes (okf/features/meal-dose-summary.md)
     $("#sumDay").value = localDay(); $("#sumAt").value = hhmm(); sumDayLink(false);
     $("#sumAt").dispatchEvent(new Event("change", { bubbles: true })); $("#sumDayLink").textContent = sumDayWord(localDay());
