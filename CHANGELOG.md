@@ -2,6 +2,8 @@
 Each version is what went to the family's kitchen on that date (okf/architecture/releases.md).
 
 ## Unreleased
+
+## v2026.11.27.2 · 27 Nov 2026
 - Meal summary: a Now button next to when the insulin was given sets it to right now. If the meal time has already passed, the meal moves to now too.
 
 ## v2026.11.27 · 27 Nov 2026
