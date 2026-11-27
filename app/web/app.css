@@ -737,6 +737,7 @@ p.moved { margin: 6px 0 0; }
 .spair { display: inline-flex; align-items: center; gap: 10px; }
 .spair + .spair > label { width: auto; margin-left: 6px; }
 .srow input[type="date"], .srow input[type="time"] { height: 44px; border: 1px solid var(--line); border-radius: 10px; background: var(--paper); padding: 0 10px; font-size: 16px; color: var(--ink); }
+.srow.sumwhen { flex-wrap: nowrap; } .srow.sumwhen input[type="time"] { min-width: 0; flex: 0 1 auto; } .btn.sumnow { flex: none; padding: 0 12px; }   /* Now stays beside the time on a phone */
 .sumdose { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
 .sumdose .label { flex: 1 1 100%; }
 .sumdose .n { font-size: 56px; font-weight: 500; line-height: 1; color: var(--accent); font-variant-numeric: tabular-nums; }

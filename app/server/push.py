@@ -50,8 +50,8 @@ def _send_one(vapid, subject, sub, payload):
         return str(e)[:200]
 
 
-def send(payload: dict, skip: str = "", only: str = "") -> dict:
-    """Send to every subscribed device except `skip` (or only to `only`). Returns {sent, failed} for tests and 'Send a test'."""
+def send(payload: dict, only: str = "") -> dict:
+    """Send to every subscribed device (or only to `only`). Returns {sent, failed} for tests and 'Send a test'."""
     out = {"sent": 0, "failed": 0}
     if not enabled():
         return out
@@ -60,7 +60,7 @@ def send(payload: dict, skip: str = "", only: str = "") -> dict:
         vapid, subject = _vapid(c), db.get_setting(c, "push_subject") or "https://localhost"
         subs = c.execute("SELECT * FROM push_subscriptions").fetchall()
         for s in subs:
-            if s["endpoint"] == skip or (only and s["endpoint"] != only):
+            if only and s["endpoint"] != only:
                 continue
             err = _send_one(vapid, subject, s, payload)
             stamp = datetime.now().strftime("%Y-%m-%d %H:%M")
@@ -79,6 +79,6 @@ def send(payload: dict, skip: str = "", only: str = "") -> dict:
     return out
 
 
-def send_later(payload: dict, skip: str = ""):
+def send_later(payload: dict):
     """A save never waits on Google's or Apple's push service, and a failed push never fails a save."""
-    threading.Thread(target=lambda: send(payload, skip), daemon=True).start()
+    threading.Thread(target=lambda: send(payload), daemon=True).start()

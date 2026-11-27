@@ -1414,11 +1414,11 @@ PHONE = {"endpoint": "https://fcm.googleapis.com/fcm/send/phone-1", "p256dh": "B
 
 
 def test_notify_on_meal_and_entry(app, monkeypatch):
-    """okf/features/notify-family.md: every subscribed device but the one that logged it, with the logged numbers only."""
+    """okf/features/notify-family.md: every subscribed device, the one that logged it too, with the logged numbers only."""
     client, main = app
     sent = []
     monkeypatch.setattr(main.push, "_send_one", lambda vapid, subject, sub, payload: sent.append((sub["endpoint"], payload)))
-    monkeypatch.setattr(main.push, "send_later", lambda payload, skip="": main.push.send(payload, skip))
+    monkeypatch.setattr(main.push, "send_later", lambda payload: main.push.send(payload))
     assert client.get("/api/push").json()["public_key"]
     assert client.post("/api/push/subscribe", json=PHONE, headers={"X-Parent-Pin": "0000"}).status_code == 401
     assert client.post("/api/push/subscribe", json={**PHONE, "endpoint": "https://192.168.0.1/x"}).status_code == 422
@@ -1428,16 +1428,22 @@ def test_notify_on_meal_and_entry(app, monkeypatch):
     client.post("/api/push/subscribe", json=tablet)
     body = meal(); body.update(bg=182, bg_source="meter", insulin=2.5, insulin_kind="bolus")
     client.post("/api/meals", json=body, headers={"X-KC-Push": tablet["endpoint"]})
-    assert [e for e, _ in sent] == [PHONE["endpoint"]]
+    assert [e for e, _ in sent] == [PHONE["endpoint"], tablet["endpoint"]]   # the tablet that logged it too
     p = sent[0][1]
     assert p["title"].startswith("Meal logged · ") and p["title"].endswith(" g carbs")
     assert p["body"] == "18:05 · Pasta, cooked · BG 182 mg/dL · 2.5 u bolus"
     client.post("/api/meals", json=body, headers={"X-KC-Push": tablet["endpoint"]})   # the same meal again: saved once, told once
-    assert len(sent) == 1
+    assert len(sent) == 2
     sent.clear()
     client.post("/api/entries", json={"client_id": "entry-0001", "day": "2026-10-26", "time": "15:10", "bg": 95, "carbs": 15, "note": "juice"})
     assert [p for _, p in sent][0] == {"title": "BG 95 mg/dL · 15 g carbs", "body": "Mon 26 Oct, 15:10 · juice", "tag": sent[0][1]["tag"], "url": "/#log"}
     assert len(sent) == 2
+    for n, (e, title) in enumerate(((dict(insulin=6, insulin_kind="long"), "6 u long-acting"), (dict(carbs=20), "20 g carbs"),
+                                    (dict(bg=140), "BG 140 mg/dL"))):   # basal, carbs, a BG alone: typed on the phone, the phone told too
+        sent.clear()
+        client.post("/api/entries", json={"client_id": f"entry-10{n:02d}", "day": "2026-10-27", "time": "18:00", **e},
+                    headers={"X-KC-Push": PHONE["endpoint"]})
+        assert sorted(x for x, _ in sent) == sorted([PHONE["endpoint"], tablet["endpoint"]]) and sent[0][1]["title"] == title
     devs = client.get("/api/push/devices", headers={"X-KC-Push": PHONE["endpoint"]}).json()
     assert [d["mine"] for d in devs] == [True, False] and devs[0]["device"] == "Android · Chrome"
     client.post("/api/push/unsubscribe", json={"endpoint": PHONE["endpoint"]}, headers={"X-Parent-Pin": ""})
@@ -1510,7 +1516,7 @@ def test_edit_entry_values(app, monkeypatch):
     """okf/features/manual-log.md: values fixed or added later, same checks as adding, marked after its day."""
     client, main = app
     sent = []
-    monkeypatch.setattr(main.push, "send_later", lambda payload, skip="": sent.append(payload))
+    monkeypatch.setattr(main.push, "send_later", lambda payload: sent.append(payload))
     eid = client.post("/api/entries", json=entry(bg=142)).json()["id"]
     r = client.put(f"/api/entries/{eid}", json={"bg": 124, "carbs": 15, "insulin": 1.5, "insulin_kind": "rapid", "note": " juice "})
     assert r.status_code == 200 and (r.json()["bg"], r.json()["carbs"], r.json()["insulin"], r.json()["note"], r.json()["edited_at"]) == (124, 15, 1.5, "juice", None)

@@ -1848,7 +1848,7 @@ def review_photo(pid: int, body: ReviewIn, c=Depends(con)):
 
 # ----- meals -----
 @app.post("/api/meals")
-def create_meal(body: MealIn, c=Depends(con), x_kc_push: str = Header(default="")):
+def create_meal(body: MealIn, c=Depends(con)):
     if body.day > today():
         fail(400, "A meal can't be logged for a future day.")
     existing = c.execute("SELECT id FROM meals WHERE client_id = ?", (body.client_id,)).fetchone()
@@ -1863,7 +1863,7 @@ def create_meal(body: MealIn, c=Depends(con), x_kc_push: str = Header(default=""
             insert_item(c, mid, i)
         if body.plan_id is not None:
             c.execute("DELETE FROM planned_meals WHERE id = ?", (body.plan_id,))
-    notify(lambda: meal_notice(c, mid), x_kc_push)
+    notify(lambda: meal_notice(c, mid))
     return {"id": mid, "duplicate": False}
 
 
@@ -2087,10 +2087,11 @@ def entry_notice(e) -> dict:
             "body": " · ".join(x for x in (_when(e["day"], e["time"]), e["note"]) if x)}
 
 
-def notify(notice, skip: str):
-    """After the save: a notice that can't be built is logged, never turned into a failed save."""
+def notify(notice):
+    """After the save, to every device with notifications on, the one that logged it too (decided 22 Nov).
+    A notice that can't be built is logged, never turned into a failed save."""
     try:
-        push.send_later(notice(), skip=skip)
+        push.send_later(notice())
     except Exception:
         push.log.exception("notification not sent")
 
@@ -2177,7 +2178,7 @@ def push_test(body: PushEndpointIn, c=Depends(con)):
 
 
 @app.post("/api/entries")
-def create_entry(body: EntryIn, c=Depends(con), x_kc_push: str = Header(default="")):
+def create_entry(body: EntryIn, c=Depends(con)):
     if body.day > today():
         fail(400, "An entry can't be logged for a future day.")
     if body.day < today() and not past_edits(c):
@@ -2191,7 +2192,7 @@ def create_entry(body: EntryIn, c=Depends(con), x_kc_push: str = Header(default=
                         (body.client_id, body.day, body.time, body.carbs, body.bg, body.bg is not None and (body.bg_source or "meter") or None, body.insulin,
                          body.insulin_kind if body.insulin is not None else None, body.note.strip(),
                          now().strftime("%Y-%m-%d %H:%M") if body.day < today() else None)).lastrowid
-    notify(lambda: entry_notice(get_entry(c, eid)), x_kc_push)
+    notify(lambda: entry_notice(get_entry(c, eid)))
     return {"id": eid, "duplicate": False}
 
 

@@ -3,7 +3,7 @@ type: Feature
 title: "Notify parents' phones"
 description: "A phone that turns it on gets a notification whenever a meal is saved or a manual entry (BG, insulin, carbs) is added, from any device, with the numbers that were logged."
 tags: [feature]
-timestamp: 2026-10-31
+timestamp: 2026-11-22
 status: draft
 links:
   uses: [domain/meal.md, domain/manual-entry.md, domain/meal-log.md, domain/family-account.md]
@@ -19,7 +19,10 @@ phone push from the app itself (no separate app or account); the notification sh
 - iPhone and iPad only allow it once the app is installed to the Home Screen and opened from there (iOS 16.4 or
   later); in Safari the section says so with the Share → Add to Home Screen steps (okf/features/install-app.md).
 - Sent when a meal is saved (including a queued meal arriving later) and when a manual entry is added. Not for
-  edits, comments, moves or deletes. The device that logged it is not notified.
+  edits, comments, moves or deletes. Every kind of entry counts: a BG on its own, basal, carbs, a correction.
+- The device that logged it is notified too (decided 22 Nov, replacing 31 Oct's 'not the device that logged it'): with
+  one phone signed up, entries typed on it (basal, carbs, a BG) notified nobody. The device list still marks 'This
+  device'.
 - Meal: 'Meal logged · 48 g carbs', then the time (with the day if not today), the foods, and any BG and insulin typed
   with it: '12:30 · Pasta, Apple · BG 182 mg/dL · 2.5 u rapid-acting'.
 - Entry: 'BG 182 mg/dL · 2.5 u rapid-acting · 15 g carbs' (what was typed, in that order), then the time and note.

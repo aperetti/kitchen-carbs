@@ -180,3 +180,5 @@
 - 2026-11-20 — Suggest a meal: foods nearly always had together come as a group (ketchup with nuggets, dressing with carrots) and leave together on a swap; more carbs adds a food once the shown ones are a quarter over their usual amounts, rather than stretching portions (features/suggest-meal.md).
 - 2026-11-20 — Suggest a meal: a lock and a − / + serving stepper on each food; locked foods keep their serving, aren't swapped or dropped, and the rest is sized around them (features/suggest-meal.md).
 - 2026-11-22 — Browse foods: a search also lists favorite plates whose name matches, first, tagged '★ Favorite'; tapping one puts it on the plate and clears the search (features/browse-foods.md).
+- 2026-11-22 — Notifications go to the device that logged it too, so entries (basal, carbs, a BG alone) typed on the only signed-up phone notify it (features/notify-family.md).
+- 2026-11-26 — Meal summary: a Now button beside 'Meal eaten' sets the day and time to now (features/meal-dose-summary.md).

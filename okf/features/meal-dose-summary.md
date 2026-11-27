@@ -3,7 +3,7 @@ type: Feature
 title: "Meal summary and dose"
 description: "Tapping 'Save to log' opens a summary of the plate with the insulin worked out from the parent's ratios, the BG and insulin on board, step by step."
 tags: [feature, safety]
-timestamp: 2026-11-17
+timestamp: 2026-11-26
 status: draft
 links:
   uses: [domain/plate.md, domain/insulin-settings.md, domain/glucose-reading.md]
@@ -22,7 +22,8 @@ Decided 29 Oct. 'Save to log' on the plate opens a modal before anything is save
   3. 'What was given' (optional): Bolus / Basal, Dose (with '← Fill in … u'), 'Given' with 'min before the meal' and the
      clock time it was given, then 'Meal eaten' with the day as a link ('Today', 'Yesterday' or 'Mon, Nov 9') and the
      time box (decided 10 Nov: the date box took a row of its own; tapping the link opens the date box and its picker,
-     and it goes back to a link once the day is picked). Then Save to log and Back to plate.
+     and it goes back to a link once the day is picked). A Now button beside the time box (asked for 26 Nov) sets it to today at
+     the current minute, and the dose and heading follow as if typed. Then Save to log and Back to plate.
   The parent's mock-up said 'Recommended dose' and 'Match recommended'; the app keeps 'Insulin for this meal' and 'Use
   … u', because it describes the sum and doesn't advise (okf/rules/no-dosing.md).
 - The meal: each food with its weight and carbs, the time, and the carb total.

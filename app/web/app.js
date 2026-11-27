@@ -56,7 +56,7 @@ async function api(path, { method = "GET", body, form, parent = false } = {}) {
   const headers = {};
   if (body) headers["Content-Type"] = "application/json";
   if (parent) headers["X-Parent-Pin"] = pinStore.get();
-  const mine = store.get("push", "");   // this device's own saves don't notify it (okf/features/notify-family.md)
+  const mine = store.get("push", "");   // marks this device in the notification device list (okf/features/notify-family.md)
   if (mine) headers["X-KC-Push"] = mine;
   let r;
   try { r = await fetch(path, { method, headers, body: form || (body && JSON.stringify(body)) }); }
@@ -1056,9 +1056,9 @@ function openSummary() {
             <button type="button" class="btn small sumuse" id="sumUse" data-sum="use-dose" hidden></button></div>
           <div class="srow"><label for="sumMin">Given</label><span class="unitin"><input id="sumMin" class="dMin" type="number" inputmode="numeric" min="0" max="120" step="1"
             value="${preMin(null)}" placeholder="0" data-at="${S.sum.at}" data-auto="1"> min before the meal</span><span class="meta dMinNote">${minNote(preMin(null), S.sum.at)}</span></div>
-          <div class="srow"><label for="sumAt">Meal eaten</label><button type="button" class="linkbtn" id="sumDayLink" data-sum="day" aria-label="Change the day the meal was eaten">${sumDayWord(S.sum.day)}</button>
+          <div class="srow sumwhen"><label for="sumAt">Meal eaten</label><button type="button" class="linkbtn" id="sumDayLink" data-sum="day" aria-label="Change the day the meal was eaten">${sumDayWord(S.sum.day)}</button>
             <input type="date" id="sumDay" value="${S.sum.day}" max="${localDay()}" required hidden aria-label="Day the meal was eaten">
-            <input type="time" id="sumAt" value="${S.sum.at}" required></div>
+            <input type="time" id="sumAt" value="${S.sum.at}" required><button type="button" class="btn small sumnow" data-sum="now" aria-label="Set the meal time to now">Now</button></div>
         </div><p class="lowwarn" id="sumLow" role="alert" hidden></p></div>
       <div class="sumask" id="sumNoIns" role="alert" hidden></div>
       <div class="actions sumacts"><button class="btn primary" data-sum="save">Save to log</button><button class="btn quiet" data-sum="close">Back to plate</button></div>
@@ -1231,6 +1231,10 @@ doseDlg.addEventListener("click", async e => {
   if (t.dataset.sum === "close") doseDlg.close();
   else if (t.dataset.sum === "settings") doseDlg.close();
   else if (t.dataset.sum === "day") sumDayLink(true);
+  else if (t.dataset.sum === "now") {   // today at the current minute, as if typed in the boxes (okf/features/meal-dose-summary.md)
+    $("#sumDay").value = localDay(); $("#sumAt").value = hhmm(); sumDayLink(false);
+    $("#sumAt").dispatchEvent(new Event("change", { bubbles: true })); $("#sumDayLink").textContent = sumDayWord(localDay());
+  }
   else if (t.dataset.sum === "details") { S.sum.details = !S.sum.details; drawDose(); }
   else if (t.dataset.sum === "use-dose") {
     const box = doseDlg.querySelector(".mdet .dIns"); box.value = +t.dataset.u; doseDlg.querySelector(".mdet [data-dkind=bolus]").click();
